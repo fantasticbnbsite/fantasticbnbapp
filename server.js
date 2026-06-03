@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   status TEXT NOT NULL DEFAULT 'pending',
   requested_date TEXT NOT NULL,
   notes TEXT NOT NULL DEFAULT '',
+  employee_notes TEXT NOT NULL DEFAULT '',
   started_at TEXT,
   finished_at TEXT,
   duration_hours REAL,
@@ -300,6 +301,7 @@ try { db.exec('ALTER TABLE flats ADD COLUMN hourly_holiday_rate REAL NOT NULL DE
 try { db.exec('ALTER TABLE jobs ADD COLUMN invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payrolls(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN employee_notes TEXT NOT NULL DEFAULT "";'); } catch {}
 
 migrateUserRoles();
 seedDatabase();
@@ -748,11 +750,14 @@ async function handleApi(req, res, requestUrl) {
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
 
     const now = new Date().toISOString();
+    let body = {};
+    try {
+      body = await parseBody(req);
+    } catch (e) {}
 
     if (action === 'assign') {
       if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       if (!['pending', 'assigned'].includes(job.status)) return sendJson(res, 400, { error: `Nao e possivel designar um servico com status '${job.status}'.` });
-      const body = await parseBody(req);
       const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'employee'").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
       db.prepare('UPDATE jobs SET employee_user_id=?, status=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', now, jobId);
@@ -806,7 +811,7 @@ async function handleApi(req, res, requestUrl) {
       }
       const clientAmount = flat.billing_type === 'project' ? roundCurrency(Number(flat.project_rate || 0)) : roundCurrency(durationHours * clientRate);
 
-      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, now, jobId);
+      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', now, jobId);
 
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
@@ -1590,6 +1595,7 @@ function hydrateJob(row) {
     status: row.status,
     requestedDate: row.requested_date,
     notes: row.notes || '',
+    employeeNotes: row.employee_notes || '',
     startedAt: row.started_at || null,
     finishedAt: row.finished_at || null,
     durationHours: row.duration_hours !== null && row.duration_hours !== undefined ? Number(row.duration_hours) : null,

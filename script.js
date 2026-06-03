@@ -2667,6 +2667,7 @@ function renderJobs() {
         <small>Funcionario: ${escapeHtml(job.employeeName || 'Nenhum')}</small>
         ${job.durationHours ? `<small>Duracao: ${job.durationHours}h</small>` : ''}
         ${job.notes ? `<small>Notas: ${escapeHtml(job.notes)}</small>` : ''}
+        ${job.employeeNotes ? `<small style="color:var(--primary); font-weight:500;">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
         <div class="table-actions" style="margin-top:8px;">${actions}</div>
       </div>
     `;

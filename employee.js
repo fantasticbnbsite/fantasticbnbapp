@@ -281,6 +281,9 @@ const App = (() => {
 
     if (job.status === 'in_progress') {
       actionsHtml = `
+        <div class="employee-notes-wrapper" style="margin-bottom: 12px;">
+          <textarea id="obs-${job.id}" class="form-input" rows="2" placeholder="Alguma observação sobre a limpeza? (Opcional)"></textarea>
+        </div>
         <button class="btn btn-finish" onclick="App.finishJob('${job.id}', this)">
           <span class="spinner"></span>
           <span class="btn-text">🏁 Finalizar</span>
@@ -469,7 +472,12 @@ const App = (() => {
   async function finishJob(jobId, btn) {
     setButtonLoading(btn, true);
     try {
-      const data = await apiFetch(`/api/jobs/${jobId}/finish`, { method: 'PATCH' });
+      const obsInput = document.getElementById('obs-' + jobId);
+      const employeeNotes = obsInput ? obsInput.value : '';
+      const data = await apiFetch(`/api/jobs/${jobId}/finish`, { 
+        method: 'PATCH',
+        body: JSON.stringify({ employeeNotes })
+      });
       showToast('Serviço concluído! 🎉', 'success');
       // Merge returned job data if available
       if (data && data.job) {
