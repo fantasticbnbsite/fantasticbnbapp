@@ -266,6 +266,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS payrolls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_user_id INTEGER NOT NULL,
+  client_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   period_from TEXT NOT NULL,
   period_to TEXT NOT NULL,
   total_amount REAL NOT NULL,
@@ -298,6 +299,7 @@ try { db.exec('ALTER TABLE flats ADD COLUMN hourly_weekend_rate REAL NOT NULL DE
 try { db.exec('ALTER TABLE flats ADD COLUMN hourly_holiday_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payrolls(id) ON DELETE SET NULL;'); } catch {}
+try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 
 migrateUserRoles();
 seedDatabase();
