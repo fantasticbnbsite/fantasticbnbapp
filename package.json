@@ -1,0 +1,13 @@
+{
+  "name": "fantastic-bnb-mvp",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "MVP multi-clientes para substituir planilhas por uma plataforma SaaS moderna.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
