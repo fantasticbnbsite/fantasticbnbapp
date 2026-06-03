@@ -300,10 +300,10 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN invoice_id INTEGER REFERENCES invoice
 try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payrolls(id) ON DELETE SET NULL;'); } catch {}
 
 migrateUserRoles();
-// seedDatabase();
-// syncClientCatalog();
+seedDatabase();
+syncClientCatalog();
 seedCollaboratorModule();
-// seedCleanOps();
+seedCleanOps();
 createBackup('startup');
 setInterval(() => createBackup('auto'), BACKUP_INTERVAL_MS).unref();
 
