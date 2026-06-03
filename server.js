@@ -301,9 +301,9 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payroll
 
 migrateUserRoles();
 seedDatabase();
-syncClientCatalog();
-seedCollaboratorModule();
-seedCleanOps();
+// syncClientCatalog();
+// seedCollaboratorModule();
+// seedCleanOps();
 createBackup('startup');
 setInterval(() => createBackup('auto'), BACKUP_INTERVAL_MS).unref();
 
@@ -1931,32 +1931,10 @@ function migrateUserRoles() {
 }
 
 function seedDatabase() {
-  if (db.prepare('SELECT COUNT(*) AS total FROM clients').get().total > 0) return;
-  DEFAULT_CLIENT_CATALOG.forEach((client) => {
-    const result = db.prepare('INSERT INTO clients (name, slug, segment) VALUES (?, ?, ?)').run(client.name, client.slug, client.segment);
-    createDefaultClientConfig(result.lastInsertRowid);
-  });
-  [
-    { name: 'Luis Admin', email: 'admin@fantasticbnb.app', role: 'superadmin', password: 'admin123', clientIds: DEFAULT_CLIENT_CATALOG.map((_, i) => i + 1) },
-    { name: 'Paula Operacoes', email: 'operacoes@fantasticbnb.app', role: 'manager', password: 'manager123', clientIds: [1, 2, 7] },
-    { name: 'Bruno Viewer', email: 'viewer@fantasticbnb.app', role: 'viewer', password: 'viewer123', clientIds: [7, 8] },
-  ].forEach((user) => {
-    const { salt, hash } = hashPassword(user.password);
-    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, role, password_hash, password_salt, hourly_rate) VALUES (?, ?, ?, ?, ?, ?)').run(user.name, user.email, user.role, hash, salt, 0);
-    const userId = result.changes > 0 ? result.lastInsertRowid : db.prepare('SELECT id FROM users WHERE email = ?').get(user.email).id;
-    user.clientIds.forEach((clientId) => db.prepare('INSERT OR IGNORE INTO user_clients (user_id, client_id) VALUES (?, ?)').run(userId, clientId));
-  });
-  const seedRows = [
-    [1, 'Checklist mensal de onboarding', 'em-andamento', { responsavel: 'Clara', prioridade: 'Alta', checkin: '2026-04-28', valor: '4120', observacoes: 'Ajustar fluxo operacional da SIMPLY.' }],
-    [2, 'Conferencia de repasses', 'novo', { responsavel: 'Jorge', prioridade: 'Media', checkin: '2026-04-30', valor: '980', observacoes: 'Revisar documentos de SETL.' }],
-    [7, 'Fechamento folha abril', 'concluido', { responsavel: 'Bianca', prioridade: 'Alta', checkin: '2026-05-02', valor: '12800', observacoes: 'Holerites consolidados para envio.' }],
-  ];
-  seedRows.forEach(([clientId, title, statusKey, payload]) => {
-    const now = new Date().toISOString();
-    const result = db.prepare('INSERT INTO records (client_id, title, status_key, payload_json, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(clientId, title, statusKey, JSON.stringify(payload), 1, 1, now, now);
-    const created = db.prepare('SELECT * FROM records WHERE id = ?').get(result.lastInsertRowid);
-    insertAuditLog(clientId, created.id, 1, 'seed', hydrateRecord(created));
-  });
+  if (db.prepare('SELECT COUNT(*) AS total FROM users').get().total > 0) return;
+  const { salt, hash } = hashPassword('admin123');
+  db.prepare('INSERT OR IGNORE INTO users (name, email, role, password_hash, password_salt, hourly_rate) VALUES (?, ?, ?, ?, ?, ?)').run('Luis Admin', 'admin@fantasticbnb.app', 'superadmin', hash, salt, 0);
+  console.log('[Seed] Superadmin created.');
 }
 
 function seedCleanOps() {
