@@ -2650,6 +2650,8 @@ function renderJobs() {
     cancelled: 'Cancelado'
   };
 
+  const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
+  
   jobsList.innerHTML = filtered.map(job => {
     let actions = `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})">Editar</button>`;
     if (job.status === 'pending' || job.status === 'assigned') {
@@ -2658,6 +2660,10 @@ function renderJobs() {
     if (job.status !== 'completed' && job.status !== 'cancelled') {
       actions += `<button class="ghost-button" style="margin-left:8px;" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
     }
+    
+    let timelineHtml = '';
+    if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
+    if (job.finishedAt) timelineHtml += `<small style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</small>`;
     
     return `
       <div class="stack-item">
@@ -2668,6 +2674,7 @@ function renderJobs() {
         ${job.durationHours ? `<small>Duracao: ${job.durationHours}h</small>` : ''}
         ${job.notes ? `<small>Notas: ${escapeHtml(job.notes)}</small>` : ''}
         ${job.employeeNotes ? `<small style="color:var(--primary); font-weight:500;">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
+        ${timelineHtml ? `<div>${timelineHtml}</div>` : ''}
         <div class="table-actions" style="margin-top:8px;">${actions}</div>
       </div>
     `;
