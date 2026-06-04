@@ -170,9 +170,16 @@
                 <select name="role" id="userRoleSelect" required>
                   <option value="" disabled selected>Selecione o papel do usuario...</option>
                   <option value="superadmin">Gerência</option>
-                  <option value="client">Cliente</option>
+                  <option value="client">Empresa / Cliente Principal</option>
+                  <option value="client_user">Acesso / Login de Cliente</option>
                   <option value="employee">Colaborador</option>
                 </select>
+                <div id="userParentClientContainer" style="display:none; margin-top:10px;">
+                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Vincular a qual Empresa?</label>
+                  <select name="parentClientId" id="userParentClientSelect">
+                    <option value="">Selecione a empresa...</option>
+                  </select>
+                </div>
                 <div id="userHourlyRateContainer" style="display:none;">
                   <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Valor por hora (Normal) (£)</label>
                   <input name="hourlyRate" id="userHourlyRateInput" type="number" step="0.01" placeholder="Ex: 15.00" />
@@ -183,7 +190,7 @@
                   <label style="font-size:0.85rem;margin-bottom:4px;margin-top:10px;display:block;">Valor por hora (Feriado) (£)</label>
                   <input name="holidayRate" id="userHolidayRateInput" type="number" step="0.01" placeholder="Ex: 20.00" />
                 </div>
-                <div id="userClientChecklist" class="checklist"></div>
+
                 <button class="button button-primary" type="submit" id="userSubmitButton">Criar usuario</button>
                 <button class="button button-secondary" type="button" id="userCancelEdit" style="display:none;margin-top:8px;">Cancelar edição</button>
               </form>

@@ -61,7 +61,6 @@ const els = {
   overviewStats: $('#overviewStats'),
   clientsList: $('#clientsList'),
   backupList: $('#backupList'),
-  userClientChecklist: $('#userClientChecklist'),
   usersList: $('#usersList'),
   clientForm: $('#clientForm') || document.createElement('form'),
   clientSubmitButton: $('#clientSubmitButton') || document.createElement('button'),
@@ -228,14 +227,19 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
   document.getElementById('userCancelEdit')?.addEventListener('click', resetUserForm);
   const userRoleSelect = document.getElementById('userRoleSelect');
   const userHourlyRateContainer = document.getElementById('userHourlyRateContainer');
+  const userParentClientContainer = document.getElementById('userParentClientContainer');
+  const userParentClientSelect = document.getElementById('userParentClientSelect');
+  
   if (userRoleSelect) {
     userRoleSelect.addEventListener('change', () => {
-      if (userRoleSelect.value === 'client') {
-        els.userClientChecklist.innerHTML = (state.flats || []).map((flat) => `<label class="check-option"><input type="checkbox" name="flatIds" value="${flat.id}" /><span>${escapeHtml(flat.address)}</span></label>`).join('');
-        els.userClientChecklist.style.display = 'block';
+      if (userRoleSelect.value === 'client_user') {
+        const companies = (state.users || []).filter(u => u.role === 'client');
+        userParentClientSelect.innerHTML = '<option value="">Selecione a empresa...</option>' + 
+          companies.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+        userParentClientContainer.style.display = 'block';
       } else {
-        els.userClientChecklist.style.display = 'none';
-        els.userClientChecklist.innerHTML = '';
+        userParentClientContainer.style.display = 'none';
+        userParentClientSelect.value = '';
       }
       
       if (userHourlyRateContainer) {
@@ -243,7 +247,7 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
       }
     });
     // Trigger initial state
-    els.userClientChecklist.style.display = 'none';
+    if (userParentClientContainer) userParentClientContainer.style.display = 'none';
     if (userHourlyRateContainer) userHourlyRateContainer.style.display = 'none';
   }
   els.collaboratorForm?.addEventListener('submit', onCreateCollaborator);
@@ -1077,7 +1081,6 @@ async function onCreateUser(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const id = form.get('id');
-  const flatIds = [...els.userClientChecklist.querySelectorAll('input:checked')].map((input) => Number(input.value));
   try {
     const url = id ? `/api/users/${id}` : '/api/users';
     const method = id ? 'PUT' : 'POST';
@@ -1088,7 +1091,7 @@ async function onCreateUser(event) {
         email: form.get('email'), 
         password: form.get('password'), 
         role: form.get('role'), 
-        flatIds, 
+        parentClientId: form.get('parentClientId'),
         hourlyRate: form.get('hourlyRate'),
         weekendRate: form.get('weekendRate'),
         holidayRate: form.get('holidayRate')
@@ -1112,8 +1115,8 @@ function resetUserForm() {
   document.getElementById('userSubmitButton').textContent = 'Criar usuario';
   const cancelBtn = document.getElementById('userCancelEdit');
   if (cancelBtn) cancelBtn.style.display = 'none';
-  els.userClientChecklist.querySelectorAll('input').forEach((input) => { input.checked = false; });
-  els.userClientChecklist.style.display = 'none';
+  const parentContainer = document.getElementById('userParentClientContainer');
+  if (parentContainer) parentContainer.style.display = 'none';
   const rateContainer = document.getElementById('userHourlyRateContainer');
   if (rateContainer) rateContainer.style.display = 'none';
 }
@@ -1134,11 +1137,8 @@ function startEditUser(userId) {
     document.getElementById('userHourlyRateInput').value = user.hourly_rate || '';
     document.getElementById('userWeekendRateInput').value = user.weekend_rate || '';
     document.getElementById('userHolidayRateInput').value = user.holiday_rate || '';
-  } else if (user.role === 'client') {
-    const flatIds = (state.flats || []).filter(f => f.client_user_id === user.id).map(f => f.id);
-    els.userClientChecklist.querySelectorAll('input').forEach((input) => {
-      input.checked = flatIds.includes(Number(input.value));
-    });
+  } else if (user.role === 'client_user') {
+    document.getElementById('userParentClientSelect').value = user.parent_client_id || '';
   }
   
   document.getElementById('userSubmitButton').textContent = 'Atualizar usuario';
@@ -1428,11 +1428,24 @@ function renderUsers() {
     return user.role === filter;
   });
 
-  els.usersList.innerHTML = filteredUsers.map((user) => `
+  els.usersList.innerHTML = filteredUsers.map((user) => {
+    let roleLabel = user.role;
+    if (user.role === 'superadmin') roleLabel = 'Gerência';
+    if (user.role === 'client') roleLabel = 'Empresa / Cliente Principal';
+    if (user.role === 'client_user') roleLabel = 'Acesso / Login de Cliente';
+    if (user.role === 'employee') roleLabel = 'Colaborador';
+    
+    let parentCompanyName = '';
+    if (user.role === 'client_user' && user.parent_client_id) {
+      const parent = state.users.find(u => u.id === user.parent_client_id);
+      if (parent) parentCompanyName = `<br><small style="color:var(--primary);">Empresa Vinculada: <strong>${escapeHtml(parent.name)}</strong></small>`;
+    }
+
+    return `
     <div class="stack-item">
-      <strong>${escapeHtml(user.name)} · ${escapeHtml(user.role)}</strong>
+      <strong>${escapeHtml(user.name)} · ${roleLabel}</strong>
       <span>${escapeHtml(user.email)}</span>
-      <small>Clientes: ${escapeHtml(user.client_names || 'Sem vinculos')}</small>
+      ${parentCompanyName}
       ${user.role === 'employee' ? `
         <small style="color:var(--primary);">Taxas: Normal: £${Number(user.hourly_rate || 0).toFixed(2)} | Fim de Semana: £${Number(user.weekend_rate || 0).toFixed(2)} | Feriado: £${Number(user.holiday_rate || 0).toFixed(2)}</small>
       ` : ''}
@@ -1442,7 +1455,7 @@ function renderUsers() {
         <button class="ghost-button" type="button" data-user-delete="${user.id}">Excluir</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
   els.usersList.querySelectorAll('[data-user-delete]').forEach((button) => {
     button.addEventListener('click', () => onDeleteUser(Number(button.dataset.userDelete)));
   });
