@@ -2030,6 +2030,7 @@ function formatDateShort(value) { return value ? new Date(`${value}T00:00:00`).t
 function formatFieldValue(value, type) { if (!value) return '-'; if (type === 'date') return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR'); return String(value); }
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }
+function formatHours(h) { if (h == null) return '—'; const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); if (mm === 0) return `${hh}h`; return `${hh}h ${String(mm).padStart(2, '0')}m`; }
 function roundToTwo(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
 function escapeHtml(value) { return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
@@ -2270,7 +2271,7 @@ async function renderAdminHolerite() {
               <tr>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.date)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.flatAddress)}</td>
-                <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${e.durationHours}h</td>
+                <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${formatHours(e.durationHours)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£${e.employeeAmount.toFixed(2)}</td>
               </tr>
             `).join('')}
@@ -2348,7 +2349,7 @@ async function renderAdminInvoice() {
               <tr>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.date)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.flatAddress)}</td>
-                <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${e.durationHours}h</td>
+                <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${formatHours(e.durationHours)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£${e.clientAmount.toFixed(2)}</td>
               </tr>
             `).join('')}
@@ -2671,7 +2672,7 @@ function renderJobs() {
         <span class="status-badge ${escapeHtml(job.status)}">${statusLabels[job.status] || job.status}</span>
         <small>Data solicitada: ${escapeHtml(job.requestedDate)}</small>
         <small>Funcionario: ${escapeHtml(job.employeeName || 'Nenhum')}</small>
-        ${job.durationHours ? `<small>Duracao: ${job.durationHours}h</small>` : ''}
+        ${job.durationHours ? `<small>Duracao: ${formatHours(job.durationHours)}</small>` : ''}
         ${job.notes ? `<small>Notas: ${escapeHtml(job.notes)}</small>` : ''}
         ${job.employeeNotes ? `<small style="color:var(--primary); font-weight:500;">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
         ${timelineHtml ? `<div>${timelineHtml}</div>` : ''}

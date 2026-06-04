@@ -100,7 +100,7 @@ function fmtHours(h) {
   const hh = Math.floor(h);
   const mm = Math.round((h - hh) * 60);
   if (mm === 0) return `${hh}h`;
-  return `${hh}h ${mm}m`;
+  return `${hh}h ${String(mm).padStart(2, '0')}m`;
 }
 
 /**

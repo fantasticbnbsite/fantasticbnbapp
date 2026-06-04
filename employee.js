@@ -313,7 +313,7 @@ const App = (() => {
         <div class="job-completed-details">
           <div class="completed-stat">
             <div class="cs-label">Duração</div>
-            <div class="cs-value">${job.durationHours != null ? job.durationHours.toFixed(1) + 'h' : '—'}</div>
+            <div class="cs-value">${formatHours(job.durationHours)}</div>
           </div>
           <div class="completed-stat">
             <div class="cs-label">Ganho</div>
@@ -536,7 +536,7 @@ const App = (() => {
       <tr>
         <td>${e.date ? formatDate(e.date) : '—'}</td>
         <td>${escapeHtml(e.flatAddress || '—')}</td>
-        <td class="hours">${e.durationHours != null ? e.durationHours.toFixed(1) + 'h' : '—'}</td>
+        <td class="hours">${formatHours(e.durationHours)}</td>
         <td class="amount">${formatCurrency(e.employeeAmount)}</td>
       </tr>`).join('');
 
@@ -696,6 +696,14 @@ const App = (() => {
   function currentMonthString() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function formatHours(h) {
+    if (h == null) return '—';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    if (mm === 0) return `${hh}h`;
+    return `${hh}h ${String(mm).padStart(2, '0')}m`;
   }
 
   function formatDate(dateStr) {
