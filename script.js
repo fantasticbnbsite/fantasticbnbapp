@@ -3529,7 +3529,7 @@ function renderDashboard() {
 
 // ── MANUAL JOB ───────────────────────────────────────────
 
-function openManualJobForFinance() {
+async function openManualJobForFinance() {
   try {
     const isInvoice = currentFinanceEditType === 'invoice';
     let targetInvoice = null;
@@ -3546,11 +3546,10 @@ function openManualJobForFinance() {
     // Assegura que flats e users foram carregados
     if (!state.flats || state.flats.length === 0) {
       toast("Carregando Flats...");
-      if (typeof loadFlats === 'function') loadFlats(); // carrega assincrono, mas usa os dados atuais se tiver
+      if (typeof loadFlats === 'function') await loadFlats();
     }
     if (!state.users || state.users.length === 0) {
-      toast("Carregando Usuários...");
-      if (typeof loadUsers === 'function') loadUsers();
+      if (typeof loadUsers === 'function') await loadUsers();
     }
     
     document.getElementById('manualJobEmployeeField').classList.toggle('hidden', !isInvoice);
