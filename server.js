@@ -2308,10 +2308,7 @@ function currentMonthParam() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
-function validateRole(role) {
-  const valid = ['superadmin', 'manager', 'analyst', 'viewer', 'employee', 'client'];
-  return valid.includes(role) ? role : 'client';
-}
+
 function isAdminRole(role) { return ['superadmin', 'manager', 'analyst'].includes(role); }
 function normalizeFieldType(fieldType) { return ['text', 'number', 'date', 'status', 'textarea'].includes(fieldType) ? fieldType : 'text'; }
 function hashPassword(password) { const salt = crypto.randomBytes(16).toString('hex'); const hash = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return { salt, hash }; }
