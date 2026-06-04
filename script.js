@@ -3530,44 +3530,64 @@ function renderDashboard() {
 // ── MANUAL JOB ───────────────────────────────────────────
 
 function openManualJobForFinance() {
-  const isInvoice = currentFinanceEditType === 'invoice';
-  let targetInvoice = null;
-  let targetPayroll = null;
-  
-  if (isInvoice) {
-    targetInvoice = state.finance.invoices.find(i => i.id === currentFinanceEditId);
-  } else {
-    targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
-  }
-  
-  document.getElementById('manualJobEmployeeField').classList.toggle('hidden', !isInvoice);
-  
-  // Populate Flat dropdown
-  const flatSel = document.getElementById('manualJobFlat');
-  if (isInvoice) {
-    const clientId = targetInvoice.client_user_id;
-    const clientFlats = state.flats.filter(f => f.client_user_id === clientId);
-    flatSel.innerHTML = clientFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('');
-  } else {
-    // all flats with client names
-    flatSel.innerHTML = '<option value="">Selecione o Flat</option>' + state.flats.map(f => {
-       const clientName = f.client_name || 'Desconhecido';
-       return `<option value="${f.id}">${escapeHtml(f.address)} (${escapeHtml(clientName)})</option>`;
-    }).join('');
-  }
+  try {
+    const isInvoice = currentFinanceEditType === 'invoice';
+    let targetInvoice = null;
+    let targetPayroll = null;
+    
+    if (isInvoice) {
+      targetInvoice = state.finance.invoices.find(i => i.id === currentFinanceEditId);
+      if (!targetInvoice) throw new Error("targetInvoice não encontrado");
+    } else {
+      targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+      if (!targetPayroll) throw new Error("targetPayroll não encontrado");
+    }
+    
+    // Assegura que flats e users foram carregados
+    if (!state.flats || state.flats.length === 0) {
+      toast("Carregando Flats...");
+      if (typeof loadFlats === 'function') loadFlats(); // carrega assincrono, mas usa os dados atuais se tiver
+    }
+    if (!state.users || state.users.length === 0) {
+      toast("Carregando Usuários...");
+      if (typeof loadUsers === 'function') loadUsers();
+    }
+    
+    document.getElementById('manualJobEmployeeField').classList.toggle('hidden', !isInvoice);
+    
+    // Populate Flat dropdown
+    const flatSel = document.getElementById('manualJobFlat');
+    if (!flatSel) throw new Error("Select de Flat não encontrado no HTML");
 
-  // Populate Employee dropdown
-  if (isInvoice) {
-    const empSel = document.getElementById('manualJobEmployee');
-    const employees = state.users.filter(u => u.role === 'employee');
-    empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+    if (isInvoice) {
+      const clientId = targetInvoice.client_user_id;
+      const clientFlats = (state.flats || []).filter(f => f.client_user_id === clientId);
+      flatSel.innerHTML = clientFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('') || '<option value="">Nenhum flat deste cliente</option>';
+    } else {
+      // all flats with client names
+      flatSel.innerHTML = '<option value="">Selecione o Flat</option>' + (state.flats || []).map(f => {
+         const clientName = f.client_name || 'Desconhecido';
+         return `<option value="${f.id}">${escapeHtml(f.address)} (${escapeHtml(clientName)})</option>`;
+      }).join('');
+    }
+
+    // Populate Employee dropdown
+    if (isInvoice) {
+      const empSel = document.getElementById('manualJobEmployee');
+      if (!empSel) throw new Error("Select de Employee não encontrado no HTML");
+      const employees = (state.users || []).filter(u => u.role === 'employee');
+      empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('') || '<option value="">Nenhum funcionário</option>';
+    }
+
+    document.getElementById('manualJobDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('manualJobHours').value = '';
+    document.getElementById('manualJobHoliday').checked = false;
+
+    document.getElementById('manualJobModal').classList.remove('hidden');
+  } catch(e) {
+    console.error(e);
+    toast('Erro: ' + e.message, 'error');
   }
-
-  document.getElementById('manualJobDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('manualJobHours').value = '';
-  document.getElementById('manualJobHoliday').checked = false;
-
-  document.getElementById('manualJobModal').classList.remove('hidden');
 }
 
 function closeManualJobModal() {
