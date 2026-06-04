@@ -62,8 +62,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     .invoice-box { max-width: 800px; margin: auto; border: 2px solid #000; padding: 0; }
     .header-table { width: 100%; border-collapse: collapse; }
     .header-table td { border: 1px solid #000; padding: 8px; font-size: 16px; font-weight: bold; }
-    .logo-cell { width: 40%; background: #000; text-align: center; color: #fff; vertical-align: middle; }
-    .logo-cell h2 { margin: 0; font-family: 'Arial', sans-serif; font-style: italic; }
+    .logo-cell { width: 40%; text-align: center; vertical-align: middle; padding: 10px; }
     .details-cell { padding: 0 !important; }
     .details-table { width: 100%; border-collapse: collapse; }
     .details-table td { border-bottom: 1px solid #000; padding: 6px 12px; }
@@ -92,8 +91,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     <table class="header-table">
       <tr>
         <td class="logo-cell">
-          <h2>Fantastic BNB</h2>
-          <div style="font-size:12px; margin-top:4px;">CLEANING SERVICE</div>
+          <img src="/icon-512.png" alt="Fantastic BNB" style="max-width: 80%; max-height: 120px; object-fit: contain;" />
         </td>
         <td class="details-cell">
           <table class="details-table">
@@ -217,8 +215,8 @@ export function renderPayslipHtml(payroll, jobs, employee) {
 <body>
   <div class="invoice-box">
     <div class="header">
-      <h2>Fantastic BNB</h2>
-      <p>Contractor Payment Summary</p>
+      <img src="/icon-512.png" alt="Fantastic BNB" style="max-width: 200px; max-height: 100px; object-fit: contain; margin-bottom: 10px;" />
+      <p style="margin: 0;">Contractor Payment Summary</p>
       ${clientHeader}
     </div>
     <div class="details">
