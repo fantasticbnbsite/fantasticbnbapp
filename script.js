@@ -3606,10 +3606,13 @@ async function submitManualJob(e) {
   let flatId = document.getElementById('manualJobFlat').value;
   let employeeUserId = isInvoice ? document.getElementById('manualJobEmployee').value : targetPayroll.employee_user_id;
   let date = document.getElementById('manualJobDate').value;
-  let hours = document.getElementById('manualJobHours').value;
+  let timeStr = document.getElementById('manualJobHours').value;
   let isHoliday = document.getElementById('manualJobHoliday').checked;
   
-  if (!flatId || !employeeUserId || !date || !hours) return toast('Preencha os campos obrigatorios');
+  if (!flatId || !employeeUserId || !date || !timeStr) return toast('Preencha os campos obrigatorios');
+  
+  let [hh, mm] = timeStr.split(':').map(Number);
+  let hours = hh + (mm / 60);
   
   document.getElementById('manualJobSubmit').disabled = true;
   document.getElementById('manualJobSubmit').textContent = 'Processando...';
