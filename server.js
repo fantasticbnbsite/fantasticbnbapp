@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3000);
 const DB_DIR = path.join(__dirname, 'data');
 const BACKUP_DIR = path.join(__dirname, 'backups');
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const UPLOAD_DIR = path.join(DB_DIR, 'uploads');
 const DB_PATH = path.join(DB_DIR, 'fantastic-bnb.sqlite');
 const SESSION_COOKIE = 'fantastic_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -311,6 +311,22 @@ seedDatabase();
 createBackup('startup');
 setInterval(() => createBackup('auto'), BACKUP_INTERVAL_MS).unref();
 
+function cleanupOldPhotos() {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const oldPhotos = db.prepare('SELECT * FROM job_photos WHERE uploaded_at < ?').all(thirtyDaysAgo);
+    const stmt = db.prepare('DELETE FROM job_photos WHERE id = ?');
+    for (const photo of oldPhotos) {
+      stmt.run(photo.id);
+      try { fs.unlinkSync(path.join(UPLOAD_DIR, photo.filename)); } catch (e) {}
+    }
+    if (oldPhotos.length > 0) console.log(`[Cleanup] Removed ${oldPhotos.length} old photos.`);
+  } catch (err) {
+    console.error('[Cleanup Error]', err);
+  }
+}
+setInterval(cleanupOldPhotos, 1000 * 60 * 60 * 24).unref();
+setTimeout(cleanupOldPhotos, 1000 * 60).unref();
 // ─── HTTP Server ──────────────────────────────────────────────────────────────
 createServer(async (req, res) => {
   try {

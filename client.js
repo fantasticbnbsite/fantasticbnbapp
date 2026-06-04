@@ -581,12 +581,15 @@ async function openPhotosModal(jobId, address) {
       `;
     } else {
       photoGrid.innerHTML = photos.map(p => `
-        <div class="photo-thumb" data-src="/uploads/${escHtml(p.filename)}" title="${escHtml(p.originalName || p.filename)}">
-          <img
-            src="/uploads/${escHtml(p.filename)}"
-            alt="${escHtml(p.originalName || 'Foto da limpeza')}"
-            loading="lazy"
-          />
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="photo-thumb" data-src="/uploads/${escHtml(p.filename)}" title="${escHtml(p.originalName || p.filename)}">
+            <img
+              src="/uploads/${escHtml(p.filename)}"
+              alt="${escHtml(p.originalName || 'Foto da limpeza')}"
+              loading="lazy"
+            />
+          </div>
+          <a href="/uploads/${escHtml(p.filename)}" download="${escHtml(p.originalName || p.filename)}" class="btn btn-ghost btn-sm" style="padding: 4px; font-size: 0.8rem; background: #eee;">⬇️ Baixar</a>
         </div>
       `).join('');
 

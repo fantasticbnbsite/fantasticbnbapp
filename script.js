@@ -2978,8 +2978,39 @@ async function adminCancelJob(jobId) {
   }
 }
 
-function openJobPhotos(jobId) {
-  toast('Fotos não disponíveis nesta versão.');
+const photosModal = document.getElementById('photosModal');
+const photoGrid = document.getElementById('photoGrid');
+const closePhotosModalBtn = document.getElementById('closePhotosModal');
+
+if (closePhotosModalBtn) {
+  closePhotosModalBtn.addEventListener('click', () => photosModal.style.display = 'none');
+}
+
+async function openJobPhotos(jobId, address) {
+  const title = document.getElementById('photosModalTitle');
+  if (title) title.textContent = `📸 Fotos — ${address || 'Limpeza'}`;
+  
+  photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Carregando...</div>`;
+  photosModal.style.display = 'flex';
+  
+  try {
+    const data = await api('/api/jobs/' + jobId + '/photos');
+    const photos = data.photos || [];
+    if (photos.length === 0) {
+      photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Nenhuma foto enviada para este servico.</div>`;
+    } else {
+      photoGrid.innerHTML = photos.map(p => `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div class="photo-thumb" style="aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f5f5f5; border:1px solid #ddd; position:relative;">
+            <img src="/uploads/${escapeHtml(p.filename)}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openLightbox('/uploads/${escapeHtml(p.filename)}')" />
+          </div>
+          <a href="/uploads/${escapeHtml(p.filename)}" download="${escapeHtml(p.originalName || p.filename)}" class="button" style="padding: 4px; font-size: 0.8rem; background: #eee; color: #333; text-align: center; border-radius: 4px; text-decoration: none;">⬇️ Baixar</a>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--primary);padding:40px;">Erro ao carregar fotos.</div>`;
+  }
 }
 
 function openLightbox(src) {
