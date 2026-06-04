@@ -189,7 +189,18 @@
             </article>
 
             <article class="panel glass-card wide">
-              <div class="panel-header"><h3>Logins cadastrados</h3><span class="panel-kicker">Quem pode acessar e o que pode fazer</span></div>
+              <div class="panel-header" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+                <div>
+                  <h3>Logins cadastrados</h3>
+                  <span class="panel-kicker">Quem pode acessar e o que pode fazer</span>
+                </div>
+                <select id="userRoleFilter" onchange="renderUsers()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; min-width:180px; background:#fff; cursor:pointer;">
+                  <option value="all">Todos os logins</option>
+                  <option value="employee">Somente Funcionarios</option>
+                  <option value="client">Somente Clientes</option>
+                  <option value="gerencia">Somente Gerência (Admin/Manager)</option>
+                </select>
+              </div>
               <div id="usersList" class="stack-list"></div>
             </article>
           </div>

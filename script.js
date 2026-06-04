@@ -1413,7 +1413,14 @@ function renderFlatSummary(group) {
 }
 
 function renderUsers() {
-  els.usersList.innerHTML = state.users.map((user) => `
+  const filter = document.getElementById('userRoleFilter')?.value || 'all';
+  const filteredUsers = state.users.filter((user) => {
+    if (filter === 'all') return true;
+    if (filter === 'gerencia') return user.role === 'superadmin' || user.role === 'manager';
+    return user.role === filter;
+  });
+
+  els.usersList.innerHTML = filteredUsers.map((user) => `
     <div class="stack-item">
       <strong>${escapeHtml(user.name)} · ${escapeHtml(user.role)}</strong>
       <span>${escapeHtml(user.email)}</span>
