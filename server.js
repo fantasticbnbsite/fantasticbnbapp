@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS users (
   hourly_rate REAL NOT NULL DEFAULT 0,
   weekend_rate REAL NOT NULL DEFAULT 0,
   holiday_rate REAL NOT NULL DEFAULT 0,
+  parent_client_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS user_clients (
@@ -295,6 +296,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_job_photos_job ON job_photos(job_id);
 `);
 
+// --- Migrations & schema adjustments ---
+try { db.exec('ALTER TABLE users ADD COLUMN parent_client_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN hourly_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN hourly_weekend_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN hourly_holiday_rate REAL NOT NULL DEFAULT 0;'); } catch {}
@@ -2362,7 +2365,7 @@ function requireSession(req, res) {
   if (!row || new Date(row.expires_at).getTime() < Date.now()) { if (row) db.prepare('DELETE FROM sessions WHERE token = ?').run(token); sendJson(res, 401, { error: 'Sessao expirada.' }); return null; }
   return { token, user: sanitizeUser(row) };
 }
-function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0) }; }
+function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0), parent_client_id: user.parent_client_id }; }
 function buildSessionPayload(user) { return { user: { ...sanitizeUser(user), collaborator: getCollaboratorProfile(user.id) } }; }
 function ensureRole(user, roles, res) { if (!roles.includes(user.role)) { sendJson(res, 403, { error: 'Permissao insuficiente.' }); return false; } return true; }
 function cleanupExpiredSessions() { db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString()); }
