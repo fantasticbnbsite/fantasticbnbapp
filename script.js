@@ -272,6 +272,14 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
     flatCancelEdit.addEventListener('click', closeFlatForm);
   }
   
+  const newFlatBtn = document.getElementById('newFlatButton');
+  if (newFlatBtn) {
+    newFlatBtn.addEventListener('click', () => {
+      // Find the client currently selected/open if any, or just open form
+      openFlatForm(null);
+    });
+  }
+  
   const flatBillingTypeSelect = document.getElementById('flatBillingType');
   if (flatBillingTypeSelect) {
     flatBillingTypeSelect.addEventListener('change', updateFlatRateFields);
