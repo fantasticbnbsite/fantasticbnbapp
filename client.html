@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en-GB">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portal do Cliente · Fantastic BNB</title>
+  <title>Client Portal · Fantastic BNB</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -739,22 +739,22 @@
       <div class="login-mark">F</div>
       <div class="login-logo-text">
         <strong>Fantastic BNB</strong>
-        <span>Portal do Cliente</span>
+        <span>Client Portal</span>
       </div>
     </div>
-    <h1>Bem-vindo</h1>
-    <p class="sub">Acesse para acompanhar suas limpezas e solicitar novos serviços.</p>
+    <h1>Welcome</h1>
+    <p class="sub">Log in to track your cleans and request new services.</p>
     <form id="loginForm" novalidate>
       <div class="field">
-        <label for="loginEmail">E-mail</label>
-        <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email" required />
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email" required />
       </div>
       <div class="field">
-        <label for="loginPassword">Senha</label>
+        <label for="loginPassword">Password</label>
         <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
       </div>
       <div id="loginError" role="alert"></div>
-      <button type="submit" class="btn btn-primary" id="loginBtn">Entrar</button>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Log In</button>
     </form>
   </div>
 </section>
@@ -770,19 +770,19 @@
       <div class="header-mark">F</div>
       <div class="header-brand-text">
         <strong>Fantastic BNB</strong>
-        <span>Portal do Cliente</span>
+        <span>Client Portal</span>
       </div>
     </div>
     <div class="header-right">
-      <nav class="desktop-nav" aria-label="Navegação desktop">
-        <button class="nav-link active" id="tabJobsDesk">Minhas Limpezas</button>
-        <button class="nav-link" id="tabInvoicesDesk">Minhas Faturas</button>
-        <button class="nav-link" id="tabRequestDesk">Solicitar Limpeza</button>
+      <nav class="desktop-nav" aria-label="Desktop navigation">
+        <button class="nav-link active" id="tabJobsDesk">My Cleans</button>
+        <button class="nav-link" id="tabInvoicesDesk">My Invoices</button>
+        <button class="nav-link" id="tabRequestDesk">Request Clean</button>
       </nav>
       <div class="user-profile">
-        <span class="user-name" id="userNameDisplay">Carregando...</span>
-        <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" style="margin-right:8px;">Trocar Senha</button>
-        <button class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+        <span class="user-name" id="userNameDisplay">Loading...</span>
+        <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" style="margin-right:8px;">Trocar Password</button>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">Log Out</button>
       </div>
     </div>
   </header>
@@ -790,10 +790,10 @@
   <!-- Main Content -->
   <main id="mainContent">
 
-    <!-- ── VIEW 1: Minhas Limpezas ─────────────────── -->
+    <!-- ── VIEW 1: My Cleans ─────────────────── -->
     <div id="viewJobs" class="view active">
-      <h2 class="view-title">Minhas Limpezas</h2>
-      <p class="view-sub">Acompanhe o status das suas limpezas</p>
+      <h2 class="view-title">My Cleans</h2>
+      <p class="view-sub">Track the status of your cleans</p>
       <div id="jobList">
         <!-- skeleton placeholders -->
         <div class="skeleton glass-card"><div class="skeleton-inner"></div></div>
@@ -802,16 +802,16 @@
       </div>
     </div>
 
-    <!-- ── VIEW 2: Solicitar Limpeza ─────────────────── -->
+    <!-- ── VIEW 2: Request Clean ─────────────────── -->
     <div id="viewRequest" class="view">
-      <h2 class="view-title">Solicitar Limpeza</h2>
-      <p class="view-sub">Agende uma limpeza para um dos seus imóveis</p>
+      <h2 class="view-title">Request Clean</h2>
+      <p class="view-sub">Schedule a clean for one of your properties</p>
       <div class="form-card glass-card">
         <form id="requestForm" novalidate class="stack-form">
           <div class="form-group">
-            <label class="form-label" for="selectFlat">Imóvel</label>
+            <label class="form-label" for="selectFlat">Property</label>
             <select id="selectFlat" required>
-              <option value="">Selecione um imóvel…</option>
+              <option value="">Select a property…</option>
             </select>
             <div id="billingChip" class="billing-chip">
               <span>💡</span>
@@ -820,17 +820,17 @@
             <div class="form-error" id="errFlat"></div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="inputDate">Data da Limpeza</label>
+            <label class="form-label" for="inputDate">Date of Clean</label>
             <input type="date" id="inputDate" required />
             <div class="form-error" id="errDate"></div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="inputNotes">Observações <span style="font-weight:400;opacity:0.7">(opcional)</span></label>
-            <textarea id="inputNotes" placeholder="Ex: Checkin às 15h, chave no cofre 1234"></textarea>
+            <label class="form-label" for="inputNotes">Notes <span style="font-weight:400;opacity:0.7">(optional)</span></label>
+            <textarea id="inputNotes" placeholder="E.g., Check-in at 3pm, key in safe 1234"></textarea>
           </div>
           <div class="form-error" id="errGeneral"></div>
           <button type="submit" class="btn btn-primary" id="requestSubmit">
-            <span>🧹</span> Solicitar Limpeza
+            <span>🧹</span> Request Clean
           </button>
         </form>
       </div>
@@ -838,13 +838,13 @@
     
     <!-- ── View: Invoices ────────────────────────────────── -->
     <div id="viewInvoices" class="view" style="display:none;">
-      <h2 class="view-title">Minhas Faturas</h2>
-      <p class="view-sub">Faturas oficiais geradas e enviadas</p>
+      <h2 class="view-title">My Invoices</h2>
+      <p class="view-sub">Official invoices generated and sent</p>
       
       <div id="invoicesContainer">
         <div class="loading-overlay">
           <div class="big-spinner"></div>
-          <span>A carregar faturas...</span>
+          <span>Loading invoices...</span>
         </div>
       </div>
     </div>
@@ -852,18 +852,18 @@
   </main>
 
   <!-- Bottom Tab Nav -->
-  <nav id="bottomNav" role="tablist" aria-label="Navegação principal">
+  <nav id="bottomNav" role="tablist" aria-label="Main navigation">
     <button class="tab-btn active" id="tabJobs" role="tab" aria-selected="true" aria-controls="viewJobs">
       <span class="tab-icon">🏠</span>
-      <span>Limpezas</span>
+      <span>Cleans</span>
     </button>
     <button class="tab-btn" id="tabInvoices" role="tab" aria-selected="false" aria-controls="viewInvoices">
       <span class="tab-icon">🧾</span>
-      <span>Faturas</span>
+      <span>Invoices</span>
     </button>
     <button class="tab-btn" id="tabRequest" role="tab" aria-selected="false" aria-controls="viewRequest">
       <span class="tab-icon">➕</span>
-      <span>Solicitar</span>
+      <span>Request</span>
     </button>
   </nav>
 
@@ -872,15 +872,15 @@
 <!-- ══════════════════════════════════════════════
      PHOTOS MODAL
 ═══════════════════════════════════════════════ -->
-<div id="photosModal" role="dialog" aria-modal="true" aria-label="Fotos da limpeza">
+<div id="photosModal" role="dialog" aria-modal="true" aria-label="Clean photos">
   <div class="modal-wrap glass-card">
     <div class="modal-head">
-      <h3 id="photosModalTitle">📸 Fotos da Limpeza</h3>
-      <button class="modal-close" id="closePhotosModal" aria-label="Fechar">✕</button>
+      <h3 id="photosModalTitle">📸 Clean Photos</h3>
+      <button class="modal-close" id="closePhotosModal" aria-label="Close">✕</button>
     </div>
     <div style="padding: 16px 24px 0; color: #d45555; font-size: 0.85rem; font-weight: 500;">
-      Aviso: As fotos deste serviço ficarão disponíveis no servidor por apenas 1 mês (30 dias).<br>
-      Para baixar uma foto, clique no botão "Baixar" abaixo dela.
+      Note: Photos for this service will be available on the server for only 1 month (30 days).<br>
+      To download a photo, click the "Download" button below it.
     </div>
     <div class="modal-body">
       <div class="photo-grid" id="photoGrid"></div>
@@ -891,9 +891,9 @@
 <!-- ══════════════════════════════════════════════
      LIGHTBOX
 ═══════════════════════════════════════════════ -->
-<div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto em tamanho real">
-  <button id="lightboxClose" aria-label="Fechar lightbox">✕</button>
-  <img id="lightboxImg" src="" alt="Foto da limpeza" />
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Full size photo">
+  <button id="lightboxClose" aria-label="Close lightbox">✕</button>
+  <img id="lightboxImg" src="" alt="Clean photo" />
 </div>
 
 <!-- ══════════════════════════════════════════════
@@ -904,24 +904,24 @@
   <div class="modal" id="changePasswordModal">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Trocar Senha</h3>
+        <h3>Trocar Password</h3>
         <button class="btn-close" onclick="closeChangePasswordModal()">×</button>
       </div>
       <div class="modal-body">
         <form id="changePasswordForm" onsubmit="submitChangePassword(event)" style="display:flex; flex-direction:column; gap:16px;">
           <div class="form-group">
-            <label>Senha Atual</label>
+            <label>Password Atual</label>
             <input type="password" id="cpCurrent" required />
           </div>
           <div class="form-group">
-            <label>Nova Senha</label>
+            <label>Nova Password</label>
             <input type="password" id="cpNew" required minlength="6" />
           </div>
           <div class="form-group">
-            <label>Confirmar Nova Senha</label>
+            <label>Confirmar Nova Password</label>
             <input type="password" id="cpConfirm" required minlength="6" />
           </div>
-          <button type="submit" class="btn btn-primary" id="cpSubmitBtn">Salvar Senha</button>
+          <button type="submit" class="btn btn-primary" id="cpSubmitBtn">Salvar Password</button>
         </form>
       </div>
     </div>

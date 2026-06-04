@@ -52,12 +52,12 @@ const toast         = $('toast');
 
 /* ─── Status Config ──────────────────────────────────────── */
 const STATUS_CONFIG = {
-  pending:     { label: 'Pendente',              icon: '⏳', color: '#706356', bg: 'rgba(112,99,86,0.1)',   border: 'rgba(112,99,86,0.2)'   },
-  assigned:    { label: 'Profissional designado', icon: '👤', color: '#5B8DEF', bg: 'rgba(91,141,239,0.1)',  border: 'rgba(91,141,239,0.22)' },
-  accepted:    { label: 'Confirmado',             icon: '✅', color: '#D4900A', bg: 'rgba(255,179,71,0.12)', border: 'rgba(255,179,71,0.28)' },
-  in_progress: { label: 'Em andamento',           icon: '🧹', color: '#16756b', bg: 'rgba(22,117,107,0.1)',  border: 'rgba(22,117,107,0.22)' },
-  completed:   { label: 'Concluído',              icon: '✨', color: '#1b8a5a', bg: 'rgba(52,195,143,0.1)',  border: 'rgba(52,195,143,0.24)' },
-  cancelled:   { label: 'Cancelado',              icon: '🚫', color: '#888888', bg: 'rgba(57,57,57,0.1)',    border: 'rgba(57,57,57,0.2)'    },
+  pending:     { label: 'Pending',              icon: '⏳', color: '#706356', bg: 'rgba(112,99,86,0.1)',   border: 'rgba(112,99,86,0.2)'   },
+  assigned:    { label: 'Cleaner assigned', icon: '👤', color: '#5B8DEF', bg: 'rgba(91,141,239,0.1)',  border: 'rgba(91,141,239,0.22)' },
+  accepted:    { label: 'Confirmed',             icon: '✅', color: '#D4900A', bg: 'rgba(255,179,71,0.12)', border: 'rgba(255,179,71,0.28)' },
+  in_progress: { label: 'In progress',           icon: '🧹', color: '#16756b', bg: 'rgba(22,117,107,0.1)',  border: 'rgba(22,117,107,0.22)' },
+  completed:   { label: 'Completed',              icon: '✨', color: '#1b8a5a', bg: 'rgba(52,195,143,0.1)',  border: 'rgba(52,195,143,0.24)' },
+  cancelled:   { label: 'Cancelled',              icon: '🚫', color: '#888888', bg: 'rgba(57,57,57,0.1)',    border: 'rgba(57,57,57,0.2)'    },
 };
 
 /* ─── Helpers ────────────────────────────────────────────── */
@@ -78,7 +78,7 @@ async function api(method, path, body) {
   const res = await fetch(path, opts);
   if (res.status === 204) return {};
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.message || data.error || 'Erro desconhecido'), { status: res.status, data });
+  if (!res.ok) throw Object.assign(new Error(data.message || data.error || 'Unknown error'), { status: res.status, data });
   return data;
 }
 
@@ -89,7 +89,7 @@ function fmtDate(str) {
   if (!str) return '—';
   const d = new Date(str);
   if (isNaN(d)) return str;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 /**
@@ -175,19 +175,19 @@ loginForm.addEventListener('submit', async (e) => {
   const password = loginPassword.value;
 
   if (!email || !password) {
-    loginError.textContent = 'Preencha e-mail e senha.';
+    loginError.textContent = 'Enter email and password.';
     return;
   }
 
   loginBtn.disabled = true;
-  loginBtn.textContent = 'Entrando…';
+  loginBtn.textContent = 'Logging in…';
 
   try {
     const data = await api('POST', '/api/auth/login', { email, password });
     // Fetch user profile
     const me = await api('GET', '/api/auth/me');
     if (!me.user || me.user.role !== 'client') {
-      loginError.textContent = 'Acesso permitido apenas para clientes.';
+      loginError.textContent = 'Access restricted to clients only.';
       await api('POST', '/api/auth/logout');
       return;
     }
@@ -195,13 +195,13 @@ loginForm.addEventListener('submit', async (e) => {
     showApp();
   } catch (err) {
     if (err.status === 401 || err.status === 403) {
-      loginError.textContent = 'E-mail ou senha incorretos.';
+      loginError.textContent = 'Incorrect email or password.';
     } else {
-      loginError.textContent = err.message || 'Erro ao fazer login. Tente novamente.';
+      loginError.textContent = err.message || 'Error logging in. Please try again.';
     }
   } finally {
     loginBtn.disabled = false;
-    loginBtn.textContent = 'Entrar';
+    loginBtn.textContent = 'Log In';
   }
 });
 
@@ -277,8 +277,8 @@ async function loadInvoices() {
       // Agrupar jobs por data e flat
       const groupedJobs = {};
       jobs.forEach(j => {
-        const dateStr = j.finished_at ? fmtDate(j.finished_at) : 'Sem data';
-        const flatStr = j.flat_address || 'Desconhecido';
+        const dateStr = j.finished_at ? fmtDate(j.finished_at) : 'No date';
+        const flatStr = j.flat_address || 'Unknown';
         const key = dateStr + '|' + flatStr;
         if (!groupedJobs[key]) {
           groupedJobs[key] = {
@@ -342,7 +342,7 @@ async function loadJobs() {
     jobList.innerHTML = `<div class="empty-state glass-card" style="border-radius:24px">
       <span class="empty-icon">⚠️</span>
       <h3>Erro ao carregar</h3>
-      <p>${err.message || 'Não foi possível buscar as limpezas.'}</p>
+      <p>${err.message || 'Could not fetch cleans.'}</p>
     </div>`;
   }
 }
@@ -419,11 +419,11 @@ function jobCardHTML(job) {
     : '';
     
   if (job.status === 'cancelled') {
-    const cancelDate = job.updatedAt ? new Intl.DateTimeFormat('pt-BR').format(new Date(job.updatedAt)) : '';
+    const cancelDate = job.updatedAt ? new Intl.DateTimeFormat('en-GB').format(new Date(job.updatedAt)) : '';
     notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:2px;color:var(--danger,#d45555);">🚫 Cancelado em ${cancelDate}</div>`;
   }
 
-  const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
+  const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
   let timelineHtml = '';
   if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
   if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
@@ -433,7 +433,7 @@ function jobCardHTML(job) {
     <article class="job-card glass-card" style="--status-color:${cfg.color}">
       <div class="job-card-inner">
         <div class="job-card-top">
-          <span class="job-address">${escHtml(job.flatAddress || 'Endereço não informado')}</span>
+          <span class="job-address">${escHtml(job.flatAddress || 'Address not provided')}</span>
           ${badgeHTML(job.status)}
         </div>
         <div class="job-meta">
@@ -462,7 +462,7 @@ async function loadFlats() {
 }
 
 function populateFlatSelect() {
-  selectFlat.innerHTML = '<option value="">Selecione um imóvel…</option>';
+  selectFlat.innerHTML = '<option value="">Select a property…</option>';
   state.flats.forEach(flat => {
     const opt = document.createElement('option');
     opt.value = flat.id;
@@ -491,9 +491,9 @@ selectFlat.addEventListener('change', () => {
   } else if (bt === 'project' && pr) {
     chipText = `Projeto fixo · R$ ${Number(pr).toFixed(2).replace('.',',')}`;
   } else if (bt === 'hourly') {
-    chipText = 'Cobrança por hora';
+    chipText = 'Hourly billing';
   } else if (bt === 'project') {
-    chipText = 'Projeto fixo';
+    chipText = 'Fixed project';
   }
   if (chipText) {
     billingChipTxt.textContent = chipText;
@@ -525,27 +525,27 @@ requestForm.addEventListener('submit', async (e) => {
   let valid = true;
 
   if (!flatId) {
-    errFlat.textContent = 'Selecione um imóvel.';
+    errFlat.textContent = 'Select a property.';
     valid = false;
   }
 
   if (!requestedDate) {
-    errDate.textContent = 'Selecione uma data.';
+    errDate.textContent = 'Select a date.';
     valid = false;
   } else if (requestedDate < todayStr()) {
-    errDate.textContent = 'A data deve ser hoje ou no futuro.';
+    errDate.textContent = 'The date must be today or in the future.';
     valid = false;
   }
 
   if (!valid) return;
 
   requestSubmit.disabled = true;
-  requestSubmit.innerHTML = '<span>⏳</span> Solicitando…';
+  requestSubmit.innerHTML = '<span>⏳</span> Requesting…';
 
   try {
     await api('POST', '/api/jobs', { flatId, requestedDate, notes: notes || undefined });
     // Success
-    showToast('✅ Limpeza solicitada com sucesso!', 'ok');
+    showToast('✅ Clean requested successfully!', 'ok');
     requestForm.reset();
     billingChip.classList.remove('show');
     setMinDate();
@@ -553,18 +553,18 @@ requestForm.addEventListener('submit', async (e) => {
     switchView('jobs');
     await loadJobs();
   } catch (err) {
-    errGeneral.textContent = err.message || 'Erro ao solicitar limpeza. Tente novamente.';
-    showToast('Erro ao solicitar limpeza.', 'err');
+    errGeneral.textContent = err.message || 'Error requesting clean. Please try again.';
+    showToast('Error requesting clean.', 'err');
   } finally {
     requestSubmit.disabled = false;
-    requestSubmit.innerHTML = '<span>🧹</span> Solicitar Limpeza';
+    requestSubmit.innerHTML = '<span>🧹</span> Request Clean';
   }
 });
 
 /* ─── Photos Modal ───────────────────────────────────────── */
 
 async function openPhotosModal(jobId, address) {
-  photosModalTitle.textContent = `📸 Fotos — ${address || 'Limpeza'}`;
+  photosModalTitle.textContent = `📸 Fotos — ${address || 'Clean'}`;
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Carregando…</div>`;
   photosModal.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -585,7 +585,7 @@ async function openPhotosModal(jobId, address) {
           <div class="photo-thumb" data-src="/uploads/${escHtml(p.filename)}" title="${escHtml(p.originalName || p.filename)}">
             <img
               src="/uploads/${escHtml(p.filename)}"
-              alt="${escHtml(p.originalName || 'Foto da limpeza')}"
+              alt="${escHtml(p.originalName || 'Clean photo')}"
               loading="lazy"
             />
           </div>
@@ -601,7 +601,7 @@ async function openPhotosModal(jobId, address) {
     photoGrid.innerHTML = `
       <div class="photos-empty" style="grid-column:1/-1">
         <span class="icon">⚠️</span>
-        <p>${err.message || 'Erro ao carregar fotos.'}</p>
+        <p>${err.message || 'Error loading photos.'}</p>
       </div>
     `;
   }
@@ -664,24 +664,24 @@ function escHtml(str) {
 boot();
 
 window.cancelJob = async function(jobId) {
-  if (!confirm('Deseja realmente cancelar esta solicitação de serviço?')) return;
+  if (!confirm('Are you sure you want to cancel this service request?')) return;
   try {
     await api('PATCH', `/api/jobs/${jobId}/cancel`);
-    showToast('Serviço cancelado com sucesso.', 'success');
+    showToast('Service cancelled successfully.', 'success');
     await loadJobs();
   } catch (err) {
-    showToast('Erro ao cancelar: ' + (err.message || ''), 'error');
+    showToast('Error cancelling: ' + (err.message || ''), 'error');
   }
 };
 
 window.deleteJob = async function(jobId) {
-  if (!confirm('Deseja excluir este serviço da sua lista? Esta ação não pode ser desfeita.')) return;
+  if (!confirm('Do you want to delete this service from your list? This action cannot be undone.')) return;
   try {
     await api('DELETE', `/api/jobs/${jobId}`);
-    showToast('Serviço excluído com sucesso.', 'success');
+    showToast('Service deleted successfully.', 'success');
     await loadJobs();
   } catch (err) {
-    showToast('Erro ao excluir: ' + (err.message || ''), 'error');
+    showToast('Error deleting: ' + (err.message || ''), 'error');
   }
 };
 
@@ -703,12 +703,12 @@ async function submitChangePassword(e) {
   const newPassword = document.getElementById('cpNew').value;
   const confirmPassword = document.getElementById('cpConfirm').value;
   
-  if (newPassword !== confirmPassword) return showToast('A nova senha e a confirmacao nao coincidem', 'error');
-  if (newPassword.length < 6) return showToast('A nova senha deve ter no minimo 6 caracteres', 'error');
+  if (newPassword !== confirmPassword) return showToast('The new password and confirmation do not match', 'error');
+  if (newPassword.length < 6) return showToast('The new password must be at least 6 characters', 'error');
   
   const btn = document.getElementById('cpSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.textContent = 'Saving...';
   
   try {
     const res = await fetch('/api/me/password', {
@@ -717,14 +717,14 @@ async function submitChangePassword(e) {
       body: JSON.stringify({ currentPassword, newPassword })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Erro ao trocar senha');
+    if (!res.ok) throw new Error(data.error || 'Error changing password');
     
-    showToast('Senha alterada com sucesso!', 'success');
+    showToast('Password changed successfully!', 'success');
     closeChangePasswordModal();
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Salvar Senha';
+    btn.textContent = 'Save Password';
   }
 }
