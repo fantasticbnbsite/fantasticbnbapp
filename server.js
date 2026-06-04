@@ -1084,9 +1084,7 @@ async function handleApi(req, res, requestUrl) {
       jobs.forEach(j => {
         if (!j.invoice_id) {
           if (targetId && targetId !== 'all' && String(j.client_user_id) !== String(targetId)) return;
-          const groupKey = `${j.client_user_id}::${j.flat_address && j.flat_address.includes('(') ? 'default' : (j.city || 'Automático')}`;
-          // Wait, jobs query only has j.flat_address, not j.city!
-          // I will fix the jobs query next to include f.city AS city.
+          const groupKey = `${j.client_user_id}::${j.city || 'Automático'}`;
           if (!jobsByClientGroup[groupKey]) jobsByClientGroup[groupKey] = [];
           jobsByClientGroup[groupKey].push(j);
         }
@@ -1905,10 +1903,13 @@ function renderClientInvoicePrintHtml(invoice, clientUser, jobs) {
 </head>
 <body>
   <div class="header">
-    <div>
-      <h1>INVOICE</h1>
-      <p style="margin: 5px 0 0 0; color: #666;">Data: ${new Date(invoice.created_at).toLocaleDateString()}</p>
-      <p style="margin: 5px 0 0 0; color: #666;">Fatura #: ${invoice.id}</p>
+    <div style="display:flex; align-items:center; gap: 20px;">
+      <img src="/icon-192.png" style="max-height: 80px; border-radius: 8px;" alt="Logo" />
+      <div>
+        <h1>INVOICE</h1>
+        <p style="margin: 5px 0 0 0; color: #666;">Data: ${new Date(invoice.created_at).toLocaleDateString()}</p>
+        <p style="margin: 5px 0 0 0; color: #666;">Fatura #: ${invoice.id}</p>
+      </div>
     </div>
     <div class="company-details">
       <strong>Fantastic BNB</strong><br>

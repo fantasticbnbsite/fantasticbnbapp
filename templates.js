@@ -98,7 +98,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
             <tr><td>Email:</td><td>fantasticbnbservicss@gmail.com</td></tr>
             <tr><td>Invoice nº</td><td>#${invoice.id}</td></tr>
             <tr><td>Period:</td><td>${new Date(invoice.period_from).toLocaleDateString('en-GB')} - ${new Date(invoice.period_to).toLocaleDateString('en-GB')}</td></tr>
-            <tr><td>Bill To:</td><td style="color:#0044cc;">${client.name}</td></tr>
+            <tr><td>Bill To:</td><td style="color:#0044cc;">${invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name}</td></tr>
             <tr><td>Email:</td><td>${client.email}</td></tr>
           </table>
         </td>
