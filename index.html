@@ -884,7 +884,10 @@
     <div class="modal-card" style="max-width: 800px; width: 95%;">
       <div class="modal-header">
         <div><p class="eyebrow">Financeiro</p><h3 id="financeEditTitle">Editar Fatura/Holerite</h3></div>
-        <button class="icon-button" onclick="document.getElementById('financeEditModal').classList.add('hidden')">x</button>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div id="financeEditPrintContainer"></div>
+          <button class="icon-button" onclick="document.getElementById('financeEditModal').classList.add('hidden')">x</button>
+        </div>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
         <div id="financeEditJobsList" style="margin-top: 16px;"></div>

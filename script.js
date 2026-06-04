@@ -2796,7 +2796,7 @@ function renderFinanceSummary() {
         <strong>${escapeHtml(inv.client_name)} - ${escapeHtml(inv.invoice_group || 'Padrao')}</strong>
         <small>Total Invoice: ${formatCurrencyGBP(inv.grandTotal)}</small>
         <div class="invoice-card-actions">
-          <button class="ghost-button" onclick="window.open('/print/invoice?client_id=${inv.client_id}&group=${encodeURIComponent(inv.invoice_group)}', '_blank')">Ver PDF / Imprimir</button>
+          <button class="ghost-button" onclick="window.open('/print/invoice/${inv.id}', '_blank')">Ver PDF / Imprimir</button>
         </div>
       </div>
       `;
@@ -2810,7 +2810,7 @@ function renderFinanceSummary() {
         <strong>${escapeHtml(pay.employee_name)}</strong>
         <small>Total Holerite: ${formatCurrencyGBP(pay.netAmount)}</small>
         <div class="invoice-card-actions">
-          <button class="ghost-button" onclick="window.open('/print/payslip/?employee_id=${pay.employee_id}', '_blank')">Ver PDF / Imprimir</button>
+          <button class="ghost-button" onclick="window.open('/print/payslip/${pay.id}', '_blank')">Ver PDF / Imprimir</button>
         </div>
       </div>
       `;
@@ -3142,6 +3142,7 @@ function openEditInvoiceModal(id) {
   const invoice = state.finance.invoices.find(i => i.id === id);
   if (!invoice) return;
   document.getElementById('financeEditTitle').textContent = `Editar Fatura #${id} - ${invoice.client_name}`;
+  document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
   
   let html = `<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
     <thead>
@@ -3188,6 +3189,7 @@ function openEditPayrollModal(id) {
   const payroll = state.finance.payrolls.find(p => p.id === id);
   if (!payroll) return;
   document.getElementById('financeEditTitle').textContent = `Editar Holerite #${id} - ${payroll.employee_name}`;
+  document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/payslip/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
   
   let html = `<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
     <thead>
