@@ -3386,3 +3386,141 @@ async function loadClientUsersForFlat() {
     console.error('Error loading client users:', err);
   }
 }
+
+// ── DASHBOARD LOGIC ──────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  const container = document.getElementById('dashboardStats');
+  if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);width:100%;">Carregando dashboard...</div>';
+  try {
+    const data = await api('/api/dashboard/stats');
+    state.dashboardJobs = data.jobs || [];
+    renderDashboard();
+  } catch (err) {
+    console.error(err);
+    toast('Falha ao carregar dados do dashboard.', 'error');
+  }
+}
+
+function renderDashboard() {
+  if (!state.dashboardJobs) return;
+  const jobs = state.dashboardJobs;
+
+  const clientFilter = document.getElementById('dashboardClientFilter')?.value || 'all';
+
+  let filteredJobs = jobs;
+  if (clientFilter !== 'all') {
+    filteredJobs = jobs.filter(j => j.client_user_id == clientFilter);
+  }
+
+  // Stats
+  let totalRevenue = 0;
+  let totalCost = 0;
+  
+  // Breakdowns
+  const clientData = {};
+  const cleanerData = {};
+  const trendData = {};
+
+  filteredJobs.forEach(j => {
+    const revenue = j.client_amount || 0;
+    const cost = j.employee_amount || 0;
+    const profit = revenue - cost;
+
+    totalRevenue += revenue;
+    totalCost += cost;
+
+    // Client Breakdown
+    if (j.client_user_id) {
+      if (!clientData[j.client_user_id]) clientData[j.client_user_id] = { name: j.client_name || 'Desconhecido', revenue: 0, cost: 0 };
+      clientData[j.client_user_id].revenue += revenue;
+      clientData[j.client_user_id].cost += cost;
+    }
+
+    // Cleaner Breakdown
+    if (j.employee_user_id) {
+      if (!cleanerData[j.employee_user_id]) cleanerData[j.employee_user_id] = { name: j.employee_name || 'Desconhecido', cost: 0 };
+      cleanerData[j.employee_user_id].cost += cost;
+    }
+
+    // Trend
+    if (j.finished_at) {
+      const month = j.finished_at.substring(0, 7); // YYYY-MM
+      if (!trendData[month]) trendData[month] = { revenue: 0, cost: 0 };
+      trendData[month].revenue += revenue;
+      trendData[month].cost += cost;
+    }
+  });
+
+  const totalProfit = totalRevenue - totalCost;
+
+  const statsEl = document.getElementById('dashboardStats');
+  if (statsEl) {
+    statsEl.innerHTML = [
+      ['Faturamento Bruto', formatCurrencyGBP(totalRevenue)],
+      ['Gastos com Equipe', formatCurrencyGBP(totalCost)],
+      ['Lucro Bruto', formatCurrencyGBP(totalProfit)]
+    ].map(([label, value]) => `<article class="holerite-stat glass-card"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
+  }
+
+  const clientListEl = document.getElementById('dashboardClientBreakdown');
+  if (clientListEl) {
+    const clientsArr = Object.values(clientData).sort((a,b) => b.revenue - a.revenue);
+    clientListEl.innerHTML = clientsArr.map(c => `
+      <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${escapeHtml(c.name)}</strong>
+          <small>Receita: ${formatCurrencyGBP(c.revenue)} | Custo: ${formatCurrencyGBP(c.cost)}</small>
+        </div>
+        <div style="text-align:right; color: ${c.revenue - c.cost >= 0 ? 'var(--primary)' : 'var(--danger)'}; font-weight:600;">
+          Lucro: ${formatCurrencyGBP(c.revenue - c.cost)}
+        </div>
+      </div>
+    `).join('') || '<div class="stack-item">Sem dados de clientes no periodo.</div>';
+  }
+
+  const cleanerListEl = document.getElementById('dashboardCleanerBreakdown');
+  if (cleanerListEl) {
+    const cleanersArr = Object.values(cleanerData).sort((a,b) => b.cost - a.cost);
+    cleanerListEl.innerHTML = cleanersArr.map(c => `
+      <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>${escapeHtml(c.name)}</strong>
+        <div style="font-weight:600;">Gasto: ${formatCurrencyGBP(c.cost)}</div>
+      </div>
+    `).join('') || '<div class="stack-item">Sem dados de cleaners no periodo.</div>';
+  }
+
+  const trendListEl = document.getElementById('dashboardTrendBreakdown');
+  if (trendListEl) {
+    const monthsArr = Object.keys(trendData).sort().reverse();
+    trendListEl.innerHTML = monthsArr.map(m => {
+      const d = trendData[m];
+      const p = d.revenue - d.cost;
+      const margin = d.revenue > 0 ? Math.round((p / d.revenue) * 100) : 0;
+      return `
+      <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>${escapeHtml(m)}</strong>
+        <div style="text-align:right;">
+          <div>Receita: ${formatCurrencyGBP(d.revenue)} | Margem: ${margin}%</div>
+          <small style="color:${p >= 0 ? 'var(--primary)' : 'var(--danger)'}">Lucro: ${formatCurrencyGBP(p)}</small>
+        </div>
+      </div>
+      `;
+    }).join('') || '<div class="stack-item">Sem dados consolidados no periodo.</div>';
+  }
+
+  // Populate Filter
+  const filterEl = document.getElementById('dashboardClientFilter');
+  if (filterEl && filterEl.options.length <= 1) {
+    const allClients = Object.keys(clientData).map(id => ({ id, name: clientData[id].name })).sort((a,b) => a.name.localeCompare(b.name));
+    const currentVal = filterEl.value;
+    filterEl.innerHTML = '<option value="all">Visao Geral da Operacao</option>' + allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    filterEl.value = currentVal;
+    
+    // attach event
+    if (!filterEl.dataset.bound) {
+      filterEl.addEventListener('change', renderDashboard);
+      filterEl.dataset.bound = 'true';
+    }
+  }
+}
