@@ -722,6 +722,8 @@
       .login-card { padding: 28px 20px; }
     }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#c9743f">
 </head>
 <body>
 
@@ -893,5 +895,12 @@
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="client.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    });
+  }
+</script>
 </body>
 </html>

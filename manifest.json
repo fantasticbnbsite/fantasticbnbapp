@@ -1,0 +1,16 @@
+{
+  "name": "Fantastic BNB",
+  "short_name": "Fantastic",
+  "description": "Aplicativo de gestão de serviços de limpeza",
+  "start_url": "/login.html",
+  "display": "standalone",
+  "background_color": "#f8f4ee",
+  "theme_color": "#c9743f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
