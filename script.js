@@ -2038,6 +2038,8 @@ function formatFieldValue(value, type) { if (!value) return '-'; if (type === 'd
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }
 function formatHours(h) { if (h == null) return '—'; const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); if (mm === 0) return `${hh}h`; return `${hh}h ${String(mm).padStart(2, '0')}m`; }
+function decimalToTimeStr(h) { if (h == null || h === '') return ''; const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
+function timeStrToDecimal(t) { if (!t) return null; const [hh, mm] = t.split(':').map(Number); return hh + (mm / 60); }
 function roundToTwo(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }
 function escapeHtml(value) { return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
@@ -2567,7 +2569,7 @@ window.openAdminEditJobModal = async function(jobId) {
   const durInput = document.getElementById('adminEditJobDuration');
   if (job.status === 'completed') {
     durContainer.classList.remove('hidden');
-    durInput.value = job.durationHours || '';
+    durInput.value = decimalToTimeStr(job.durationHours);
   } else {
     durContainer.classList.add('hidden');
     durInput.value = '';
@@ -2594,8 +2596,16 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
   const status = document.getElementById('adminEditJobStatus').value;
   const employeeUserId = document.getElementById('adminEditJobEmployee').value;
   const requestedDate = document.getElementById('adminEditJobDate').value;
-  const durationHours = document.getElementById('adminEditJobDuration').value;
+  const durationStr = document.getElementById('adminEditJobDuration').value;
   const isHoliday = document.getElementById('adminEditJobIsHoliday').checked;
+  
+  const payload = { 
+    status, 
+    employeeUserId: employeeUserId || null, 
+    requestedDate, 
+    isHoliday,
+    durationHours: status === 'completed' ? timeStrToDecimal(durationStr) : undefined
+  };
 
   e.target.disabled = true;
   e.target.textContent = 'Salvando...';
@@ -2604,13 +2614,7 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
     const res = await fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status, 
-        employeeUserId: employeeUserId || null, 
-        requestedDate,
-        isHoliday,
-        durationHours: status === 'completed' ? Number(durationHours) : undefined
-      })
+      body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error('Falha ao atualizar servico');
     toast('Servico atualizado!');
