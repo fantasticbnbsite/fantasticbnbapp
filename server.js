@@ -434,6 +434,24 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, buildSessionPayload(session.user));
   }
 
+  // ── Auth: Change Password ──
+  if (requestUrl.pathname === '/api/me/password' && req.method === 'PUT') {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const body = await parseBody(req);
+    if (!body.currentPassword || !body.newPassword) return sendJson(res, 400, { error: 'Senhas atuais e novas sao obrigatorias.' });
+    if (body.newPassword.length < 6) return sendJson(res, 400, { error: 'Nova senha deve ter pelo menos 6 caracteres.' });
+    
+    // Verify current password
+    if (!verifyPassword(body.currentPassword, session.user.password_salt, session.user.password_hash)) {
+      return sendJson(res, 401, { error: 'Senha atual incorreta.' });
+    }
+    
+    const { salt, hash } = hashPassword(body.newPassword);
+    db.prepare('UPDATE users SET password_salt = ?, password_hash = ? WHERE id = ?').run(salt, hash, session.user.id);
+    return sendJson(res, 200, { success: true });
+  }
+
   // All remaining routes require auth
   const session = requireSession(req, res);
   if (!session) return;

@@ -3650,3 +3650,43 @@ async function submitManualJob(e) {
     document.getElementById('manualJobSubmit').textContent = 'Criar e Anexar Servico';
   }
 }
+
+// ── CHANGE PASSWORD ────────────────────────────────────────────────────────
+function openChangePasswordModal() {
+  document.getElementById('changePasswordForm').reset();
+  document.getElementById('changePasswordModal').classList.remove('hidden');
+}
+function closeChangePasswordModal() {
+  document.getElementById('changePasswordModal').classList.add('hidden');
+}
+async function submitChangePassword(e) {
+  e.preventDefault();
+  const currentPassword = document.getElementById('cpCurrent').value;
+  const newPassword = document.getElementById('cpNew').value;
+  const confirmPassword = document.getElementById('cpConfirm').value;
+  
+  if (newPassword !== confirmPassword) return toast('A nova senha e a confirmacao nao coincidem', 'error');
+  if (newPassword.length < 6) return toast('A nova senha deve ter no minimo 6 caracteres', 'error');
+  
+  const btn = document.getElementById('cpSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  
+  try {
+    const res = await fetch('/api/me/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Erro ao trocar senha');
+    
+    toast('Senha alterada com sucesso!', 'success');
+    closeChangePasswordModal();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Senha';
+  }
+}

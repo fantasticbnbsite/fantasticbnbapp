@@ -68,6 +68,7 @@
         </div>
         <div class="topbar-actions">
           <div class="user-pill" id="userPill"></div>
+          <button class="button button-secondary" id="openChangePasswordButton" onclick="openChangePasswordModal()" style="margin-right: 8px;">Trocar Senha</button>
           <button class="button button-secondary" id="logoutButton">Sair</button>
         </div>
       </header>
@@ -938,6 +939,32 @@
         <select id="assignEmployeeSelect" style="width:100%;margin-top:6px;"><option value="">Carregando...</option></select>
         <input type="hidden" id="assignJobId" />
         <button class="button button-primary" id="confirmAssignButton" style="margin-top:16px;width:100%;">Designar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="changePasswordModal" style="z-index: 1000000;">
+    <div class="modal-card glass-card" style="max-width:400px;">
+      <div class="modal-header">
+        <div><h3 style="margin:0;">Trocar Senha</h3></div>
+        <button class="icon-button" onclick="closeChangePasswordModal()">x</button>
+      </div>
+      <div class="modal-body">
+        <form id="changePasswordForm" class="stack-form" onsubmit="submitChangePassword(event)">
+          <div>
+            <label>Senha Atual</label>
+            <input type="password" id="cpCurrent" required />
+          </div>
+          <div>
+            <label>Nova Senha</label>
+            <input type="password" id="cpNew" required minlength="6" />
+          </div>
+          <div>
+            <label>Confirmar Nova Senha</label>
+            <input type="password" id="cpConfirm" required minlength="6" />
+          </div>
+          <button type="submit" class="button button-primary" id="cpSubmitBtn" style="margin-top:16px;">Salvar Senha</button>
+        </form>
       </div>
     </div>
   </div>

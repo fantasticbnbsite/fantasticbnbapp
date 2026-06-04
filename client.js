@@ -684,3 +684,47 @@ window.deleteJob = async function(jobId) {
     showToast('Erro ao excluir: ' + (err.message || ''), 'error');
   }
 };
+
+// ── CHANGE PASSWORD ────────────────────────────────────────────────────────
+function openChangePasswordModal() {
+  document.getElementById('changePasswordForm').reset();
+  const modal = document.getElementById('changePasswordModal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+function closeChangePasswordModal() {
+  const modal = document.getElementById('changePasswordModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.style.display = 'none', 300);
+}
+async function submitChangePassword(e) {
+  e.preventDefault();
+  const currentPassword = document.getElementById('cpCurrent').value;
+  const newPassword = document.getElementById('cpNew').value;
+  const confirmPassword = document.getElementById('cpConfirm').value;
+  
+  if (newPassword !== confirmPassword) return showToast('A nova senha e a confirmacao nao coincidem', 'error');
+  if (newPassword.length < 6) return showToast('A nova senha deve ter no minimo 6 caracteres', 'error');
+  
+  const btn = document.getElementById('cpSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  
+  try {
+    const res = await fetch('/api/me/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Erro ao trocar senha');
+    
+    showToast('Senha alterada com sucesso!', 'success');
+    closeChangePasswordModal();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Senha';
+  }
+}
