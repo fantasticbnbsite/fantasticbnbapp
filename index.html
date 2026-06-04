@@ -771,7 +771,52 @@
         <div><p class="eyebrow">Historico</p><h3 id="historyTitle">Alteracoes do registro</h3></div>
         <button class="icon-button" id="closeHistoryButton">x</button>
       </div>
-      <div id="historyList" class="stack-list"></div>
+  </div>
+
+  <!-- ── Modal Manual Job ──────────────────────────────────────── -->
+  <div class="modal hidden" id="manualJobModal">
+    <div class="modal-content" style="max-width:500px;">
+      <div class="modal-header">
+        <div><h3 style="margin:0;">Lançamento Manual</h3><p class="eyebrow" style="margin-top:4px;">Adicione um serviço que foi esquecido</p></div>
+        <button class="icon-button" onclick="closeManualJobModal()">x</button>
+      </div>
+      <div class="modal-body">
+        <form id="manualJobForm" class="stack-form" onsubmit="submitManualJob(event)">
+          <div id="manualJobClientField" class="hidden">
+             <label>Cliente</label>
+             <select id="manualJobClient"></select>
+          </div>
+          <div>
+             <label>Flat</label>
+             <select id="manualJobFlat" required></select>
+          </div>
+          <div id="manualJobEmployeeField" class="hidden">
+             <label>Funcionário (Cleaner)</label>
+             <select id="manualJobEmployee"></select>
+          </div>
+          <div class="rate-grid">
+             <div>
+               <label>Data</label>
+               <input type="date" id="manualJobDate" required />
+             </div>
+             <div>
+               <label>Horas Trabalhadas</label>
+               <input type="number" id="manualJobHours" step="0.01" min="0" placeholder="Ex: 2.5" required />
+             </div>
+          </div>
+          <div style="margin-top:8px;">
+             <label class="check-option">
+               <input type="checkbox" id="manualJobHoliday" />
+               <span>Aplicar taxa de feriado</span>
+             </label>
+          </div>
+          <button type="submit" class="button button-primary" id="manualJobSubmit" style="margin-top:16px;">Criar e Anexar Serviço</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
     </div>
   </div>
 
@@ -843,6 +888,9 @@
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
         <div id="financeEditJobsList" style="margin-top: 16px;"></div>
+        <div style="margin-top: 12px; text-align: right;">
+          <button type="button" class="button button-secondary button-small" onclick="openManualJobForFinance()">+ Adicionar Serviço Esquecido</button>
+        </div>
         
         <div style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 16px;">
           <h4>Lançamentos Extras / Deduções</h4>

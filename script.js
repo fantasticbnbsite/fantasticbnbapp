@@ -3524,3 +3524,101 @@ function renderDashboard() {
     }
   }
 }
+
+// ── MANUAL JOB ───────────────────────────────────────────
+
+function openManualJobForFinance() {
+  const isInvoice = currentFinanceEditType === 'invoice';
+  let targetInvoice = null;
+  let targetPayroll = null;
+  
+  if (isInvoice) {
+    targetInvoice = state.finance.invoices.find(i => i.id === currentFinanceEditId);
+  } else {
+    targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+  }
+  
+  document.getElementById('manualJobEmployeeField').classList.toggle('hidden', !isInvoice);
+  
+  // Populate Flat dropdown
+  const flatSel = document.getElementById('manualJobFlat');
+  if (isInvoice) {
+    const clientId = targetInvoice.client_user_id;
+    const clientFlats = state.flats.filter(f => f.client_user_id === clientId);
+    flatSel.innerHTML = clientFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('');
+  } else {
+    // all flats with client names
+    flatSel.innerHTML = '<option value="">Selecione o Flat</option>' + state.flats.map(f => {
+       const clientName = f.client_name || 'Desconhecido';
+       return `<option value="${f.id}">${escapeHtml(f.address)} (${escapeHtml(clientName)})</option>`;
+    }).join('');
+  }
+
+  // Populate Employee dropdown
+  if (isInvoice) {
+    const empSel = document.getElementById('manualJobEmployee');
+    const employees = state.users.filter(u => u.role === 'employee');
+    empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+  }
+
+  document.getElementById('manualJobDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('manualJobHours').value = '';
+  document.getElementById('manualJobHoliday').checked = false;
+
+  document.getElementById('manualJobModal').classList.remove('hidden');
+}
+
+function closeManualJobModal() {
+  document.getElementById('manualJobModal').classList.add('hidden');
+}
+
+async function submitManualJob(e) {
+  e.preventDefault();
+  
+  const isInvoice = currentFinanceEditType === 'invoice';
+  let targetPayroll = null;
+  
+  if (!isInvoice) {
+    targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+  }
+  
+  let flatId = document.getElementById('manualJobFlat').value;
+  let employeeUserId = isInvoice ? document.getElementById('manualJobEmployee').value : targetPayroll.employee_user_id;
+  let date = document.getElementById('manualJobDate').value;
+  let hours = document.getElementById('manualJobHours').value;
+  let isHoliday = document.getElementById('manualJobHoliday').checked;
+  
+  if (!flatId || !employeeUserId || !date || !hours) return toast('Preencha os campos obrigatorios');
+  
+  document.getElementById('manualJobSubmit').disabled = true;
+  document.getElementById('manualJobSubmit').textContent = 'Processando...';
+
+  try {
+    const payload = {
+      flatId,
+      employeeUserId,
+      requestedDate: date,
+      durationHours: hours,
+      isHoliday,
+      invoiceId: isInvoice ? currentFinanceEditId : null,
+      payrollId: !isInvoice ? currentFinanceEditId : null
+    };
+
+    const res = await api('/api/jobs/manual', { method: 'POST', body: payload });
+    toast('Servico manual criado com sucesso!', 'success');
+    closeManualJobModal();
+    
+    // Recarregar tudo
+    await loadFinance();
+    if (isInvoice) {
+      openEditInvoiceModal(currentFinanceEditId);
+    } else {
+      openEditPayrollModal(currentFinanceEditId);
+    }
+  } catch (err) {
+    toast('Erro: ' + (err.message || ''), 'error');
+  } finally {
+    document.getElementById('manualJobSubmit').disabled = false;
+    document.getElementById('manualJobSubmit').textContent = 'Criar e Anexar Servico';
+  }
+}
