@@ -139,7 +139,7 @@ function badgeHTML(status) {
 async function boot() {
   try {
     const data = await api('GET', '/api/auth/me');
-    if (!data.user || data.user.role !== 'client') {
+    if (!data.user || (data.user.role !== 'client' && data.user.role !== 'client_user')) {
       showLogin();
       return;
     }
@@ -186,7 +186,7 @@ loginForm.addEventListener('submit', async (e) => {
     const data = await api('POST', '/api/auth/login', { email, password });
     // Fetch user profile
     const me = await api('GET', '/api/auth/me');
-    if (!me.user || me.user.role !== 'client') {
+    if (!me.user || (me.user.role !== 'client' && me.user.role !== 'client_user')) {
       loginError.textContent = 'Access restricted to clients only.';
       await api('POST', '/api/auth/logout');
       return;
