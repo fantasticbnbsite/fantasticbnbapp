@@ -788,108 +788,70 @@ textarea {
 }
 
 @media (max-width: 640px) {
-  body {
-    background: linear-gradient(180deg, #f8f4ee 0%, #efe6dc 52%, #f7f2ea 100%);
-  }
+  body { background: linear-gradient(180deg, #f8f4ee 0%, #efe6dc 52%, #f7f2ea 100%); }
+  .shell { width: min(100%, calc(100% - 10px)); margin: 5px auto; gap: 12px; }
 
-  .shell {
-    width: min(100%, calc(100% - 10px));
-    margin: 5px auto;
-  }
+  .sidebar, .topbar, .panel, .toolbar, .holerites-hero, .login-card, .login-form, .modal-card, .drawer-card { border-radius: 22px; }
+  .sidebar, .topbar, .panel, .toolbar, .holerites-hero { padding: 16px; }
 
-  .sidebar,
-  .topbar,
-  .panel,
-  .toolbar,
-  .holerites-hero,
-  .login-card,
-  .login-form,
-  .modal-card,
-  .drawer-card {
-    border-radius: 22px;
-  }
+  .brand-mark { width: 42px; height: 42px; border-radius: 14px; }
+  .topbar h2 { font-size: 1.45rem; }
+  .user-pill { width: 100%; text-align: center; }
 
-  .sidebar,
-  .topbar,
-  .panel,
-  .toolbar,
-  .holerites-hero {
-    padding: 16px;
-  }
+  .panel-header { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .panel-header > div { width: 100%; }
+  .panel-header .button { width: 100%; justify-content: center; }
 
-  .brand-mark {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-  }
+  .stats-row, .holerites-stats { grid-template-columns: 1fr; gap: 12px; }
+  .stat-card, .holerite-stat, .stack-item { padding: 16px; }
 
-  .topbar h2 {
-    font-size: 1.45rem;
-  }
+  .rate-grid { gap: 10px; }
+  .check-option { min-height: 48px; justify-content: flex-start; }
 
-  .user-pill {
-    width: 100%;
-    text-align: center;
-  }
+  .invoice-extra-row, .invoice-extra-labels { grid-template-columns: 1fr; }
+  .invoice-extra-labels { display: none; }
+  .invoice-card-actions { grid-template-columns: 1fr; }
+  .selected-flats-card { padding: 16px; }
 
-  .panel-header {
-    align-items: flex-start;
-  }
+  .dashboard-filter-grid { grid-template-columns: 1fr; }
+  .dashboard-breakdown-head, .dashboard-breakdown-meta { flex-direction: column; align-items: flex-start; }
 
-  .stats-row,
-  .holerites-stats {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
+  .toast { right: 12px; left: 12px; bottom: 12px; max-width: none; }
 
-  .stat-card,
-  .holerite-stat,
-  .stack-item {
-    padding: 16px;
+  /* Responsive Data Tables */
+  .table-wrap { overflow: visible; background: transparent; box-shadow: none; border-radius: 0; }
+  .data-table { display: flex; flex-direction: column; gap: 16px; min-width: 0 !important; }
+  .data-table thead { display: none; }
+  .data-table tbody { display: flex; flex-direction: column; gap: 16px; }
+  .data-table tr { 
+    display: flex; flex-direction: column; 
+    background: rgba(255, 255, 255, 0.85); 
+    border-radius: 20px; padding: 16px; 
+    border: 1px solid rgba(201, 116, 63, 0.15); 
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03); gap: 6px; 
   }
+  .data-table td { 
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    padding: 0; border: none; font-size: 0.95rem; gap: 6px; 
+  }
+  .data-table td:first-child { 
+    font-weight: 800; font-size: 1.1rem; margin-bottom: 4px; 
+    padding-bottom: 10px; border-bottom: 1px dashed rgba(201,116,63,0.15); 
+  }
+  .data-table td:last-child { 
+    margin-top: 8px; padding-top: 12px; 
+    border-top: 1px dashed rgba(201,116,63,0.15); justify-content: stretch; 
+  }
+  .data-table td:last-child .table-actions { width: 100%; flex-wrap: wrap; flex-direction: column; align-items: stretch; gap: 8px; }
+  .data-table td:last-child .table-actions .ghost-button,
+  .data-table td:last-child .table-actions .button { width: 100%; min-height: 48px; justify-content: center; }
 
-  .rate-grid {
-    gap: 10px;
-  }
-
-  .check-option {
-    min-height: 48px;
-    justify-content: flex-start;
-  }
-
-  .invoice-extra-row,
-  .invoice-extra-labels {
-    grid-template-columns: 1fr;
-  }
-
-  .invoice-extra-labels {
-    display: none;
-  }
-
-  .invoice-card-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .selected-flats-card {
-    padding: 16px;
-  }
-
-  .dashboard-filter-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-breakdown-head,
-  .dashboard-breakdown-meta {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .toast {
-    right: 12px;
-    left: 12px;
-    bottom: 12px;
-    max-width: none;
-  }
+  /* Inputs larger for touch */
+  input, select, textarea { font-size: 16px; min-height: 52px; }
+  
+  /* Buttons and Actions Stack */
+  .toolbar-actions { flex-direction: column; align-items: stretch; }
+  .toolbar-actions > * { width: 100%; justify-content: center; }
 }
 
 
