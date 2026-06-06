@@ -2238,6 +2238,7 @@ async function onConfigSubmit(e) {
 // ── Helper: expose functions globally for onclick handlers ────────────────────
 window.openAssignModal = openAssignModal;
 window.adminCancelJob = adminCancelJob;
+window.deleteJob = deleteJob;
 window.openJobPhotos = openJobPhotos;
 window.openLightbox = openLightbox;
 window.editFlat = editFlat;
@@ -2693,6 +2694,7 @@ function renderJobs() {
     if (job.status !== 'completed' && job.status !== 'cancelled') {
       actions += `<button class="ghost-button" style="margin-left:8px;" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
     }
+    actions += `<button class="ghost-button" style="margin-left:8px; color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
     
     let timelineHtml = '';
     if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
@@ -3000,6 +3002,17 @@ async function adminCancelJob(jobId) {
     if (typeof loadOperationsState === 'function') loadOperationsState();
   } catch (err) {
     toast('Erro ao cancelar limpeza', 'error');
+  }
+}
+
+async function deleteJob(jobId) {
+  if (!confirm('Tem certeza que deseja excluir permanentemente esta solicitacao?')) return;
+  try {
+    await api('/api/jobs/' + jobId, { method: 'DELETE' });
+    toast('Servico excluido com sucesso', 'success');
+    if (typeof loadJobs === 'function') loadJobs();
+  } catch (err) {
+    toast(err.message || 'Erro ao excluir limpeza', 'error');
   }
 }
 
