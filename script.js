@@ -3639,6 +3639,7 @@ async function openAdminRequestJobModal() {
   document.getElementById('adminReqJobFlat').innerHTML = '<option value="">Selecione um cliente primeiro</option>';
   document.getElementById('adminReqJobDate').value = '';
   document.getElementById('adminReqJobNotes').value = '';
+  document.getElementById('adminReqJobIsHoliday').checked = false;
   
   modal.classList.remove('hidden');
 }
@@ -3674,7 +3675,8 @@ async function submitAdminRequestJob(e) {
       flatId: document.getElementById('adminReqJobFlat').value,
       requestedDate: document.getElementById('adminReqJobDate').value,
       employeeUserId: document.getElementById('adminReqJobEmployee').value || null,
-      notes: document.getElementById('adminReqJobNotes').value
+      notes: document.getElementById('adminReqJobNotes').value,
+      isHoliday: document.getElementById('adminReqJobIsHoliday').checked
     };
     
     await api('/api/jobs', { method: 'POST', body: payload });

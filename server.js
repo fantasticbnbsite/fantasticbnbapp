@@ -721,7 +721,8 @@ async function handleApi(req, res, requestUrl) {
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado ou sem permissao.' });
     
     const now = new Date().toISOString();
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', now, now);
+    const isHoliday = body.isHoliday ? 1 : 0;
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, now, now);
     return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
