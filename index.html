@@ -557,6 +557,7 @@
               <p class="panel-kicker">Gerencie todas as solicitacoes de limpeza, designe funcionarios e acompanhe o fluxo completo.</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="button button-primary" onclick="openAdminRequestJobModal()">+ Nova Solicitacao</button>
               <select id="jobsStatusFilter" class="filter-select" style="min-width:140px;">
                 <option value="">Todos os status</option>
                 <option value="pending">Pendente</option>
@@ -945,6 +946,44 @@
         <select id="assignEmployeeSelect" style="width:100%;margin-top:6px;"><option value="">Carregando...</option></select>
         <input type="hidden" id="assignJobId" />
         <button class="button button-primary" id="confirmAssignButton" style="margin-top:16px;width:100%;">Designar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Admin Request Job Modal ──────────────────────────────────────── -->
+  <div class="modal hidden" id="adminRequestJobModal" style="z-index: 100000;">
+    <div class="modal-card glass-card" style="max-width:500px;">
+      <div class="modal-header">
+        <div><h3 style="margin:0;">Nova Solicitacao (Gerencia)</h3><p class="eyebrow" style="margin-top:4px;">Crie uma limpeza e designe o funcionario</p></div>
+        <button type="button" class="icon-button" onclick="closeAdminRequestJobModal()">x</button>
+      </div>
+      <div class="modal-body">
+        <form id="adminRequestJobForm" class="stack-form" onsubmit="submitAdminRequestJob(event)">
+          <div>
+            <label>Cliente (Proprietario)</label>
+            <select id="adminReqJobClient" required onchange="updateAdminReqJobFlats()"></select>
+          </div>
+          <div>
+            <label>Flat</label>
+            <select id="adminReqJobFlat" required><option value="">Selecione um cliente primeiro</option></select>
+          </div>
+          <div>
+            <label>Data Solicitada</label>
+            <input type="date" id="adminReqJobDate" required />
+          </div>
+          <div>
+            <label>Funcionario (Designacao imediata)</label>
+            <select id="adminReqJobEmployee">
+              <option value="">Deixar pendente (Sem funcionario)</option>
+            </select>
+            <small style="color:var(--muted);display:block;margin-top:4px;">Se selecionar um funcionario, o servico ja nasce como "Designado".</small>
+          </div>
+          <div>
+            <label>Observacoes</label>
+            <textarea id="adminReqJobNotes" placeholder="Algum detalhe extra?"></textarea>
+          </div>
+          <button type="submit" class="button button-primary" style="margin-top:16px;" id="adminReqJobSubmitBtn">Criar Solicitacao</button>
+        </form>
       </div>
     </div>
   </div>

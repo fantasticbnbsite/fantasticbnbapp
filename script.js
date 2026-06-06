@@ -3618,6 +3618,73 @@ function closeManualJobModal() {
   document.getElementById('manualJobModal').classList.add('hidden');
 }
 
+// --- Admin Request Job (CleanOps) ---
+function openAdminRequestJobModal() {
+  const modal = document.getElementById('adminRequestJobModal');
+  const clientSelect = document.getElementById('adminReqJobClient');
+  const employeeSelect = document.getElementById('adminReqJobEmployee');
+  
+  // Load Clients
+  const clients = state.users.filter(u => u.role === 'client' || u.role === 'client_user');
+  clientSelect.innerHTML = `<option value="">Selecione um cliente</option>` + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join('');
+  
+  // Load Employees
+  const employees = state.users.filter(u => u.role === 'employee');
+  employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => `<option value="${e.id}">${escapeHtml(e.name || e.email)}</option>`).join('');
+  
+  document.getElementById('adminReqJobFlat').innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+  document.getElementById('adminReqJobDate').value = '';
+  document.getElementById('adminReqJobNotes').value = '';
+  
+  modal.classList.remove('hidden');
+}
+
+function closeAdminRequestJobModal() {
+  document.getElementById('adminRequestJobModal').classList.add('hidden');
+}
+
+function updateAdminReqJobFlats() {
+  const clientId = Number(document.getElementById('adminReqJobClient').value);
+  const flatSelect = document.getElementById('adminReqJobFlat');
+  if (!clientId) {
+    flatSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+    return;
+  }
+  const clientFlats = state.flats.filter(f => f.client_user_id === clientId && f.active);
+  if (clientFlats.length === 0) {
+    flatSelect.innerHTML = '<option value="">Nenhum flat ativo encontrado</option>';
+    return;
+  }
+  flatSelect.innerHTML = clientFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('');
+}
+
+async function submitAdminRequestJob(e) {
+  e.preventDefault();
+  const btn = document.getElementById('adminReqJobSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  
+  try {
+    const payload = {
+      clientId: document.getElementById('adminReqJobClient').value,
+      flatId: document.getElementById('adminReqJobFlat').value,
+      requestedDate: document.getElementById('adminReqJobDate').value,
+      employeeUserId: document.getElementById('adminReqJobEmployee').value || null,
+      notes: document.getElementById('adminReqJobNotes').value
+    };
+    
+    await api('/api/jobs', { method: 'POST', body: payload });
+    toast('Servico solicitado com sucesso!', 'success');
+    closeAdminRequestJobModal();
+    if (typeof loadJobs === 'function') loadJobs();
+  } catch (err) {
+    toast(err.message || 'Erro ao criar solicitacao', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar Solicitacao';
+  }
+}
+
 async function submitManualJob(e) {
   e.preventDefault();
   

@@ -696,14 +696,32 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/jobs' && req.method === 'POST') {
-    if (session.user.role !== 'client' && session.user.role !== 'client_user') return sendJson(res, 403, { error: 'Apenas clientes podem solicitar servicos.' });
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Sem permissao.' });
+    
     const body = await parseBody(req);
-    const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
-    const flat = db.prepare('SELECT * FROM flats WHERE id = ? AND client_user_id = ? AND active = 1').get(Number(body.flatId), targetClientId);
-    if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado ou sem permissao.' });
     if (!body.requestedDate) return sendJson(res, 400, { error: 'Data obrigatoria.' });
+    
+    let targetClientId;
+    let status = 'pending';
+    let empId = null;
+    let flat;
+    
+    if (isAdminRole(session.user.role)) {
+       targetClientId = Number(body.clientId);
+       flat = db.prepare('SELECT * FROM flats WHERE id = ? AND client_user_id = ?').get(Number(body.flatId), targetClientId);
+       if (body.employeeUserId) {
+         empId = Number(body.employeeUserId);
+         status = 'assigned';
+       }
+    } else {
+       targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+       flat = db.prepare('SELECT * FROM flats WHERE id = ? AND client_user_id = ? AND active = 1').get(Number(body.flatId), targetClientId);
+    }
+    
+    if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado ou sem permissao.' });
+    
     const now = new Date().toISOString();
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, 'pending', body.requestedDate, body.notes || '', now, now);
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', now, now);
     return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
