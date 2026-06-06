@@ -3619,7 +3619,11 @@ function closeManualJobModal() {
 }
 
 // --- Admin Request Job (CleanOps) ---
-function openAdminRequestJobModal() {
+async function openAdminRequestJobModal() {
+  if (!state.flats || state.flats.length === 0) {
+    if (typeof loadFlats === 'function') await loadFlats();
+  }
+  
   const modal = document.getElementById('adminRequestJobModal');
   const clientSelect = document.getElementById('adminReqJobClient');
   const employeeSelect = document.getElementById('adminReqJobEmployee');
