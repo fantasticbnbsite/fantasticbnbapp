@@ -3019,20 +3019,20 @@ async function deleteJob(jobId) {
   }
 }
 
-const photosModal = document.getElementById('photosModal');
-const photoGrid = document.getElementById('photoGrid');
-const closePhotosModalBtn = document.getElementById('closePhotosModal');
+const photosModal = document.getElementById('jobPhotosModal');
+const photoGrid = document.getElementById('jobPhotosGrid');
+const closePhotosModalBtn = document.getElementById('closeJobPhotosModal');
 
 if (closePhotosModalBtn) {
-  closePhotosModalBtn.addEventListener('click', () => photosModal.style.display = 'none');
+  closePhotosModalBtn.addEventListener('click', () => photosModal.classList.add('hidden'));
 }
 
 async function openJobPhotos(jobId, address) {
-  const title = document.getElementById('photosModalTitle');
-  if (title) title.textContent = `📸 Fotos — ${address || 'Limpeza'}`;
+  const title = document.getElementById('jobPhotosModalTitle');
+  if (title) title.textContent = `Fotos — ${address || 'Limpeza'}`;
   
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Carregando...</div>`;
-  photosModal.style.display = 'flex';
+  photosModal.classList.remove('hidden');
   
   try {
     const data = await api('/api/jobs/' + jobId + '/photos');
