@@ -376,9 +376,14 @@ function jobCardHTML(job) {
 
   if (job.status === 'in_progress') {
     footContent = `
-      <div class="pulse-row">
-        <span class="pulse-dot"></span>
-        Em andamento
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <div class="pulse-row">
+          <span class="pulse-dot"></span>
+          Em andamento
+        </div>
+        <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
+          📸 Ver fotos
+        </button>
       </div>
     `;
   } else if (job.status === 'completed') {

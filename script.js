@@ -2694,6 +2694,9 @@ function renderJobs() {
     if (job.status !== 'completed' && job.status !== 'cancelled') {
       actions += `<button class="ghost-button" style="margin-left:8px;" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
     }
+    if (job.status === 'in_progress' || job.status === 'completed') {
+      actions += `<button class="ghost-button" style="margin-left:8px; color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')">📸 Ver Fotos</button>`;
+    }
     actions += `<button class="ghost-button" style="margin-left:8px; color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
     
     let timelineHtml = '';
