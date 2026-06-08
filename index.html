@@ -833,12 +833,15 @@
 
   <!-- ── Job Photos Modal ─────────────────────────────────────────── -->
   <div class="modal hidden" id="jobPhotosModal">
-    <div class="modal-card glass-card" style="max-width:680px;">
-      <div class="modal-header">
+    <div class="modal-card glass-card" style="max-width:680px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="flex-shrink: 0;">
         <div><p class="eyebrow">Fotos do Servico</p><h3 id="jobPhotosModalTitle">Fotos</h3></div>
         <button class="icon-button" id="closeJobPhotosModal">x</button>
       </div>
-      <div id="jobPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:8px 0;min-height:80px;"></div>
+      <div id="jobPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;padding:8px 0; overflow-y:auto; flex:1;"></div>
+      <div style="padding-top:16px;text-align:right;flex-shrink:0;border-top:1px solid var(--line);">
+        <button class="button button-primary" onclick="document.getElementById('jobPhotosModal').classList.add('hidden')">Voltar para a tela inicial</button>
+      </div>
     </div>
   </div>
 
