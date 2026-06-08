@@ -301,6 +301,7 @@ const App = (() => {
           <input
             type="file"
             accept="image/*"
+            capture="environment"
             class="photo-input-hidden"
             id="photo-input-${job.id}"
             data-job-id="${job.id}"
@@ -334,6 +335,7 @@ const App = (() => {
           <input
             type="file"
             accept="image/*"
+            capture="environment"
             class="photo-input-hidden"
             id="photo-input-${job.id}"
             data-job-id="${job.id}"
@@ -396,10 +398,40 @@ const App = (() => {
     container.innerHTML += html;
   }
 
+  function compressImage(file, maxWidth = 1200, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = event => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round(height * maxWidth / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            if (!blob) return reject(new Error('Canvas is empty'));
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', quality);
+        };
+        img.onerror = error => reject(error);
+      };
+      reader.onerror = error => reject(error);
+    });
+  }
+
   async function handlePhotoChange(e) {
     const input = e.target;
     const jobId = input.dataset.jobId;
-    const file  = input.files[0];
+    let file  = input.files[0];
     if (!file) return;
 
     const container = document.getElementById(`photos-${jobId}`);
@@ -408,6 +440,12 @@ const App = (() => {
     const skeleton = document.createElement('div');
     skeleton.className = 'photo-thumb-skeleton';
     container.appendChild(skeleton);
+
+    try {
+      file = await compressImage(file);
+    } catch (err) {
+      console.warn('Compress error, using original', err);
+    }
 
     const formData = new FormData();
     formData.append('photo', file);
