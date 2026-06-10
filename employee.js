@@ -522,10 +522,16 @@ const App = (() => {
   }
 
   async function finishJob(jobId, btn) {
-    setButtonLoading(btn, true);
+    const obsInput = document.getElementById('obs-' + jobId);
+    const employeeNotes = obsInput ? obsInput.value : '';
+
+    // Optimistic update
+    const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
+    const originalJob = idx !== -1 ? { ...allJobs[idx] } : null;
+    if (idx !== -1) allJobs[idx].status = 'completed';
+    renderServices();
+
     try {
-      const obsInput = document.getElementById('obs-' + jobId);
-      const employeeNotes = obsInput ? obsInput.value : '';
       const data = await apiFetch(`/api/jobs/${jobId}/finish`, { 
         method: 'PATCH',
         body: JSON.stringify({ employeeNotes })
@@ -533,15 +539,17 @@ const App = (() => {
       showToast('Serviço concluído! 🎉', 'success');
       // Merge returned job data if available
       if (data && data.job) {
-        const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
-        if (idx !== -1) allJobs[idx] = { ...allJobs[idx], ...data.job };
-      } else {
-        updateJobStatus(jobId, 'completed');
+        const i = allJobs.findIndex(j => String(j.id) === String(jobId));
+        if (i !== -1) allJobs[i] = { ...allJobs[i], ...data.job };
+        renderServices();
       }
-      renderServices();
     } catch (err) {
+      // Revert on error
+      if (originalJob && idx !== -1) {
+        allJobs[idx] = originalJob;
+        renderServices();
+      }
       showToast('Erro ao finalizar serviço: ' + (err.message || ''), 'error');
-      setButtonLoading(btn, false);
     }
   }
 
