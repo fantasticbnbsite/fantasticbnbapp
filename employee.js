@@ -480,14 +480,16 @@ const App = (() => {
 
   /* ── Job Actions ────────────────────────────────────────────── */
   async function acceptJob(jobId, btn) {
-    setButtonLoading(btn, true);
+    // Optimistic update
+    const originalStatus = 'assigned';
+    updateJobStatus(jobId, 'accepted');
+
     try {
-      await apiFetch(`/api/jobs/${jobId}/accept`, { method: 'PATCH' });
+      await apiFetch(`/api/jobs/${jobId}/accept`, { method: 'PATCH', body: JSON.stringify({}) });
       showToast('Serviço aceito com sucesso!', 'success');
-      updateJobStatus(jobId, 'accepted');
     } catch (err) {
+      updateJobStatus(jobId, originalStatus); // Revert on error
       showToast('Erro ao aceitar serviço: ' + (err.message || ''), 'error');
-      setButtonLoading(btn, false);
     }
   }
 
@@ -506,14 +508,16 @@ const App = (() => {
   }
 
   async function startJob(jobId, btn) {
-    setButtonLoading(btn, true);
+    // Optimistic update
+    const originalStatus = 'accepted';
+    updateJobStatus(jobId, 'in_progress');
+
     try {
-      await apiFetch(`/api/jobs/${jobId}/start`, { method: 'PATCH' });
+      await apiFetch(`/api/jobs/${jobId}/start`, { method: 'PATCH', body: JSON.stringify({}) });
       showToast('Serviço iniciado!', 'success');
-      updateJobStatus(jobId, 'in_progress');
     } catch (err) {
+      updateJobStatus(jobId, originalStatus); // Revert on error
       showToast('Erro ao iniciar serviço: ' + (err.message || ''), 'error');
-      setButtonLoading(btn, false);
     }
   }
 
