@@ -712,7 +712,7 @@ const App = (() => {
      TOAST
   ══════════════════════════════════════════════════════════════ */
   function showToast(message, type = 'info', duration = 4000) {
-    const container = document.getElementById('toastContainer');
+    const container = document.getElementById('toast');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
