@@ -116,6 +116,13 @@ async function sendPushNotification(userId, payload) {
   }
 }
 
+async function notifyAdmins(payload) {
+  const admins = db.prepare('SELECT id FROM users WHERE role IN ("admin", "superadmin")').all();
+  for (const admin of admins) {
+    sendPushNotification(admin.id, payload).catch(()=>{});
+  }
+}
+
 // ─── Schema ──────────────────────────────────────────────────────────────────
 db.exec(`
 CREATE TABLE IF NOT EXISTS clients (
@@ -487,6 +494,13 @@ async function handleApi(req, res, requestUrl) {
         session.user.id, sub.endpoint, sub.keys.p256dh, sub.keys.auth
       );
     }
+
+    // Enviar notificação de teste imediata
+    try {
+      const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } };
+      webpush.sendNotification(pushSub, JSON.stringify({ title: 'Notificações Ativadas! ✅', body: 'Tudo certo. Você será avisado quando houver atualizações.' })).catch(()=>{});
+    } catch(e) {}
+
     return sendJson(res, 200, { success: true });
   }
 
@@ -959,18 +973,21 @@ async function handleApi(req, res, requestUrl) {
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel aceitar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('accepted', now, jobId);
+      notifyAdmins({ title: 'Serviço Aceito ✅', body: `O serviço #${jobId} foi aceito.` });
     } else if (action === 'reject') {
       if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem recusar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel recusar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, employee_user_id=NULL, updated_at=? WHERE id=?').run('pending', now, jobId);
+      notifyAdmins({ title: 'Serviço Recusado ❌', body: `O serviço #${jobId} foi recusado.` });
     } else if (action === 'start') {
-      if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem iniciar servicos.' });
-      if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
-      if (job.status !== 'accepted') return sendJson(res, 400, { error: `Nao e possivel iniciar um servico com status '${job.status}'.` });
+      if (job.status !== 'accepted') return sendJson(res, 400, { error: 'O servico precisa estar aceito para iniciar.' });
+      if (job.employee_user_id !== session.user.id && !isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+      
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
-      sendPushNotification(job.client_user_id, { title: 'Serviço Iniciado 🟢', body: `A limpeza no flat ${flat.address} começou.` }).catch(() => {});
+      sendPushNotification(job.client_user_id, { title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} começou agora.` }).catch(() => {});
+      notifyAdmins({ title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} foi iniciada.` });
     } else if (action === 'finish') {
       if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem finalizar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
@@ -1012,6 +1029,7 @@ async function handleApi(req, res, requestUrl) {
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e));
       sendPushNotification(job.client_user_id, { title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` }).catch(() => {});
+      notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` });
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
         const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
