@@ -1258,11 +1258,24 @@
   </div>
 
   <!-- Scripts -->
-  <script src="employee.js"></script>
+  <script src="employee.js?v=20260611"></script>
 <script>
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        // Force check for updates
+        reg.update();
+        // When a new SW is installed, reload the page to use the new code
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'activated') {
+              window.location.reload();
+            }
+          });
+        });
+      } catch(e) { console.error(e); }
     });
   }
 </script>

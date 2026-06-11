@@ -247,6 +247,27 @@ const App = (() => {
     allJobs.filter(j => j.status === 'completed').forEach(job => {
       loadJobPhotos(job.id, true);
     });
+
+    // Start elapsed timers for in_progress jobs
+    startElapsedTimers();
+  }
+
+  let elapsedTimerInterval = null;
+  function startElapsedTimers() {
+    if (elapsedTimerInterval) clearInterval(elapsedTimerInterval);
+    function updateTimers() {
+      document.querySelectorAll('.elapsed-timer').forEach(el => {
+        const started = el.dataset.started;
+        if (!started) return;
+        const diff = Date.now() - new Date(started).getTime();
+        const totalMin = Math.floor(diff / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        el.textContent = h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
+      });
+    }
+    updateTimers();
+    elapsedTimerInterval = setInterval(updateTimers, 10000); // update every 10s
   }
 
   function renderJobCard(job) {
@@ -345,9 +366,30 @@ const App = (() => {
 
     const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
     let timelineHtml = '';
-    if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
-    if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
-    const timelineBlock = timelineHtml ? `<div class="job-notes" style="margin-top:2px;font-size:0.85rem;">${timelineHtml}</div>` : '';
+    if (job.startedAt) {
+      const startTime = timeFmt.format(new Date(job.startedAt));
+      timelineHtml += `<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(22,117,107,0.08);border-radius:12px;border-left:4px solid #16756b;margin-bottom:12px;">
+        <span style="font-size:1.3rem;">🟢</span>
+        <div>
+          <div style="font-size:0.78rem;color:#706356;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Início do serviço</div>
+          <div style="font-size:1.1rem;font-weight:800;color:#16756b;font-family:'Space Grotesk',sans-serif;">${startTime} <span style="font-size:0.75rem;font-weight:500;color:#706356;">(UK)</span></div>
+        </div>
+        ${job.status === 'in_progress' ? `<div style="margin-left:auto;text-align:right;">
+          <div style="font-size:0.72rem;color:#706356;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Tempo decorrido</div>
+          <div class="elapsed-timer" data-started="${job.startedAt}" style="font-size:1.1rem;font-weight:800;color:#c9743f;font-family:'Space Grotesk',sans-serif;">--:--</div>
+        </div>` : ''}
+      </div>`;
+    }
+    if (job.finishedAt) {
+      const endTime = timeFmt.format(new Date(job.finishedAt));
+      timelineHtml += `<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(212,85,85,0.06);border-radius:12px;border-left:4px solid #d45555;margin-bottom:12px;">
+        <span style="font-size:1.3rem;">🔴</span>
+        <div>
+          <div style="font-size:0.78rem;color:#706356;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Término do serviço</div>
+          <div style="font-size:1.1rem;font-weight:800;color:#d45555;font-family:'Space Grotesk',sans-serif;">${endTime} <span style="font-size:0.75rem;font-weight:500;color:#706356;">(UK)</span></div>
+        </div>
+      </div>`;
+    }
 
     return `
       <div class="job-card" id="card-${job.id}">
@@ -364,7 +406,7 @@ const App = (() => {
           </div>
         </div>
         ${notes ? `<div class="job-notes">💬 ${notes}</div>` : ''}
-        ${timelineBlock}
+        ${timelineHtml}
         ${actionsHtml ? `<div class="job-actions">${actionsHtml}</div>` : ''}
         ${extraHtml}
       </div>`;
