@@ -3727,7 +3727,7 @@ async function openAdminRequestJobModal() {
   const employeeSelect = document.getElementById('adminReqJobEmployee');
   
   // Load Clients
-  const clients = state.users.filter(u => u.role === 'client' || u.role === 'client_user');
+  const clients = state.users.filter(u => u.role === 'client');
   clientSelect.innerHTML = `<option value="">Selecione um cliente</option>` + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join('');
   
   // Load Employees
