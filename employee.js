@@ -51,6 +51,7 @@ const App = (() => {
 
   function showPushBanner() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (localStorage.getItem('hidePushBanner') === 'true') return;
     if (Notification.permission === 'granted') {
       setupPushNotifications();
       return;
@@ -65,16 +66,35 @@ const App = (() => {
     banner.innerHTML = `
       <div style="flex:1;">
         <strong style="color:var(--text);font-size:0.95rem;">Ativar Notificações</strong><br/>
-        <small style="color:var(--text-light);font-size:0.8rem;">Receba avisos de novos serviços.</small>
+        <small style="color:var(--text-light);font-size:0.8rem;">Receba atualizações de status.</small>
       </div>
-      <button class="btn-primary" style="padding:8px 16px;font-size:0.85rem;width:auto;">Ativar</button>
+      <div style="display:flex; gap:8px;">
+        <button id="push-dismiss" style="background:none; border:none; color:var(--muted); font-weight:bold; font-size:0.85rem; padding:8px;">Agora não</button>
+        <button id="push-activate" class="btn-primary" style="padding:8px 16px;font-size:0.85rem;width:auto;">Ativar</button>
+      </div>
     `;
     document.body.appendChild(banner);
     
-    banner.querySelector('button').addEventListener('click', async () => {
+    document.getElementById('push-dismiss').onclick = () => {
+      localStorage.setItem('hidePushBanner', 'true');
       banner.remove();
-      await setupPushNotifications();
-    });
+    };
+
+    document.getElementById('push-activate').onclick = async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          setupPushNotifications();
+          banner.remove();
+          alert('Permissão concedida! Você receberá uma notificação de teste em instantes.');
+        } else if (permission === 'denied') {
+          banner.remove();
+          alert('Notificações bloqueadas nas configurações do seu navegador.');
+        } else {
+          alert('Permissão ignorada. Para receber avisos, você precisa clicar em "Permitir" na mensagem do navegador.');
+        }
+      } catch(e) { console.error(e); }
+    };
   }
 
   async function setupPushNotifications() {
