@@ -508,15 +508,31 @@ const App = (() => {
   }
 
   async function startJob(jobId, btn) {
-    // Optimistic update
-    const originalStatus = 'accepted';
-    updateJobStatus(jobId, 'in_progress');
+    // Optimistic update — set startedAt so the time shows immediately
+    const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
+    const originalJob = idx !== -1 ? { ...allJobs[idx] } : null;
+    if (idx !== -1) {
+      allJobs[idx].status = 'in_progress';
+      allJobs[idx].startedAt = new Date().toISOString();
+    }
+    renderServices();
 
     try {
-      await apiFetch(`/api/jobs/${jobId}/start`, { method: 'PATCH', body: JSON.stringify({}) });
+      const data = await apiFetch(`/api/jobs/${jobId}/start`, { method: 'PATCH', body: JSON.stringify({}) });
       showToast('Serviço iniciado!', 'success');
+      // Update with real server timestamp
+      if (data && data.job) {
+        const i = allJobs.findIndex(j => String(j.id) === String(jobId));
+        if (i !== -1) {
+          allJobs[i] = { ...allJobs[i], ...data.job };
+          renderServices();
+        }
+      }
     } catch (err) {
-      updateJobStatus(jobId, originalStatus); // Revert on error
+      if (originalJob && idx !== -1) {
+        allJobs[idx] = originalJob;
+        renderServices();
+      }
       showToast('Erro ao iniciar serviço: ' + (err.message || ''), 'error');
     }
   }
