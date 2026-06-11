@@ -452,10 +452,11 @@ async function handleApi(req, res, requestUrl) {
     loginAttempts.delete(rateLimitKey);
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-    db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAt);
+    const expiresAtIso = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    const expiresAtUtc = new Date(Date.now() + SESSION_TTL_MS).toUTCString();
+    db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAtIso);
     const isSecure = req.headers['x-forwarded-proto'] === 'https';
-    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${isSecure ? '; Secure' : ''}`);
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}; Expires=${expiresAtUtc}${isSecure ? '; Secure' : ''}`);
     return sendJson(res, 200, buildSessionPayload(user));
   }
 

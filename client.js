@@ -144,11 +144,39 @@ async function boot() {
       return;
     }
     state.user = data.user;
-    setupPushNotifications();
+    showPushBanner();
     showApp();
   } catch (e) {
     showLogin();
   }
+}
+
+function showPushBanner() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (Notification.permission === 'granted') {
+    setupPushNotifications();
+    return;
+  }
+  if (Notification.permission === 'denied') return;
+  
+  // Add banner if it doesn't exist
+  if (document.getElementById('push-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'push-banner';
+  banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;z-index:9999;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);width:90%;max-width:400px;backdrop-filter:blur(22px);';
+  banner.innerHTML = `
+    <div style="flex:1;">
+      <strong style="color:var(--text);font-size:0.95rem;">Ativar Notificações</strong><br/>
+      <small style="color:var(--text-light);font-size:0.8rem;">Receba atualizações do seu serviço.</small>
+    </div>
+    <button class="btn-primary" style="padding:8px 16px;font-size:0.85rem;width:auto;">Ativar</button>
+  `;
+  document.body.appendChild(banner);
+  
+  banner.querySelector('button').addEventListener('click', async () => {
+    banner.remove();
+    await setupPushNotifications();
+  });
 }
 
 async function setupPushNotifications() {
@@ -170,7 +198,7 @@ async function setupPushNotifications() {
     }
     await api('POST', '/api/push/subscribe', sub);
   } catch(e) {
-    console.error('Error setting up push notifications', e);
+    console.error('Push setup error:', e);
   }
 }
 
