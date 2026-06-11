@@ -1,12 +1,12 @@
 import { createServer } from 'node:http';
-import { existsSync, createReadStream, copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, createReadStream, copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync, readFileSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { renderInvoiceHtml, renderPayslipHtml } from './templates.js';
-
+import webpush from 'web-push';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 3000);
@@ -15,7 +15,7 @@ const BACKUP_DIR = path.join(__dirname, 'backups');
 const UPLOAD_DIR = path.join(DB_DIR, 'uploads');
 const DB_PATH = path.join(DB_DIR, 'fantastic-bnb.sqlite');
 const SESSION_COOKIE = 'fantastic_session';
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 365; // 1 ano
 const BACKUP_INTERVAL_MS = 1000 * 60 * 30;
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -82,6 +82,39 @@ const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA foreign_keys = ON;');
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA synchronous = NORMAL;');
+
+// ─── Web Push Setup ──────────────────────────────────────────────────────────
+const VAPID_KEYS_FILE = path.join(DB_DIR, 'vapid.json');
+let vapidKeys;
+if (existsSync(VAPID_KEYS_FILE)) {
+  vapidKeys = JSON.parse(readFileSync(VAPID_KEYS_FILE, 'utf8'));
+} else {
+  vapidKeys = webpush.generateVAPIDKeys();
+  writeFileSync(VAPID_KEYS_FILE, JSON.stringify(vapidKeys, null, 2));
+}
+webpush.setVapidDetails('mailto:suporte@fantasticbnb.app', vapidKeys.publicKey, vapidKeys.privateKey);
+
+// Helper function to send push notification
+async function sendPushNotification(userId, payload) {
+  const subs = db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId);
+  if (!subs.length) return;
+  for (const sub of subs) {
+    try {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth }
+      };
+      await webpush.sendNotification(pushSub, JSON.stringify(payload));
+    } catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        // Subscription is expired or invalid
+        db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
+      } else {
+        console.error('Error sending push notification to user', userId, err);
+      }
+    }
+  }
+}
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 db.exec(`
@@ -164,6 +197,15 @@ CREATE TABLE IF NOT EXISTS sessions (
   token TEXT NOT NULL UNIQUE,
   user_id INTEGER NOT NULL,
   expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -420,6 +462,31 @@ async function handleApi(req, res, requestUrl) {
   // Legacy login endpoint
   if (requestUrl.pathname === '/api/login' && req.method === 'POST') {
     return handleApi(req, res, new URL('/api/auth/login', `http://${req.headers.host}`));
+  }
+
+  // ── Push Notifications ──
+  if (requestUrl.pathname === '/api/push/vapidPublicKey' && req.method === 'GET') {
+    return sendJson(res, 200, { publicKey: vapidKeys.publicKey });
+  }
+
+  if (requestUrl.pathname === '/api/push/subscribe' && req.method === 'POST') {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: 'Sessao expirada.' });
+    const sub = await parseBody(req);
+    if (!sub || !sub.endpoint || !sub.keys) return sendJson(res, 400, { error: 'Invalid subscription' });
+    
+    // Upsert subscription based on endpoint
+    const existing = db.prepare('SELECT id FROM push_subscriptions WHERE endpoint = ?').get(sub.endpoint);
+    if (existing) {
+      db.prepare('UPDATE push_subscriptions SET user_id = ?, p256dh = ?, auth = ? WHERE endpoint = ?').run(
+        session.user.id, sub.keys.p256dh, sub.keys.auth, sub.endpoint
+      );
+    } else {
+      db.prepare('INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)').run(
+        session.user.id, sub.endpoint, sub.keys.p256dh, sub.keys.auth
+      );
+    }
+    return sendJson(res, 200, { success: true });
   }
 
   // ── Auth: Logout ──
@@ -723,6 +790,11 @@ async function handleApi(req, res, requestUrl) {
     const now = new Date().toISOString();
     const isHoliday = body.isHoliday ? 1 : 0;
     const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, now, now);
+    
+    if (status === 'assigned' && empId) {
+      sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
+    }
+
     return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
@@ -880,6 +952,7 @@ async function handleApi(req, res, requestUrl) {
       const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'employee'").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
       db.prepare('UPDATE jobs SET employee_user_id=?, status=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', now, jobId);
+      sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.' }).catch(() => {});
     } else if (action === 'accept') {
       if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem aceitar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
@@ -895,6 +968,8 @@ async function handleApi(req, res, requestUrl) {
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'accepted') return sendJson(res, 400, { error: `Nao e possivel iniciar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
+      const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
+      sendPushNotification(job.client_user_id, { title: 'Serviço Iniciado 🟢', body: `A limpeza no flat ${flat.address} começou.` }).catch(() => {});
     } else if (action === 'finish') {
       if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem finalizar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
@@ -935,6 +1010,7 @@ async function handleApi(req, res, requestUrl) {
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e));
+      sendPushNotification(job.client_user_id, { title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` }).catch(() => {});
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
         const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
@@ -945,6 +1021,9 @@ async function handleApi(req, res, requestUrl) {
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('cancelled', now, jobId);
+      if (job.employee_user_id) {
+        sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.` }).catch(() => {});
+      }
     }
 
     const updatedJob = db.prepare(`

@@ -180,11 +180,46 @@ async function boot() {
       window.location.href = '/employee.html';
       return;
     }
+    setupPushNotifications();
     await loadApp();
     showApp();
   } catch {
     showLogin();
   }
+}
+
+async function setupPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const res = await api('/api/push/vapidPublicKey');
+      const vapidPublicKey = res.publicKey;
+      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+    }
+    await api('/api/push/subscribe', { method: 'POST', body: sub });
+  } catch(e) {
+    console.error('Error setting up push notifications', e);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, error) { alert("Error: " + msg + "\nLine: " + lineNo + "\nCol: " + columnNo + "\nError obj: " + JSON.stringify(error)); return false; };

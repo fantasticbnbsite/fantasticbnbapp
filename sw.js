@@ -69,3 +69,36 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Push notification event
+self.addEventListener('push', (event) => {
+  let payload = { title: 'Fantastic BNB', body: 'Nova notificação' };
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch(e) {
+      payload.body = event.data.text();
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icon-192.png',
+      badge: '/icon.svg',
+      vibrate: [200, 100, 200]
+    })
+  );
+});
+
+// Click on notification
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then(clientsArr => {
+      const hadWindowToFocus = clientsArr.some(windowClient => windowClient.url === '/' ? (windowClient.focus(), true) : false);
+      if (!hadWindowToFocus) {
+        self.clients.openWindow('/');
+      }
+    })
+  );
+});
