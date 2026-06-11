@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fantastic-bnb-v7';
+const CACHE_NAME = 'fantastic-bnb-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -25,7 +25,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event: clean up old caches
+// Activate event: clean up old caches and force reload all pages
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -36,6 +36,13 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Notify all open pages to reload with new code
+      return self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED' });
+        });
+      });
     })
   );
   self.clients.claim();

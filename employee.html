@@ -1258,23 +1258,28 @@
   </div>
 
   <!-- Scripts -->
-  <script src="employee.js?v=20260611"></script>
+  <script src="employee.js?v=20260611b"></script>
 <script>
+  // Auto-reload when Service Worker updates
   if ('serviceWorker' in navigator) {
+    // Listen for the SW telling us to reload
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'SW_UPDATED') {
+        window.location.reload();
+      }
+    });
+    // Also reload when a new SW takes control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
     window.addEventListener('load', async () => {
       try {
         const reg = await navigator.serviceWorker.register('/sw.js');
-        // Force check for updates
         reg.update();
-        // When a new SW is installed, reload the page to use the new code
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'activated') {
-              window.location.reload();
-            }
-          });
-        });
       } catch(e) { console.error(e); }
     });
   }
