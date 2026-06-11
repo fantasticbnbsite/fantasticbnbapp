@@ -88,7 +88,8 @@
       position: relative;
       overflow: hidden;
     }
-    .glass-card::before {
+
+    #loginScreen::before {
       content: '';
       position: absolute;
       inset: 0 0 auto 0;
@@ -135,9 +136,9 @@
 
     /* ─── LOGIN SCREEN ──────────────────────────────────────────────── */
     #loginScreen {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
       padding: 24px;
       position: relative;
       z-index: 1;

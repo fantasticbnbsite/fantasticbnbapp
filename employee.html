@@ -128,13 +128,15 @@
     /* ─── Login Page ────────────────────────────────────────────── */
     #loginPage {
       min-height: 100dvh;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
       background: var(--bg);
       position: relative;
     }
+    
+    #loginPage.visible { display: flex; }
 
     #loginPage::before {
       content: '';
