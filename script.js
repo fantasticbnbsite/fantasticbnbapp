@@ -2116,6 +2116,7 @@ function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborato
 async function api(url, options = {}) {
   const response = await fetch(url, {
     method: options.method || 'GET',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
