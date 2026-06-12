@@ -340,7 +340,7 @@ if (tabInvoicesDesk) tabInvoicesDesk.addEventListener('click', () => switchView(
 
 async function loadInvoices() {
   const container = document.getElementById('invoicesContainer');
-  container.innerHTML = `<div class="loading-overlay"><div class="big-spinner"></div><span>A carregar faturas...</span></div>`;
+  container.innerHTML = `<div class="loading-overlay"><div class="big-spinner"></div><span>Loading invoices...</span></div>`;
   try {
     const data = await api('GET', '/api/finance/invoices/mine');
     const invoices = data.invoices || [];
@@ -348,7 +348,7 @@ async function loadInvoices() {
       container.innerHTML = `
         <div style="text-align:center; padding: 40px; color: var(--muted);">
           <div style="font-size:3rem; margin-bottom:12px;">🧾</div>
-          Nenhuma fatura gerada no momento.
+          No invoices generated at the moment.
         </div>
       `;
       return;
@@ -387,14 +387,14 @@ async function loadInvoices() {
         <div class="form-card glass-card" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <div>
-              <strong style="font-size:1.1rem;">Fatura #${i.id}</strong>
-              <div style="color:var(--muted); font-size:0.9rem;">Período: ${i.period_from} a ${i.period_to}</div>
+              <strong style="font-size:1.1rem;">Invoice #${i.id}</strong>
+              <div style="color:var(--muted); font-size:0.9rem;">Period: ${i.period_from} to ${i.period_to}</div>
             </div>
             <div style="text-align:right;">
               <div style="font-weight:700; font-size:1.2rem; color:var(--primary);">£${Number(i.total_amount).toFixed(2)}</div>
               <span class="status-badge status-${i.status}">${i.status}</span>
               <div style="margin-top: 12px;">
-                <a href="/print/invoice/${i.id}" target="_blank" class="btn btn-primary" style="font-size:0.8rem; padding: 6px 12px; text-decoration:none; display:inline-block;">Baixar PDF</a>
+                <a href="/print/invoice/${i.id}" target="_blank" class="btn btn-primary" style="font-size:0.8rem; padding: 6px 12px; text-decoration:none; display:inline-block;">Download PDF</a>
               </div>
             </div>
           </div>
@@ -403,7 +403,7 @@ async function loadInvoices() {
       `;
     }).join('');
   } catch (err) {
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:red;">Erro ao carregar faturas: ${err.message}</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:red;">Error loading invoices: ${err.message}</div>`;
   }
 }
 
@@ -423,7 +423,7 @@ async function loadJobs() {
   } catch (err) {
     jobList.innerHTML = `<div class="empty-state glass-card" style="border-radius:24px">
       <span class="empty-icon">⚠️</span>
-      <h3>Erro ao carregar</h3>
+      <h3>Error loading</h3>
       <p>${err.message || 'Could not fetch cleans.'}</p>
     </div>`;
   }
@@ -434,8 +434,8 @@ function renderJobs() {
     jobList.innerHTML = `
       <div class="empty-state glass-card" style="border-radius:24px">
         <span class="empty-icon">🏡</span>
-        <h3>Nenhuma limpeza ainda</h3>
-        <p>Solicite sua primeira limpeza usando a aba abaixo.</p>
+        <h3>No cleans yet</h3>
+        <p>Request your first clean using the tab below.</p>
       </div>
     `;
     return;
@@ -461,22 +461,22 @@ function jobCardHTML(job) {
       <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
         <div class="pulse-row">
           <span class="pulse-dot"></span>
-          Em andamento
+          In progress
         </div>
         <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
-          📸 Ver fotos
+          📸 View photos
         </button>
       </div>
     `;
   } else if (job.status === 'completed') {
     const dur = job.durationHours != null ? `<span class="duration-chip">⏱ ${fmtHours(job.durationHours)}</span>` : '';
-    const amt = job.clientAmount != null ? `<span class="duration-chip" style="background:rgba(22,117,107,0.1);color:#16756b;">R$ ${Number(job.clientAmount).toFixed(2).replace('.',',')}</span>` : '';
+    const amt = job.clientAmount != null ? `<span class="duration-chip" style="background:rgba(22,117,107,0.1);color:#16756b;">£${Number(job.clientAmount).toFixed(2)}</span>` : '';
     footContent = `
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         ${dur}${amt}
       </div>
       <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
-        📸 Ver fotos
+        📸 View photos
       </button>
     `;
   } else {
@@ -488,9 +488,9 @@ function jobCardHTML(job) {
     
     let actionBtn = '';
     if (job.status !== 'cancelled') {
-      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')">❌ Cancelar</button>`;
+      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')">❌ Cancel</button>`;
     } else {
-      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted); margin-left: auto;" onclick="deleteJob('${job.id}')">🗑️ Excluir</button>`;
+      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted); margin-left: auto;" onclick="deleteJob('${job.id}')">🗑️ Delete</button>`;
     }
     
     if (text || actionBtn) {
@@ -507,13 +507,13 @@ function jobCardHTML(job) {
     
   if (job.status === 'cancelled') {
     const cancelDate = job.updatedAt ? new Intl.DateTimeFormat('en-GB').format(new Date(job.updatedAt)) : '';
-    notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:2px;color:var(--danger,#d45555);">🚫 Cancelado em ${cancelDate}</div>`;
+    notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:2px;color:var(--danger,#d45555);">🚫 Cancelled on ${cancelDate}</div>`;
   }
 
   const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
   let timelineHtml = '';
-  if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
-  if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
+  if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Started: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
+  if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Finished: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
   const timelineBlock = timelineHtml ? `<div class="job-meta-item" style="width:100%;margin-top:2px;">${timelineHtml}</div>` : '';
 
   return `
@@ -525,7 +525,7 @@ function jobCardHTML(job) {
         </div>
         <div class="job-meta">
           <div class="job-meta-item">📅 ${dateStr}</div>
-          ${job.billingType === 'hourly' ? '<div class="job-meta-item">⏱ Por hora</div>' : job.billingType === 'project' ? '<div class="job-meta-item">📋 Projeto fixo</div>' : ''}
+          ${job.billingType === 'hourly' ? '<div class="job-meta-item">⏱ Hourly</div>' : job.billingType === 'project' ? '<div class="job-meta-item">📋 Fixed project</div>' : ''}
           ${notesHTML}
           ${timelineBlock}
         </div>
@@ -574,9 +574,9 @@ selectFlat.addEventListener('change', () => {
   const pr = opt.dataset.projectRate;
   let chipText = '';
   if (bt === 'hourly' && hr) {
-    chipText = `Cobrança por hora · R$ ${Number(hr).toFixed(2).replace('.',',')} /h`;
+    chipText = `Hourly billing · £${Number(hr).toFixed(2)}`;
   } else if (bt === 'project' && pr) {
-    chipText = `Projeto fixo · R$ ${Number(pr).toFixed(2).replace('.',',')}`;
+    chipText = `Fixed project · £${Number(pr).toFixed(2)}`;
   } else if (bt === 'hourly') {
     chipText = 'Hourly billing';
   } else if (bt === 'project') {
@@ -651,8 +651,8 @@ requestForm.addEventListener('submit', async (e) => {
 /* ─── Photos Modal ───────────────────────────────────────── */
 
 async function openPhotosModal(jobId, address) {
-  photosModalTitle.textContent = `📸 Fotos — ${address || 'Clean'}`;
-  photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Carregando…</div>`;
+  photosModalTitle.textContent = `📸 Photos — ${address || 'Clean'}`;
+  photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Loading…</div>`;
   photosModal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
@@ -663,7 +663,7 @@ async function openPhotosModal(jobId, address) {
       photoGrid.innerHTML = `
         <div class="photos-empty" style="grid-column:1/-1">
           <span class="icon">📷</span>
-          <p>Nenhuma foto disponível para esta limpeza.</p>
+          <p>No photos available for this clean.</p>
         </div>
       `;
     } else {
@@ -676,7 +676,7 @@ async function openPhotosModal(jobId, address) {
               loading="lazy"
             />
           </div>
-          <a href="/uploads/${escHtml(p.filename)}" download="${escHtml(p.originalName || p.filename)}" class="btn btn-ghost btn-sm" style="padding: 4px; font-size: 0.8rem; background: #eee;">⬇️ Baixar</a>
+          <a href="/uploads/${escHtml(p.filename)}" download="${escHtml(p.originalName || p.filename)}" class="btn btn-ghost btn-sm" style="padding: 4px; font-size: 0.8rem; background: #eee;">⬇️ Download</a>
         </div>
       `).join('');
 

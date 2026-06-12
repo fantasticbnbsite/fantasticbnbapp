@@ -782,7 +782,7 @@
       </nav>
       <div class="user-profile">
         <span class="user-name" id="userNameDisplay">Loading...</span>
-        <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" style="margin-right:8px;">Trocar Password</button>
+        <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" style="margin-right:8px;">Change Password</button>
         <button class="btn btn-ghost btn-sm" id="logoutBtn">Log Out</button>
       </div>
     </div>
@@ -886,7 +886,7 @@
     <div class="modal-body">
       <div class="photo-grid" id="photoGrid"></div>
       <div style="margin-top: 24px; text-align: right; border-top: 1px solid var(--line); padding-top: 16px;">
-        <button class="btn btn-primary" onclick="document.getElementById('photosModal').classList.remove('open'); document.body.style.overflow=''">Voltar para a tela inicial</button>
+        <button class="btn btn-primary" onclick="document.getElementById('photosModal').classList.remove('open'); document.body.style.overflow=''">Back to home</button>
       </div>
     </div>
   </div>
@@ -908,24 +908,24 @@
   <div class="modal" id="changePasswordModal">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Trocar Password</h3>
+        <h3>Change Password</h3>
         <button class="btn-close" onclick="closeChangePasswordModal()">×</button>
       </div>
       <div class="modal-body">
         <form id="changePasswordForm" onsubmit="submitChangePassword(event)" style="display:flex; flex-direction:column; gap:16px;">
           <div class="form-group">
-            <label>Password Atual</label>
+            <label>Current Password</label>
             <input type="password" id="cpCurrent" required />
           </div>
           <div class="form-group">
-            <label>Nova Password</label>
+            <label>New Password</label>
             <input type="password" id="cpNew" required minlength="6" />
           </div>
           <div class="form-group">
-            <label>Confirmar Nova Password</label>
+            <label>Confirm New Password</label>
             <input type="password" id="cpConfirm" required minlength="6" />
           </div>
-          <button type="submit" class="btn btn-primary" id="cpSubmitBtn">Salvar Password</button>
+          <button type="submit" class="btn btn-primary" id="cpSubmitBtn">Save Password</button>
         </form>
       </div>
     </div>
