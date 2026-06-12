@@ -172,7 +172,7 @@ async function boot() {
   try {
     const session = await api('/api/me');
     state.user = session.user;
-    if (state.user.role === 'client') {
+    if (state.user.role === 'client' || state.user.role === 'client_user') {
       window.location.href = '/client.html';
       return;
     }
@@ -397,7 +397,7 @@ async function onLogin(event) {
   try {
     const session = await api('/api/login', { method: 'POST', body: { email: form.get('email'), password: form.get('password') } });
     state.user = session.user;
-    if (state.user.role === 'client') {
+    if (state.user.role === 'client' || state.user.role === 'client_user') {
       window.location.href = '/client.html';
       return;
     }
