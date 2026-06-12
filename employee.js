@@ -39,12 +39,32 @@ const App = (() => {
   async function checkAuth() {
     try {
       const data = await apiFetch('/api/auth/me');
-      if (!data || !data.user) { window.location.href = '/'; return; }
-      if (data.user.role !== 'employee') { window.location.href = '/'; return; }
+      if (!data || !data.user) {
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
+        window.location.href = '/';
+        return;
+      }
+      if (data.user.role !== 'employee') {
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
+        window.location.href = '/';
+        return;
+      }
       currentUser = data.user;
+      sessionStorage.removeItem('employee_auth_bounce');
       showPushBanner();
       showApp();
     } catch {
+      if (sessionStorage.getItem('employee_auth_bounce')) {
+        sessionStorage.removeItem('employee_auth_bounce');
+        // Show the local login form as fallback
+        const loginPage = document.getElementById('loginPage');
+        if (loginPage) loginPage.style.display = 'flex';
+        const appShell = document.getElementById('appShell');
+        if (appShell) appShell.classList.remove('visible');
+        return;
+      }
+      sessionStorage.setItem('employee_auth_bounce', '1');
+      try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
       window.location.href = '/';
     }
   }
@@ -135,7 +155,10 @@ const App = (() => {
   }
 
   function showLogin(msg) {
-    window.location.href = '/';
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage) loginPage.style.display = 'flex';
+    const appShell = document.getElementById('appShell');
+    if (appShell) appShell.classList.remove('visible');
   }
 
   function showApp() {
@@ -803,7 +826,7 @@ const App = (() => {
 
     if (response.status === 401) {
       currentUser = null;
-      window.location.href = '/';
+      showLogin();
       throw new Error('Unauthorised');
     }
 

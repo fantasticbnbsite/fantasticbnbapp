@@ -140,15 +140,36 @@ async function boot() {
   try {
     const data = await api('GET', '/api/auth/me');
     if (!data.user || (data.user.role !== 'client' && data.user.role !== 'client_user')) {
+      // Wrong role — clear session and go to main login
+      try { await api('POST', '/api/auth/logout'); } catch(_) {}
       window.location.href = '/';
       return;
     }
     state.user = data.user;
+    // Auth OK — clear any loop guard
+    sessionStorage.removeItem('client_auth_bounce');
     showPushBanner();
     showApp();
   } catch (e) {
+    // Auth failed — check if we already tried redirecting (loop guard)
+    if (sessionStorage.getItem('client_auth_bounce')) {
+      // We already bounced once — show local login form to break the loop
+      sessionStorage.removeItem('client_auth_bounce');
+      showLoginFallback();
+      return;
+    }
+    // First failure — set guard, clear session, redirect to main login
+    sessionStorage.setItem('client_auth_bounce', '1');
+    try { await api('POST', '/api/auth/logout'); } catch(_) {}
     window.location.href = '/';
   }
+}
+
+/** Show the login form that's already in client.html as a fallback */
+function showLoginFallback() {
+  if (app) app.classList.add('hidden');
+  if (loginScreen) loginScreen.classList.remove('hidden');
+  if (loginEmail) loginEmail.focus();
 }
 
 function showPushBanner() {
@@ -166,12 +187,12 @@ function showPushBanner() {
   banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;z-index:9999;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);width:90%;max-width:400px;backdrop-filter:blur(22px);';
   banner.innerHTML = `
     <div style="flex:1;">
-      <strong style="color:var(--text);font-size:0.95rem;">Ativar Notificações</strong><br/>
-      <small style="color:var(--text-light);font-size:0.8rem;">Receba atualizações de status.</small>
+      <strong style="color:var(--text);font-size:0.95rem;">Enable Notifications</strong><br/>
+      <small style="color:var(--text-light);font-size:0.8rem;">Receive status updates.</small>
     </div>
     <div style="display:flex; gap:8px;">
-      <button id="push-dismiss" style="background:none; border:none; color:var(--muted); font-weight:bold; font-size:0.85rem; padding:8px;">Agora não</button>
-      <button id="push-activate" class="btn-primary" style="padding:8px 16px;font-size:0.85rem;width:auto;">Ativar</button>
+      <button id="push-dismiss" style="background:none; border:none; color:var(--muted); font-weight:bold; font-size:0.85rem; padding:8px;">Not now</button>
+      <button id="push-activate" class="btn-primary" style="padding:8px 16px;font-size:0.85rem;width:auto;">Enable</button>
     </div>
   `;
   document.body.appendChild(banner);
@@ -187,12 +208,12 @@ function showPushBanner() {
       if (permission === 'granted') {
         setupPushNotifications();
         banner.remove();
-        alert('Permissão concedida! Você receberá uma notificação de teste em instantes.');
+        alert('Permission granted! You will receive a test notification shortly.');
       } else if (permission === 'denied') {
         banner.remove();
-        alert('Notificações bloqueadas nas configurações do seu navegador.');
+        alert('Notifications blocked in your browser settings.');
       } else {
-        alert('Permissão ignorada. Para receber avisos, você precisa clicar em "Permitir" na mensagem do navegador.');
+        alert('Permission ignored. To receive updates, you need to click "Allow" in the browser prompt.');
       }
     } catch(e) { console.error(e); }
   };
@@ -233,12 +254,12 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function showLogin() {
-  window.location.href = '/';
+  showLoginFallback();
 }
 
 function showApp() {
-  loginScreen.classList.add('hidden');
-  app.classList.remove('hidden');
+  if (loginScreen) loginScreen.classList.add('hidden');
+  if (app) app.classList.remove('hidden');
   headerUserName.textContent = state.user.name || state.user.email;
   setMinDate();
   switchView('jobs');
@@ -251,8 +272,39 @@ function showApp() {
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    // Redirect to main login
-    window.location.href = '/';
+    loginError.textContent = '';
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+
+    if (!email || !password) {
+      loginError.textContent = 'Enter email and password.';
+      return;
+    }
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+
+    try {
+      await api('POST', '/api/auth/login', { email, password });
+      const me = await api('GET', '/api/auth/me');
+      if (!me.user || (me.user.role !== 'client' && me.user.role !== 'client_user')) {
+        loginError.textContent = 'Access restricted to clients only.';
+        await api('POST', '/api/auth/logout');
+        return;
+      }
+      state.user = me.user;
+      sessionStorage.removeItem('client_auth_bounce');
+      showApp();
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        loginError.textContent = 'Incorrect email or password.';
+      } else {
+        loginError.textContent = err.message || 'Error logging in. Please try again.';
+      }
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Log In';
+    }
   });
 }
 
