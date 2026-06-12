@@ -541,7 +541,22 @@
       transform: translateY(-2px);
     }
 
-    /* ─── PHOTOS MODAL ──────────────────────────────────────────────── */
+    /* ─── MODALS ────────────────────────────────────────────────────── */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      background: rgba(15,10,8,0.3);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 16px;
+      opacity: 0;
+      transition: opacity 250ms;
+    }
+    .modal.active { opacity: 1; }
+
     #photosModal {
       position: fixed;
       inset: 0;
