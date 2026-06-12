@@ -442,14 +442,17 @@ async function loadJobs() {
     <div class="skeleton glass-card"><div class="skeleton-inner"></div></div>
   `;
   try {
+    console.log('[client] Loading jobs...');
     const data = await api('GET', '/api/jobs/mine');
+    console.log('[client] Jobs loaded:', data);
     state.jobs = (data.jobs || []).sort((a, b) => new Date(b.requestedDate) - new Date(a.requestedDate));
     renderJobs();
   } catch (err) {
+    console.error('[client] Error loading jobs:', err);
     jobList.innerHTML = `<div class="empty-state glass-card" style="border-radius:24px">
       <span class="empty-icon">⚠️</span>
       <h3>Error loading</h3>
-      <p>${err.message || 'Could not fetch cleans.'}</p>
+      <p>${escHtml(err.message || 'Could not fetch cleans.')}</p>
     </div>`;
   }
 }
