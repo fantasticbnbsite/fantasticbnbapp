@@ -140,14 +140,14 @@ async function boot() {
   try {
     const data = await api('GET', '/api/auth/me');
     if (!data.user || (data.user.role !== 'client' && data.user.role !== 'client_user')) {
-      showLogin();
+      window.location.href = '/';
       return;
     }
     state.user = data.user;
     showPushBanner();
     showApp();
   } catch (e) {
-    showLogin();
+    window.location.href = '/';
   }
 }
 
@@ -233,9 +233,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function showLogin() {
-  app.classList.add('hidden');
-  loginScreen.classList.remove('hidden');
-  loginEmail.focus();
+  window.location.href = '/';
 }
 
 function showApp() {
@@ -250,49 +248,20 @@ function showApp() {
 
 /* ─── Auth ───────────────────────────────────────────────── */
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.textContent = '';
-  const email = loginEmail.value.trim();
-  const password = loginPassword.value;
-
-  if (!email || !password) {
-    loginError.textContent = 'Enter email and password.';
-    return;
-  }
-
-  loginBtn.disabled = true;
-  loginBtn.textContent = 'Logging in…';
-
-  try {
-    const data = await api('POST', '/api/auth/login', { email, password });
-    // Fetch user profile
-    const me = await api('GET', '/api/auth/me');
-    if (!me.user || (me.user.role !== 'client' && me.user.role !== 'client_user')) {
-      loginError.textContent = 'Access restricted to clients only.';
-      await api('POST', '/api/auth/logout');
-      return;
-    }
-    state.user = me.user;
-    showApp();
-  } catch (err) {
-    if (err.status === 401 || err.status === 403) {
-      loginError.textContent = 'Incorrect email or password.';
-    } else {
-      loginError.textContent = err.message || 'Error logging in. Please try again.';
-    }
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.textContent = 'Log In';
-  }
-});
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // Redirect to main login
+    window.location.href = '/';
+  });
+}
 
 logoutBtn.addEventListener('click', async () => {
   try { await api('POST', '/api/auth/logout'); } catch (_) {}
   state.user = null;
   state.jobs = [];
   state.flats = [];
-  showLogin();
+  window.location.href = '/';
 });
 
 /* ─── View Navigation ────────────────────────────────────── */

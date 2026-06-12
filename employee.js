@@ -39,13 +39,13 @@ const App = (() => {
   async function checkAuth() {
     try {
       const data = await apiFetch('/api/auth/me');
-      if (!data || !data.user) { showLogin(); return; }
-      if (data.user.role !== 'employee') { showLogin('Acesso restrito a funcionários.'); return; }
+      if (!data || !data.user) { window.location.href = '/'; return; }
+      if (data.user.role !== 'employee') { window.location.href = '/'; return; }
       currentUser = data.user;
       showPushBanner();
       showApp();
     } catch {
-      showLogin();
+      window.location.href = '/';
     }
   }
 
@@ -135,9 +135,7 @@ const App = (() => {
   }
 
   function showLogin(msg) {
-    document.getElementById('loginPage').style.display = 'flex';
-    document.getElementById('appShell').classList.remove('visible');
-    if (msg) showLoginError(msg);
+    window.location.href = '/';
   }
 
   function showApp() {
@@ -162,38 +160,12 @@ const App = (() => {
   ══════════════════════════════════════════════════════════════ */
   function setupLoginForm() {
     const form = document.getElementById('loginForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('loginBtn');
-      const email    = document.getElementById('emailInput').value.trim();
-      const password = document.getElementById('passwordInput').value;
-
-      hideLoginError();
-      setButtonLoading(btn, true);
-
-      try {
-        const data = await apiFetch('/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (!data || !data.user) {
-          showLoginError('Credenciais inválidas. Tente novamente.');
-          return;
-        }
-        if (data.user.role !== 'employee') {
-          showLoginError('Acesso restrito. Este portal é para funcionários.');
-          return;
-        }
-
-        currentUser = data.user;
-        showApp();
-      } catch (err) {
-        showLoginError(err.message || 'Erro ao fazer login. Tente novamente.');
-      } finally {
-        setButtonLoading(btn, false);
-      }
-    });
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        window.location.href = '/';
+      });
+    }
   }
 
   function showLoginError(msg) {
@@ -806,7 +778,7 @@ const App = (() => {
     } catch { /* ignore */ }
     currentUser = null;
     allJobs = [];
-    showLogin();
+    window.location.href = '/';
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -831,8 +803,8 @@ const App = (() => {
 
     if (response.status === 401) {
       currentUser = null;
-      showLogin('Sessão expirada. Por favor, faça login novamente.');
-      throw new Error('Não autorizado');
+      window.location.href = '/';
+      throw new Error('Unauthorised');
     }
 
     if (!response.ok) {
