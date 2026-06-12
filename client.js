@@ -137,35 +137,39 @@ function badgeHTML(status) {
 /* ─── Boot ───────────────────────────────────────────────── */
 
 async function boot() {
+  // Step 1: Check authentication (isolated try-catch)
+  let userData = null;
   try {
     const data = await api('GET', '/api/auth/me');
-    if (!data.user || (data.user.role !== 'client' && data.user.role !== 'client_user')) {
-      // Wrong role — clear session and go to main login
-      try { await api('POST', '/api/auth/logout'); } catch(_) {}
-      window.location.href = '/';
-      return;
+    if (data && data.user && (data.user.role === 'client' || data.user.role === 'client_user')) {
+      userData = data.user;
     }
-    state.user = data.user;
-    // Auth OK — clear any loop guard
-    sessionStorage.removeItem('client_auth_bounce');
+  } catch (e) {
+    // Not authenticated — will show login form below
+    console.log('Auth check failed:', e.message);
+  }
+
+  if (!userData) {
+    // Not authenticated or wrong role — show login form right here
+    showLoginFallback();
+    return;
+  }
+
+  // Step 2: Authenticated — render the app (separate try-catch so
+  //         a DOM error here never gets confused with an auth failure)
+  state.user = userData;
+  try {
     showPushBanner();
     showApp();
-  } catch (e) {
-    // Auth failed — check if we already tried redirecting (loop guard)
-    if (sessionStorage.getItem('client_auth_bounce')) {
-      // We already bounced once — show local login form to break the loop
-      sessionStorage.removeItem('client_auth_bounce');
-      showLoginFallback();
-      return;
-    }
-    // First failure — set guard, clear session, redirect to main login
-    sessionStorage.setItem('client_auth_bounce', '1');
-    try { await api('POST', '/api/auth/logout'); } catch(_) {}
-    window.location.href = '/';
+  } catch (uiErr) {
+    console.error('Error rendering app:', uiErr);
+    // Still try to show something rather than a blank page
+    if (app) app.classList.remove('hidden');
+    if (loginScreen) loginScreen.classList.add('hidden');
   }
 }
 
-/** Show the login form that's already in client.html as a fallback */
+/** Show the login form that lives inside client.html */
 function showLoginFallback() {
   if (app) app.classList.add('hidden');
   if (loginScreen) loginScreen.classList.remove('hidden');

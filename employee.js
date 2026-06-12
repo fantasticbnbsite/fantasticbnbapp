@@ -37,35 +37,32 @@ const App = (() => {
 
   /* ── Auth check ─────────────────────────────────────────────── */
   async function checkAuth() {
+    // Step 1: Check authentication
+    let userData = null;
     try {
       const data = await apiFetch('/api/auth/me');
-      if (!data || !data.user) {
-        try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
-        window.location.href = '/';
-        return;
+      if (data && data.user && data.user.role === 'employee') {
+        userData = data.user;
       }
-      if (data.user.role !== 'employee') {
-        try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
-        window.location.href = '/';
-        return;
-      }
-      currentUser = data.user;
-      sessionStorage.removeItem('employee_auth_bounce');
+    } catch (e) {
+      console.log('Auth check failed:', e.message);
+    }
+
+    if (!userData) {
+      // Not authenticated — show local login form
+      showLogin();
+      return;
+    }
+
+    // Step 2: Render app (separate try-catch)
+    currentUser = userData;
+    try {
       showPushBanner();
       showApp();
-    } catch {
-      if (sessionStorage.getItem('employee_auth_bounce')) {
-        sessionStorage.removeItem('employee_auth_bounce');
-        // Show the local login form as fallback
-        const loginPage = document.getElementById('loginPage');
-        if (loginPage) loginPage.style.display = 'flex';
-        const appShell = document.getElementById('appShell');
-        if (appShell) appShell.classList.remove('visible');
-        return;
-      }
-      sessionStorage.setItem('employee_auth_bounce', '1');
-      try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(_) {}
-      window.location.href = '/';
+    } catch (uiErr) {
+      console.error('Error rendering app:', uiErr);
+      const appShell = document.getElementById('appShell');
+      if (appShell) appShell.classList.add('visible');
     }
   }
 
@@ -186,7 +183,35 @@ const App = (() => {
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        window.location.href = '/';
+        const btn = document.getElementById('loginBtn');
+        const email    = document.getElementById('emailInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+
+        hideLoginError();
+        setButtonLoading(btn, true);
+
+        try {
+          const data = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+          });
+
+          if (!data || !data.user) {
+            showLoginError('Invalid credentials. Please try again.');
+            return;
+          }
+          if (data.user.role !== 'employee') {
+            showLoginError('Access restricted. This portal is for employees.');
+            return;
+          }
+
+          currentUser = data.user;
+          showApp();
+        } catch (err) {
+          showLoginError(err.message || 'Error logging in. Please try again.');
+        } finally {
+          setButtonLoading(btn, false);
+        }
       });
     }
   }
