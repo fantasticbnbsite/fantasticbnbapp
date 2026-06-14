@@ -41,7 +41,7 @@ const App = (() => {
     let userData = null;
     try {
       const data = await apiFetch('/api/auth/me');
-      if (data && data.user && data.user.role === 'employee') {
+      if (data && data.user && (data.user.role === 'employee' || data.user.role === 'admin')) {
         userData = data.user;
       }
     } catch (e) {
@@ -166,6 +166,13 @@ const App = (() => {
     const initials = getInitials(currentUser.name);
     document.getElementById('sidebarAvatarDesktop').textContent = initials;
     document.getElementById('sidebarNameDesktop').textContent   = currentUser.name;
+
+    if (currentUser.role === 'admin') {
+      const deskBtn = document.getElementById('btnAdminReturnDesktop');
+      if (deskBtn) deskBtn.classList.remove('hidden');
+      const mobBtn = document.getElementById('btnAdminReturnMobile');
+      if (mobBtn) mobBtn.classList.remove('hidden');
+    }
 
     // Date header
     const now = new Date();

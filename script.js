@@ -468,7 +468,7 @@ async function loadRecords() {
 
 async function loadUsers() {
   state.users = (await api('/api/users')).users;
-  state.cleaners = state.users.filter(u => u.role === 'employee').map(u => ({
+  state.cleaners = state.users.filter(u => (u.role === 'employee' || u.role === 'admin')).map(u => ({
     name: u.name,
     weekdayRate: Number(u.hourly_rate || 0),
     weekendRate: Number(u.weekend_rate || 0),
@@ -2338,7 +2338,7 @@ async function loadAdminHolerites() {
   
   if (select.options.length <= 1) {
     if (!state.users) state.users = (await api('/api/users')).users;
-    const employees = state.users.filter(u => u.role === 'employee');
+    const employees = state.users.filter(u => (u.role === 'employee' || u.role === 'admin'));
     select.innerHTML = '<option value="">Selecione o Colaborador...</option>' + 
       employees.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
   }
@@ -2570,7 +2570,7 @@ window.renderFinanceSummary = async function() {
     const data = await api('/api/users');
     const users = data.users || [];
     const clients = users.filter(u => u.role === 'client');
-    const emps = users.filter(u => u.role === 'employee');
+    const emps = users.filter(u => (u.role === 'employee' || u.role === 'admin'));
     const selClient = document.getElementById('genInvoiceClient');
     if (selClient) {
       selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -2655,7 +2655,7 @@ window.openAdminEditJobModal = async function(jobId) {
   try {
     const data = await api('/api/users');
     const users = data.users || [];
-    users.filter(u => u.role === 'employee').forEach(emp => {
+    users.filter(u => (u.role === 'employee' || u.role === 'admin')).forEach(emp => {
       const opt = document.createElement('option');
       opt.value = emp.id;
       opt.textContent = emp.name;
@@ -2816,7 +2816,7 @@ window.openAssignEmployeeModal = async function(jobId) {
   select.innerHTML = '<option value="">Carregando...</option>';
   try {
     const data = await api('/api/users');
-    const emps = (data.users || []).filter(u => u.role === 'employee');
+    const emps = (data.users || []).filter(u => (u.role === 'employee' || u.role === 'admin'));
     select.innerHTML = '<option value="">Selecione...</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
   } catch (err) {
     console.error(err);
@@ -3704,7 +3704,7 @@ async function openManualJobForFinance() {
     if (isInvoice) {
       const empSel = document.getElementById('manualJobEmployee');
       if (!empSel) throw new Error("Select de Employee não encontrado no HTML");
-      const employees = (state.users || []).filter(u => u.role === 'employee');
+      const employees = (state.users || []).filter(u => (u.role === 'employee' || u.role === 'admin'));
       empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('') || '<option value="">Nenhum funcionário</option>';
     }
 
@@ -3738,7 +3738,7 @@ async function openAdminRequestJobModal() {
   clientSelect.innerHTML = `<option value="">Selecione um cliente</option>` + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join('');
   
   // Load Employees
-  const employees = state.users.filter(u => u.role === 'employee');
+  const employees = state.users.filter(u => (u.role === 'employee' || u.role === 'admin'));
   employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => `<option value="${e.id}">${escapeHtml(e.name || e.email)}</option>`).join('');
   
   document.getElementById('adminReqJobFlat').innerHTML = '<option value="">Selecione um cliente primeiro</option>';
