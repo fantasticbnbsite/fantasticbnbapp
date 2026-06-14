@@ -1461,6 +1461,28 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { success: true, newTotal: total, extras });
   }
 
+  const matchFinanceInvoiceDel = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)$/);
+  if (matchFinanceInvoiceDel && req.method === 'DELETE') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(matchFinanceInvoiceDel[1]);
+    const info = db.prepare('SELECT id FROM invoices WHERE id = ?').get(invoiceId);
+    if (!info) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
+    db.prepare('UPDATE jobs SET invoice_id = NULL, invoice_sent = 0 WHERE invoice_id = ?').run(invoiceId);
+    db.prepare('DELETE FROM invoices WHERE id = ?').run(invoiceId);
+    return sendJson(res, 200, { success: true });
+  }
+
+  const matchFinancePayrollDel = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)$/);
+  if (matchFinancePayrollDel && req.method === 'DELETE') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const payrollId = Number(matchFinancePayrollDel[1]);
+    const info = db.prepare('SELECT id FROM payrolls WHERE id = ?').get(payrollId);
+    if (!info) return sendJson(res, 404, { error: 'Holerite nao encontrado.' });
+    db.prepare('UPDATE jobs SET payroll_id = NULL WHERE payroll_id = ?').run(payrollId);
+    db.prepare('DELETE FROM payrolls WHERE id = ?').run(payrollId);
+    return sendJson(res, 200, { success: true });
+  }
+
   // ── Operations State ──
   if (requestUrl.pathname === '/api/operations/state' && req.method === 'GET') {
     return sendJson(res, 200, getOperationsState());

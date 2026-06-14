@@ -2620,6 +2620,7 @@ window.renderFinanceSummary = async function() {
             </div>
             <div style="margin-top: 12px; display: flex; gap: 8px;">
               <button class="button button-secondary" onclick="openEditInvoiceModal(${i.id})">✏️ Editar Lancamentos</button>
+              <button class="button button-danger" onclick="deleteInvoice(${i.id})" style="background:var(--danger);color:white;border:none;">🗑️ Excluir</button>
             </div>
           </div>
         `;
@@ -2645,6 +2646,7 @@ window.renderFinanceSummary = async function() {
             </div>
             <div style="margin-top: 12px; display: flex; gap: 8px;">
               <button class="button button-secondary" onclick="openEditPayrollModal(${p.id})">✏️ Editar Lancamentos</button>
+              <button class="button button-danger" onclick="deletePayroll(${p.id})" style="background:var(--danger);color:white;border:none;">🗑️ Excluir</button>
             </div>
           </div>
         `;
@@ -2655,6 +2657,27 @@ window.renderFinanceSummary = async function() {
   }
 };
 
+window.deleteInvoice = async function(id) {
+  if (!confirm('Tem certeza que deseja excluir esta Fatura? Os serviços vinculados a ela voltarão a ficar disponíveis para cobrança.')) return;
+  try {
+    const res = await api(`/api/finance/invoices/${id}`, { method: 'DELETE' });
+    if (res.success) {
+      alert('Fatura excluída com sucesso.');
+      loadFinanceDocuments();
+    }
+  } catch (err) { alert('Erro ao excluir: ' + err.message); }
+};
+
+window.deletePayroll = async function(id) {
+  if (!confirm('Tem certeza que deseja excluir este Holerite? Os serviços vinculados voltarão a ficar disponíveis para pagamento.')) return;
+  try {
+    const res = await api(`/api/finance/payrolls/${id}`, { method: 'DELETE' });
+    if (res.success) {
+      alert('Holerite excluído com sucesso.');
+      loadFinanceDocuments();
+    }
+  } catch (err) { alert('Erro ao excluir: ' + err.message); }
+};
 
 
 window.openAdminEditJobModal = async function(jobId) {
