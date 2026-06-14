@@ -1212,8 +1212,9 @@ async function handleApi(req, res, requestUrl) {
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
       WHERE j.status = 'completed'
-        AND j.finished_at >= ? AND j.finished_at <= ?
-    `).all(periodFrom + 'T00:00:00.000Z', periodTo + 'T23:59:59.999Z');
+        AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
+        AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
+    `).all(periodFrom, periodTo);
 
     let invoicesGenerated = 0;
     let payrollsGenerated = 0;
@@ -1741,9 +1742,10 @@ function buildJobPayslip(employeeId, month) {
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.employee_user_id = ? AND j.status = 'completed'
-      AND j.finished_at >= ? AND j.finished_at <= ?
+      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
+      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
     ORDER BY j.finished_at ASC
-  `).all(employeeId, fromDate + 'T00:00:00.000Z', toDate + 'T23:59:59.999Z');
+  `).all(employeeId, fromDate, toDate);
 
   const entries = jobs.map((j) => ({
     jobId: j.id,
@@ -1778,9 +1780,10 @@ function buildClientInvoice(clientId, month) {
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.client_user_id = ? AND j.status = 'completed'
-      AND j.finished_at >= ? AND j.finished_at <= ?
+      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
+      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
     ORDER BY j.finished_at ASC
-  `).all(clientId, fromDate + 'T00:00:00.000Z', toDate + 'T23:59:59.999Z');
+  `).all(clientId, fromDate, toDate);
 
   const grouped = {};
   jobs.forEach(j => {
@@ -1818,8 +1821,8 @@ function buildFinancialReport(from, to) {
     LEFT JOIN users eu ON eu.id = j.employee_user_id
     WHERE j.status = 'completed'`;
   const params = [];
-  if (from) { sql += ' AND j.finished_at >= ?'; params.push(from + 'T00:00:00.000Z'); }
-  if (to) { sql += ' AND j.finished_at <= ?'; params.push(to + 'T23:59:59.999Z'); }
+  if (from) { sql += ' AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?'; params.push(from); }
+  if (to) { sql += ' AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?'; params.push(to); }
   const jobs = db.prepare(sql).all(...params);
 
   const totalRevenue = roundCurrency(jobs.reduce((s, j) => s + Number(j.client_amount || 0), 0));
