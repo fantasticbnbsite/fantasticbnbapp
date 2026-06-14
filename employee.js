@@ -502,7 +502,9 @@ const App = (() => {
         <div class="job-card-header">
           <div class="job-card-info">
             <div class="job-address">${escapeHtml(job.flatAddress || 'Endereço não informado')}</div>
-            <div class="job-meta">
+            ${job.flatFullAddress ? `<div class="job-meta" style="margin-top:2px;font-size:0.85rem;color:var(--muted);"><span style="margin-right:4px;">📍</span> ${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${job.flatAccessCode ? `<div class="job-meta" style="margin-top:2px;font-size:0.85rem;color:var(--primary);font-weight:600;"><span style="margin-right:4px;">🔑</span> ${escapeHtml(job.flatAccessCode)}</div>` : ''}
+            <div class="job-meta" style="margin-top:6px;">
               <span class="job-date">📅 ${date}</span>
               <span class="status-badge ${job.status}">
                 <span class="dot"></span>

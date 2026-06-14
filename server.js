@@ -691,9 +691,11 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
+      body.fullAddress || '',
+      body.accessCode || '',
       body.billingType === 'project' ? 'project' : 'hourly',
       Number(body.hourlyRate || 0),
       Number(body.hourlyWeekendRate || 0),
@@ -711,9 +713,11 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, city=?, active=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, city=?, active=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
+      body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
+      body.accessCode !== undefined ? body.accessCode : flat.access_code,
       body.billingType === 'project' ? 'project' : 'hourly',
       Number(body.hourlyRate ?? flat.hourly_rate),
       Number(body.hourlyWeekendRate ?? flat.hourly_weekend_rate),
@@ -740,7 +744,7 @@ async function handleApi(req, res, requestUrl) {
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
     let sql = `
       SELECT j.*,
-        f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
@@ -764,7 +768,7 @@ async function handleApi(req, res, requestUrl) {
     const filterId = session.user.role === 'employee' ? session.user.id : targetClientId;
     const jobs = db.prepare(`
       SELECT j.*,
-        f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
@@ -810,7 +814,7 @@ async function handleApi(req, res, requestUrl) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
     }
 
-    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
+    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
   if (requestUrl.pathname === '/api/jobs/manual' && req.method === 'POST') {
@@ -928,7 +932,7 @@ async function handleApi(req, res, requestUrl) {
       .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, now, jobId);
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
       WHERE j.id=?
@@ -1026,7 +1030,7 @@ async function handleApi(req, res, requestUrl) {
       db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', now, jobId);
 
       // Send invoice email (fire and forget)
-      const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
+      const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e));
       sendPushNotification(job.client_user_id, { title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` }).catch(() => {});
       notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` });
@@ -1046,7 +1050,7 @@ async function handleApi(req, res, requestUrl) {
     }
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
       WHERE j.id=?
@@ -1196,7 +1200,7 @@ async function handleApi(req, res, requestUrl) {
     const now = new Date().toISOString();
 
     const jobs = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.city AS city, cu.name AS client_name, eu.name AS employee_name
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.city AS city, cu.name AS client_name, eu.name AS employee_name
       FROM jobs j
       LEFT JOIN flats f ON f.id = j.flat_id
       LEFT JOIN users cu ON cu.id = j.client_user_id
@@ -1318,7 +1322,7 @@ async function handleApi(req, res, requestUrl) {
     }
     
     const jobs = db.prepare(`
-      SELECT j.*, f.address as flatAddress, j.duration_hours as durationHours, j.employee_amount as employeeAmount, j.finished_at as date 
+      SELECT j.*, f.address as flatAddress, f.full_address as flat_full_address, f.access_code as flat_access_code, j.duration_hours as durationHours, j.employee_amount as employeeAmount, j.finished_at as date 
       FROM jobs j 
       LEFT JOIN flats f ON f.id = j.flat_id 
       WHERE j.payroll_id = ? 
@@ -1705,7 +1709,7 @@ function buildJobPayslip(employeeId, month) {
   const toDate = `${year}-${mon}-31`;
 
   const jobs = db.prepare(`
-    SELECT j.*, f.address AS flat_address
+    SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.employee_user_id = ? AND j.status = 'completed'
@@ -1742,7 +1746,7 @@ function buildClientInvoice(clientId, month) {
   const toDate = `${year}-${mon}-31`;
 
   const jobs = db.prepare(`
-    SELECT j.*, f.address AS flat_address
+    SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.client_user_id = ? AND j.status = 'completed'
@@ -1769,7 +1773,7 @@ function buildClientInvoice(clientId, month) {
 }
 
 function buildFinancialReport(from, to) {
-  let sql = `SELECT j.*, f.address AS flat_address, cu.name AS client_name, eu.name AS employee_name
+  let sql = `SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, eu.name AS employee_name
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     LEFT JOIN users cu ON cu.id = j.client_user_id
@@ -1818,6 +1822,8 @@ function hydrateJob(row) {
     id: row.id,
     flatId: row.flat_id,
     flatAddress: row.flat_address || '',
+    flatFullAddress: row.flat_full_address || '',
+    flatAccessCode: row.flat_access_code || '',
     flatBillingType: row.flat_billing_type || 'hourly',
     flatHourlyRate: Number(row.flat_hourly_rate || 0),
     flatProjectRate: Number(row.flat_project_rate || 0),

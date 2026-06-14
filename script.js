@@ -2197,6 +2197,8 @@ function openFlatForm(flat) {
   form.classList.remove('hidden');
   document.getElementById('flatEditId').value = flat ? flat.id : '';
   document.getElementById('flatAddress').value = flat ? flat.address : '';
+  document.getElementById('flatFullAddress').value = flat && flat.full_address ? flat.full_address : '';
+  document.getElementById('flatAccessCode').value = flat && flat.access_code ? flat.access_code : '';
   const cityInput = document.getElementById('flatCity');
   if (cityInput) cityInput.value = flat && flat.city ? flat.city : '';
   document.getElementById('flatBillingType').value = flat ? flat.billing_type : 'hourly';
@@ -2218,6 +2220,8 @@ async function onFlatSubmit(e) {
   const id = document.getElementById('flatEditId').value;
   const body = {
     address: document.getElementById('flatAddress').value.trim(),
+    fullAddress: document.getElementById('flatFullAddress').value.trim(),
+    accessCode: document.getElementById('flatAccessCode').value.trim(),
     city: document.getElementById('flatCity') ? document.getElementById('flatCity').value.trim() : '',
     clientUserId: document.getElementById('flatClientUser').value || null,
     billingType: document.getElementById('flatBillingType').value,
@@ -3445,6 +3449,8 @@ function renderFlats() {
         return `
           <div class="glass-card" style="padding:16px;border-left:4px solid ${isActive ? 'var(--primary)' : 'var(--muted)'};opacity:${isActive ? 1 : 0.6}">
             <div style="font-weight:600;margin-bottom:8px;">${escapeHtml(f.address)}</div>
+            ${f.full_address ? `<div style="font-size:0.875rem;color:var(--muted);margin-bottom:4px;">📍 ${escapeHtml(f.full_address)}</div>` : ''}
+            ${f.access_code ? `<div style="font-size:0.875rem;color:var(--primary);margin-bottom:8px;">🔑 ${escapeHtml(f.access_code)}</div>` : ''}
             <div style="font-size:0.875rem;color:var(--muted);margin-bottom:12px;">
               Cobrança: ${f.billing_type === 'hourly' ? 'Por hora (£' + f.hourly_rate + ')' : 'Projeto fixo (£' + f.project_rate + ')'}
               ${f.city ? '<br/>Cidade: ' + escapeHtml(f.city) : ''}

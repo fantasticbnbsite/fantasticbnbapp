@@ -1,0 +1,10 @@
+@@ -835,6 +835,9 @@
+       <div class="panel-header">
+         <h3 id="financeEditTitle">Editar</h3>
+       </div>
+       <div id="financeEditJobs"></div>
++      <div style="margin-top: 16px; text-align: right;">
++        <button type="button" class="button button-secondary button-small" onclick="openManualJobForFinance()">+ Adicionar Serviço Esquecido</button>
++      </div>
+       
+       <div style="margin-top:24px; padding-top:24px; border-top:1px solid var(--line);">

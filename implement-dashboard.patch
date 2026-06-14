@@ -1,0 +1,23 @@
+--- server.js
++++ server.js
+@@ -1087,6 +1087,46 @@
+     return sendJson(res, 200, { invoices, payrolls });
+   }
+ 
++  if (requestUrl.pathname === '/api/dashboard/stats' && req.method === 'GET') {
++    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
++    
++    // Get all completed jobs to calculate stats
++    const jobs = db.prepare(`
++      SELECT j.*,
++        cu.name AS client_name,
++        eu.name AS employee_name
++      FROM jobs j
++      LEFT JOIN users cu ON cu.id = j.client_user_id
++      LEFT JOIN users eu ON eu.id = j.employee_user_id
++      WHERE j.status = 'completed'
++    `).all();
++    
++    return sendJson(res, 200, { jobs });
++  }
++
