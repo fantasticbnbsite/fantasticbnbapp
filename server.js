@@ -971,18 +971,20 @@ async function handleApi(req, res, requestUrl) {
     if (action === 'assign') {
       if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       if (!['pending', 'assigned'].includes(job.status)) return sendJson(res, 400, { error: `Nao e possivel designar um servico com status '${job.status}'.` });
-      const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'employee'").get(Number(body.employeeUserId));
+      const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role IN ('employee', 'admin', 'superadmin', 'manager', 'analyst')").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
       db.prepare('UPDATE jobs SET employee_user_id=?, status=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', now, jobId);
       sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.' }).catch(() => {});
     } else if (action === 'accept') {
-      if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem aceitar servicos.' });
+      const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
+      if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem aceitar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel aceitar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('accepted', now, jobId);
       notifyAdmins({ title: 'Serviço Aceito ✅', body: `O serviço #${jobId} foi aceito.` });
     } else if (action === 'reject') {
-      if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem recusar servicos.' });
+      const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
+      if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem recusar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel recusar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, employee_user_id=NULL, updated_at=? WHERE id=?').run('pending', now, jobId);
@@ -996,7 +998,8 @@ async function handleApi(req, res, requestUrl) {
       sendPushNotification(job.client_user_id, { title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} começou agora.` }).catch(() => {});
       notifyAdmins({ title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} foi iniciada.` });
     } else if (action === 'finish') {
-      if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem finalizar servicos.' });
+      const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
+      if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem finalizar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'in_progress') return sendJson(res, 400, { error: `Nao e possivel finalizar um servico com status '${job.status}'.` });
 
