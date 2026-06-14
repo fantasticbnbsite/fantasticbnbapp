@@ -354,7 +354,8 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN invoice_id INTEGER REFERENCES invoice
 try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payrolls(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN employee_notes TEXT NOT NULL DEFAULT "";'); } catch {}
-
+try { db.exec('ALTER TABLE flats ADD COLUMN full_address TEXT NOT NULL DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT "";'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -422,7 +423,7 @@ createServer(async (req, res) => {
     await sendFile(res, filePath);
   } catch (error) {
     console.error(error);
-    sendJson(res, 500, { error: 'Erro interno do servidor.' });
+    sendJson(res, 500, { error: 'Erro interno do servidor: ' + error.message });
   }
 }).listen(PORT, () => {
   console.log(`Fantastic BNB / CleanOps rodando em http://localhost:${PORT}`);
@@ -2435,7 +2436,7 @@ function currentMonthParam() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function isAdminRole(role) { return ['superadmin', 'manager', 'analyst'].includes(role); }
+function isAdminRole(role) { return ['superadmin', 'admin', 'manager', 'analyst'].includes(role); }
 function normalizeFieldType(fieldType) { return ['text', 'number', 'date', 'status', 'textarea'].includes(fieldType) ? fieldType : 'text'; }
 function hashPassword(password) { const salt = crypto.randomBytes(16).toString('hex'); const hash = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return { salt, hash }; }
 function verifyPassword(password, salt, hash) { const candidate = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex')); }
