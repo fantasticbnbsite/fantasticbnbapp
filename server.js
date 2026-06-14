@@ -763,10 +763,12 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/jobs/mine' && req.method === 'GET') {
-    if (session.user.role !== 'employee' && session.user.role !== 'client' && session.user.role !== 'client_user') return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
+    const isClientView = ['client', 'client_user'].includes(session.user.role);
+    if (!isEmployeeView && !isClientView) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
-    const whereField = session.user.role === 'employee' ? 'j.employee_user_id' : 'j.client_user_id';
-    const filterId = session.user.role === 'employee' ? session.user.id : targetClientId;
+    const whereField = isEmployeeView ? 'j.employee_user_id' : 'j.client_user_id';
+    const filterId = isEmployeeView ? session.user.id : targetClientId;
     const jobs = db.prepare(`
       SELECT j.*,
         f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
@@ -1104,7 +1106,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Payslip / Holerite por serviço ──
   if (requestUrl.pathname === '/api/payslip/mine' && req.method === 'GET') {
-    if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem acessar holerites.' });
+    if (!['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerência podem acessar holerites.' });
     const month = requestUrl.searchParams.get('month') || currentMonthParam();
     return sendJson(res, 200, buildJobPayslip(session.user.id, month));
   }
@@ -1307,7 +1309,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/finance/payrolls/mine' && req.method === 'GET') {
-    if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios.' });
+    if (!['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerência.' });
     const month = requestUrl.searchParams.get('month');
     let query = 'SELECT * FROM payrolls WHERE employee_user_id = ?';
     const params = [session.user.id];
