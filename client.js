@@ -551,8 +551,6 @@ function jobCardHTML(job) {
           <span class="job-address">${escHtml(job.flatAddress || 'Address not provided')}</span>
           ${badgeHTML(job.status)}
         </div>
-        ${job.flatFullAddress ? `<div class="job-meta-item" style="width:100%;font-size:0.85rem;color:var(--muted);"><span style="margin-right:4px;">📍</span> ${escHtml(job.flatFullAddress)}</div>` : ''}
-        ${job.flatAccessCode ? `<div class="job-meta-item" style="width:100%;font-size:0.85rem;color:var(--primary);font-weight:600;"><span style="margin-right:4px;">🔑</span> ${escHtml(job.flatAccessCode)}</div>` : ''}
         <div class="job-meta">
           <div class="job-meta-item">📅 ${dateStr}</div>
           ${job.billingType === 'hourly' ? '<div class="job-meta-item">⏱ Hourly</div>' : job.billingType === 'project' ? '<div class="job-meta-item">📋 Fixed project</div>' : ''}
