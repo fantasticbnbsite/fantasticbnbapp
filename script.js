@@ -2806,6 +2806,8 @@ function renderJobs() {
         <span class="status-badge ${escapeHtml(job.status)}">${statusLabels[job.status] || job.status}</span>
         <small>Data solicitada: ${escapeHtml(job.requestedDate)}</small>
         <small>Funcionario: ${escapeHtml(job.employeeName || 'Nenhum')}</small>
+        ${job.flatFullAddress ? `<small>Endereço: ${escapeHtml(job.flatFullAddress)}</small>` : ''}
+        ${job.flatAccessCode ? `<small>Código de Acesso: ${escapeHtml(job.flatAccessCode)}</small>` : ''}
         ${job.durationHours ? `<small>Duracao: ${formatHours(job.durationHours)}</small>` : ''}
         ${job.employeeAmount != null ? `<small style="color:#2e9b6c; font-weight:500;">A Pagar (Funcionario): ${formatCurrencyGBP(job.employeeAmount)}</small>` : ''}
         ${job.clientAmount != null ? `<small style="color:#16756b; font-weight:500;">A Cobrar (Cliente): ${formatCurrencyGBP(job.clientAmount)}</small>` : ''}
