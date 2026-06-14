@@ -99,8 +99,7 @@ function fmtHours(h) {
   if (h == null) return '—';
   const hh = Math.floor(h);
   const mm = Math.round((h - hh) * 60);
-  if (mm === 0) return `${hh}h`;
-  return `${hh}h ${String(mm).padStart(2, '0')}m`;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
 /**
@@ -448,7 +447,7 @@ async function loadJobs() {
     const rawJobs = data.jobs || [];
     const grouped = {};
     rawJobs.forEach(j => {
-      const date = j.finishedAt ? j.finishedAt.slice(0, 10) : (j.requestedDate || '-');
+      const date = j.requestedDate || j.finishedAt?.slice(0, 10) || '-';
       const key = `${j.flatId}_${date}`;
       if (!grouped[key]) {
         grouped[key] = { ...j, jobIds: [j.id], durationHours: 0, clientAmount: 0 };

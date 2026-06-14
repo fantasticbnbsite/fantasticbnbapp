@@ -935,8 +935,7 @@ const App = (() => {
     if (h == null) return '—';
     const hh = Math.floor(h);
     const mm = Math.round((h - hh) * 60);
-    if (mm === 0) return `${hh}h`;
-    return `${hh}h ${String(mm).padStart(2, '0')}m`;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
 
   function formatDate(dateStr) {

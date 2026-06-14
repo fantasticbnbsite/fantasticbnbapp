@@ -1762,7 +1762,7 @@ function buildClientInvoice(clientId, month) {
 
   const grouped = {};
   jobs.forEach(j => {
-    const date = j.finished_at ? j.finished_at.slice(0, 10) : (j.requested_date || '-');
+    const date = j.requested_date || j.finished_at?.slice(0, 10) || '-';
     const key = `${j.flat_id}_${date}`;
     if (!grouped[key]) {
       grouped[key] = {
@@ -2027,9 +2027,9 @@ function renderClientInvoicePrintHtml(invoice, clientUser, jobs) {
   
   const entriesHtml = jobs.map(j => `
     <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${(j.finished_at || j.requested_date || '').slice(0,10)}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${(j.requested_date || j.finished_at || '').slice(0,10)}</td>
       <td style="padding: 12px; border-bottom: 1px solid #ddd;">${j.flat_address || '-'}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${(j.duration_hours || 0).toFixed(2)}h</td>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${formatHours(j.duration_hours || 0)}</td>
       <td style="padding: 12px; border-bottom: 1px solid #ddd;">£${(j.client_amount || 0).toFixed(2)}</td>
     </tr>
   `).join('');
@@ -2436,7 +2436,7 @@ function validateRole(role) {
 function calculateEntryClientTotal(item) { const rate = Number(item.clientRate || 0); if (String(item.billingType) === 'project') return roundCurrency(rate); const hours = parseHourLabelToMinutes(item.hours) / 60; return roundCurrency(hours * rate); }
 function formatServerDate(value = '') { const [year, month, day] = String(value || '').split('-'); return year && month && day ? `${day}/${month}/${year}` : value || '-'; }
 function getServerDisplayDocumentNumber(value = '') { return String(value || '').trim() || '#-'; }
-function formatHours(decimalHours) { const h = Math.floor(Number(decimalHours || 0)); const m = Math.round((Number(decimalHours || 0) - h) * 60); return `${h}h${m > 0 ? String(m).padStart(2, '0') + 'm' : ''}`; }
+function formatHours(decimalHours) { const h = Math.floor(Number(decimalHours || 0)); const m = Math.round((Number(decimalHours || 0) - h) * 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
 function roundCurrency(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }
