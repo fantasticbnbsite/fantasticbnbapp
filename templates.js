@@ -40,7 +40,9 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     }
   });
 
-  const rows = Object.values(groupedJobs).map(g => {
+  const rows = Object.values(groupedJobs)
+  .sort((a, b) => a.d - b.d)
+  .map(g => {
     const hoursStr = formatHours(g.durationHours);
     
     // Grouping for totals
@@ -213,14 +215,17 @@ export function renderPayslipHtml(payroll, jobs, employee) {
         clientName: j.client_name || '',
         flatAddress: flatKey,
         durationHours: 0,
-        employeeAmount: 0
+        employeeAmount: 0,
+        d: rawDate ? new Date(rawDate) : new Date()
       };
     }
     groupedJobs[key].durationHours += (j.duration_hours || 0);
     groupedJobs[key].employeeAmount += (j.employeeAmount || j.employee_amount || 0);
   });
 
-  const rows = Object.values(groupedJobs).map(g => {
+  const rows = Object.values(groupedJobs)
+  .sort((a, b) => a.d - b.d)
+  .map(g => {
     const hoursStr = formatHours(g.durationHours);
     totalHours += g.durationHours;
     
