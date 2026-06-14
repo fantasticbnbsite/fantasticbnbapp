@@ -1,4 +1,10 @@
 export function renderInvoiceHtml(invoice, jobs, client, config) {
+  function formatHours(h) {
+    if (h == null) return '00:00';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
   // calculate subtotals
   let weekdaysHours = 0, weekdaysAmount = 0;
   let weekendsHours = 0, weekendsAmount = 0;
@@ -7,33 +13,58 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
   let totalExtras = 0;
   let extraLabel = 'BED LINEN'; // fallback
   
-  const rows = jobs.map(j => {
-    const d = new Date(j.finished_at);
-    const dateStr = d.toLocaleDateString('en-GB'); // DD/MM/YYYY
-    const hoursStr = j.duration_hours ? j.duration_hours.toFixed(2).replace('.', ':') : '0:00'; // simplified
+  const groupedJobs = {};
+  jobs.forEach(j => {
+    const rawDate = j.requested_date || j.finished_at || '';
+    const dateKey = rawDate ? rawDate.slice(0, 10) : '-';
+    const flatKey = j.flat_address || j.flat_id || '-';
+    const key = `${dateKey}_${flatKey}`;
     
-    // Grouping
-    const isWknd = (d.getDay() === 0 || d.getDay() === 6);
-    if (j.is_holiday) {
-      holidaysHours += (j.duration_hours || 0);
-      holidaysAmount += (j.client_amount || 0);
-    } else if (isWknd) {
-      weekendsHours += (j.duration_hours || 0);
-      weekendsAmount += (j.client_amount || 0);
-    } else {
-      weekdaysHours += (j.duration_hours || 0);
-      weekdaysAmount += (j.client_amount || 0);
+    if (!groupedJobs[key]) {
+      groupedJobs[key] = {
+        dateStr: rawDate ? new Date(rawDate).toLocaleDateString('en-GB') : '-',
+        flatAddress: j.flat_address || '',
+        durationHours: 0,
+        isHoliday: j.is_holiday,
+        clientAmount: 0,
+        extraAmount: 0,
+        extraLabel: j.extra_label,
+        d: rawDate ? new Date(rawDate) : new Date()
+      };
     }
-    totalHours += (j.duration_hours || 0);
-    
+    groupedJobs[key].durationHours += (j.duration_hours || 0);
+    groupedJobs[key].clientAmount += (j.client_amount || 0);
     if (j.extra_amount) {
-      totalExtras += j.extra_amount;
-      if (j.extra_label) extraLabel = j.extra_label;
+      groupedJobs[key].extraAmount += j.extra_amount;
+      if (j.extra_label) groupedJobs[key].extraLabel = j.extra_label;
+    }
+  });
+
+  const rows = Object.values(groupedJobs).map(g => {
+    const hoursStr = formatHours(g.durationHours);
+    
+    // Grouping for totals
+    const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
+    if (g.isHoliday) {
+      holidaysHours += g.durationHours;
+      holidaysAmount += g.clientAmount;
+    } else if (isWknd) {
+      weekendsHours += g.durationHours;
+      weekendsAmount += g.clientAmount;
+    } else {
+      weekdaysHours += g.durationHours;
+      weekdaysAmount += g.clientAmount;
+    }
+    totalHours += g.durationHours;
+    
+    if (g.extraAmount) {
+      totalExtras += g.extraAmount;
+      if (g.extraLabel) extraLabel = g.extraLabel;
     }
     
     return `<tr>
-      <td style="text-align:center;">${dateStr}</td>
-      <td style="text-align:center;">${j.flat_address || ''}</td>
+      <td style="text-align:center;">${g.dateStr}</td>
+      <td style="text-align:center;">${g.flatAddress}</td>
       <td style="text-align:center;">${hoursStr}</td>
     </tr>`;
   }).join('');
@@ -117,21 +148,21 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     <table class="totals-table">
       <tr>
         <td>Total Hours</td>
-        <td colspan="2">${totalHours.toFixed(2).replace('.', ':')}</td>
+        <td colspan="2">${formatHours(totalHours)}</td>
       </tr>
       <tr>
         <td>Weekdays Hours</td>
-        <td>${weekdaysHours.toFixed(2).replace('.', ':')}</td>
+        <td>${formatHours(weekdaysHours)}</td>
         <td>£${weekdaysAmount.toFixed(2)}</td>
       </tr>
       <tr>
         <td>Bank Holiday</td>
-        <td>${holidaysHours.toFixed(2).replace('.', ':')}</td>
+        <td>${formatHours(holidaysHours)}</td>
         <td>£${holidaysAmount.toFixed(2)}</td>
       </tr>
       <tr>
         <td>Weekends Hours</td>
-        <td>${weekendsHours.toFixed(2).replace('.', ':')}</td>
+        <td>${formatHours(weekendsHours)}</td>
         <td>£${weekendsAmount.toFixed(2)}</td>
       </tr>
       ${totalExtras > 0 || extrasHtml !== '' ? `
@@ -160,20 +191,45 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
 }
 
 export function renderPayslipHtml(payroll, jobs, employee) {
+  function formatHours(h) {
+    if (h == null) return '00:00';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
+
   let totalHours = 0;
   
-  const rows = jobs.map(j => {
-    const d = new Date(j.finished_at);
-    const dateStr = d.toLocaleDateString('en-GB');
-    const hoursStr = j.duration_hours ? j.duration_hours.toFixed(2).replace('.', ':') : '0:00';
-    totalHours += (j.duration_hours || 0);
+  const groupedJobs = {};
+  jobs.forEach(j => {
+    const rawDate = j.requested_date || j.finished_at || '';
+    const dateKey = rawDate ? rawDate.slice(0, 10) : '-';
+    const flatKey = j.flat_address || j.flatAddress || j.flat_id || '-';
+    const key = `${dateKey}_${flatKey}`;
+    
+    if (!groupedJobs[key]) {
+      groupedJobs[key] = {
+        dateStr: rawDate ? new Date(rawDate).toLocaleDateString('en-GB') : '-',
+        clientName: j.client_name || '',
+        flatAddress: flatKey,
+        durationHours: 0,
+        employeeAmount: 0
+      };
+    }
+    groupedJobs[key].durationHours += (j.duration_hours || 0);
+    groupedJobs[key].employeeAmount += (j.employeeAmount || j.employee_amount || 0);
+  });
+
+  const rows = Object.values(groupedJobs).map(g => {
+    const hoursStr = formatHours(g.durationHours);
+    totalHours += g.durationHours;
     
     return `<tr>
-      <td style="text-align:center;">${dateStr}</td>
-      <td style="text-align:center;">${j.client_name || ''}</td>
-      <td style="text-align:center;">${j.flatAddress || j.flat_address || ''}</td>
+      <td style="text-align:center;">${g.dateStr}</td>
+      <td style="text-align:center;">${g.clientName}</td>
+      <td style="text-align:center;">${g.flatAddress}</td>
       <td style="text-align:center;">${hoursStr}</td>
-      <td style="text-align:right;">£${(j.employeeAmount || j.employee_amount || 0).toFixed(2)}</td>
+      <td style="text-align:right;">£${g.employeeAmount.toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -239,7 +295,7 @@ export function renderPayslipHtml(payroll, jobs, employee) {
       </tbody>
     </table>
     <div class="totals">
-      <p>Total Hours: ${totalHours.toFixed(2).replace('.', ':')}</p>
+      <p>Total Hours: ${formatHours(totalHours)}</p>
       <p style="font-size: 24px; color: #0044cc;">Total Amount: £${payroll.total_amount.toFixed(2)}</p>
     </div>
   </div>
