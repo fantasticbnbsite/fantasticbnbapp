@@ -1220,32 +1220,13 @@ function startEditUser(userId) {
   if (['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(user.role)) {
     rateContainer.style.display = 'block';
     document.getElementById('userHourlyRateInput').value = user.hourly_rate || '';
-    
-    let containerWeekend = document.getElementById('userWeekendRateContainer');
-    let containerHoliday = document.getElementById('userHolidayRateContainer');
-    if (!containerWeekend) {
-      containerWeekend = document.createElement('div');
-      containerWeekend.id = 'userWeekendRateContainer';
-      containerWeekend.innerHTML = `<label>Valor Fim de Semana (£/h) <small style="color:var(--muted)">(opcional)</small></label><input name="weekendRate" id="userWeekendRateInput" type="number" step="0.01" placeholder="Ex: 18.00" />`;
-      rateContainer.parentNode.insertBefore(containerWeekend, rateContainer.nextSibling);
-    }
-    if (!containerHoliday) {
-      containerHoliday = document.createElement('div');
-      containerHoliday.id = 'userHolidayRateContainer';
-      containerHoliday.innerHTML = `<label>Valor Feriado (£/h) <small style="color:var(--muted)">(opcional)</small></label><input name="holidayRate" id="userHolidayRateInput" type="number" step="0.01" placeholder="Ex: 20.00" />`;
-      containerWeekend.parentNode.insertBefore(containerHoliday, containerWeekend.nextSibling);
-    }
-    containerWeekend.style.display = 'block';
-    containerHoliday.style.display = 'block';
     document.getElementById('userWeekendRateInput').value = user.weekend_rate || '';
     document.getElementById('userHolidayRateInput').value = user.holiday_rate || '';
   } else {
     rateContainer.style.display = 'none';
     document.getElementById('userHourlyRateInput').value = '';
-    const containerWeekend = document.getElementById('userWeekendRateContainer');
-    const containerHoliday = document.getElementById('userHolidayRateContainer');
-    if (containerWeekend) { containerWeekend.style.display = 'none'; document.getElementById('userWeekendRateInput').value = ''; }
-    if (containerHoliday) { containerHoliday.style.display = 'none'; document.getElementById('userHolidayRateInput').value = ''; }
+    document.getElementById('userWeekendRateInput').value = '';
+    document.getElementById('userHolidayRateInput').value = '';
     
     if (user.role === 'client_user') {
       document.getElementById('userParentClientSelect').value = user.parent_client_id || '';
