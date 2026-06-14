@@ -840,9 +840,10 @@ async function handleApi(req, res, requestUrl) {
     let employeeRate = isHoliday ? Number(emp.holiday_rate || emp.hourly_rate || 0) : (isWeekend ? Number(emp.weekend_rate || emp.hourly_rate || 0) : Number(emp.hourly_rate || 0));
     const employeeAmount = roundCurrency(durationHours * employeeRate);
     
+    let clientRate = isHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
     const clientAmount = flat.billing_type === 'project' 
       ? roundCurrency(Number(flat.project_rate || 0)) 
-      : roundCurrency(durationHours * Number(flat.hourly_rate || 0));
+      : roundCurrency(durationHours * clientRate);
 
     const now = new Date().toISOString();
     
@@ -925,10 +926,14 @@ async function handleApi(req, res, requestUrl) {
         }
       }
       
+      const reqDate = new Date(updatedRequestedDate);
+      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+      let clientRate = updatedIsHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
+      
       updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
       updatedClientAmount = flat.billing_type === 'project' 
         ? roundCurrency(Number(flat.project_rate || 0)) 
-        : roundCurrency(updatedDurationHours * Number(flat.hourly_rate || 0));
+        : roundCurrency(updatedDurationHours * clientRate);
     }
 
     db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, updated_at=? WHERE id=?`)
