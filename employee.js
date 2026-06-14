@@ -41,7 +41,7 @@ const App = (() => {
     let userData = null;
     try {
       const data = await apiFetch('/api/auth/me');
-      if (data && data.user && (data.user.role === 'employee' || data.user.role === 'admin')) {
+      if (data && data.user && ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(data.user.role)) {
         userData = data.user;
       }
     } catch (e) {
@@ -167,7 +167,7 @@ const App = (() => {
     document.getElementById('sidebarAvatarDesktop').textContent = initials;
     document.getElementById('sidebarNameDesktop').textContent   = currentUser.name;
 
-    if (currentUser.role === 'admin') {
+    if (['admin', 'superadmin', 'manager', 'analyst'].includes(currentUser.role)) {
       const deskBtn = document.getElementById('btnAdminReturnDesktop');
       if (deskBtn) deskBtn.classList.remove('hidden');
       const mobBtn = document.getElementById('btnAdminReturnMobile');
@@ -207,8 +207,8 @@ const App = (() => {
             showLoginError('Invalid credentials. Please try again.');
             return;
           }
-          if (data.user.role !== 'employee') {
-            showLoginError('Access restricted. This portal is for employees.');
+          if (!['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(data.user.role)) {
+            showLoginError('Access restricted. This portal is for employees and admins.');
             return;
           }
 
