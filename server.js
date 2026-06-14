@@ -1760,14 +1760,24 @@ function buildClientInvoice(clientId, month) {
     ORDER BY j.finished_at ASC
   `).all(clientId, fromDate + 'T00:00:00.000Z', toDate + 'T23:59:59.999Z');
 
-  const entries = jobs.map((j) => ({
-    jobId: j.id,
-    flatAddress: j.flat_address || '-',
-    date: j.finished_at ? j.finished_at.slice(0, 10) : (j.requested_date || '-'),
-    durationHours: Number(j.duration_hours || 0),
-    clientAmount: Number(j.client_amount || 0),
-  }));
+  const grouped = {};
+  jobs.forEach(j => {
+    const date = j.finished_at ? j.finished_at.slice(0, 10) : (j.requested_date || '-');
+    const key = `${j.flat_id}_${date}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        jobId: j.id,
+        flatAddress: j.flat_address || '-',
+        date: date,
+        durationHours: 0,
+        clientAmount: 0
+      };
+    }
+    grouped[key].durationHours += Number(j.duration_hours || 0);
+    grouped[key].clientAmount += Number(j.client_amount || 0);
+  });
 
+  const entries = Object.values(grouped);
   const totalAmount = roundCurrency(entries.reduce((s, e) => s + e.clientAmount, 0));
 
   return {

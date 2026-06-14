@@ -445,7 +445,27 @@ async function loadJobs() {
     console.log('[client] Loading jobs...');
     const data = await api('GET', '/api/jobs/mine');
     console.log('[client] Jobs loaded:', data);
-    state.jobs = (data.jobs || []).sort((a, b) => new Date(b.requestedDate) - new Date(a.requestedDate));
+    const rawJobs = data.jobs || [];
+    const grouped = {};
+    rawJobs.forEach(j => {
+      const date = j.finishedAt ? j.finishedAt.slice(0, 10) : (j.requestedDate || '-');
+      const key = `${j.flatId}_${date}`;
+      if (!grouped[key]) {
+        grouped[key] = { ...j, jobIds: [j.id], durationHours: 0, clientAmount: 0 };
+      } else {
+        grouped[key].jobIds.push(j.id);
+      }
+      grouped[key].durationHours += Number(j.durationHours || 0);
+      grouped[key].clientAmount += Number(j.clientAmount || 0);
+      
+      if (j.status === 'in_progress' && grouped[key].status === 'pending') grouped[key].status = 'in_progress';
+      else if (j.status === 'completed' && grouped[key].status !== 'completed') grouped[key].status = 'completed';
+    });
+
+    state.jobs = Object.values(grouped).map(g => ({
+      ...g,
+      id: g.jobIds.join(',')
+    })).sort((a, b) => new Date(b.requestedDate) - new Date(a.requestedDate));
     renderJobs();
   } catch (err) {
     console.error('[client] Error loading jobs:', err);
@@ -678,15 +698,20 @@ requestForm.addEventListener('submit', async (e) => {
 
 /* ─── Photos Modal ───────────────────────────────────────── */
 
-async function openPhotosModal(jobId, address) {
+async function openPhotosModal(jobIdsStr, address) {
   photosModalTitle.textContent = `📸 Photos — ${address || 'Clean'}`;
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Loading…</div>`;
   photosModal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
   try {
-    const data = await api('GET', `/api/jobs/${jobId}/photos`);
-    const photos = data.photos || [];
+    const ids = String(jobIdsStr).split(',');
+    let photos = [];
+    for (const id of ids) {
+      const data = await api('GET', `/api/jobs/${id}/photos`);
+      if (data.photos) photos.push(...data.photos);
+    }
+    
     if (photos.length === 0) {
       photoGrid.innerHTML = `
         <div class="photos-empty" style="grid-column:1/-1">
