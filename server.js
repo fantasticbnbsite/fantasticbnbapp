@@ -117,7 +117,7 @@ async function sendPushNotification(userId, payload) {
 }
 
 async function notifyAdmins(payload) {
-  const admins = db.prepare('SELECT id FROM users WHERE role IN (\\'admin\\', \\'superadmin\\')').all();
+  const admins = db.prepare("SELECT id FROM users WHERE role IN ('admin', 'superadmin')").all();
   for (const admin of admins) {
     sendPushNotification(admin.id, payload).catch(()=>{});
   }
