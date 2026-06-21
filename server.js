@@ -366,8 +366,8 @@ setInterval(() => createBackup('auto'), BACKUP_INTERVAL_MS).unref();
 
 function cleanupOldPhotos() {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const oldPhotos = db.prepare('SELECT * FROM job_photos WHERE uploaded_at < ?').all(thirtyDaysAgo);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const oldPhotos = db.prepare('SELECT * FROM job_photos WHERE uploaded_at < ?').all(fourteenDaysAgo);
     const stmt = db.prepare('DELETE FROM job_photos WHERE id = ?');
     for (const photo of oldPhotos) {
       stmt.run(photo.id);
