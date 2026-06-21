@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { existsSync, createReadStream, copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, createReadStream, copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -371,7 +371,7 @@ function cleanupOldPhotos() {
     const stmt = db.prepare('DELETE FROM job_photos WHERE id = ?');
     for (const photo of oldPhotos) {
       stmt.run(photo.id);
-      try { fs.unlinkSync(path.join(UPLOAD_DIR, photo.filename)); } catch (e) {}
+      try { unlinkSync(path.join(UPLOAD_DIR, photo.filename)); } catch (e) {}
     }
     if (oldPhotos.length > 0) console.log(`[Cleanup] Removed ${oldPhotos.length} old photos.`);
   } catch (err) {
@@ -1085,7 +1085,7 @@ async function handleApi(req, res, requestUrl) {
     const jobId = Number(jobPhotosMatch[1]);
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
-    if (session.user.role !== 'employee') return sendJson(res, 403, { error: 'Apenas funcionarios podem enviar fotos.' });
+    if (!['employee', 'admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerencia podem enviar fotos.' });
     if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
     if (!['in_progress', 'completed'].includes(job.status)) return sendJson(res, 400, { error: 'So e possivel enviar fotos durante ou apos o servico.' });
 
@@ -1906,7 +1906,7 @@ async function parseMultipart(req, uploadDir) {
   for await (const chunk of req) chunks.push(chunk);
   const buffer = Buffer.concat(chunks);
 
-  if (buffer.length > MAX_PHOTO_SIZE + 65536) throw new Error('Arquivo muito grande. Maximo: 5MB.');
+  if (buffer.length > MAX_PHOTO_SIZE + 65536) throw new Error('Arquivo muito grande. Maximo: 15MB.');
 
   const boundaryBuf = Buffer.from(boundary);
   const parts = [];
@@ -1941,7 +1941,7 @@ async function parseMultipart(req, uploadDir) {
 
   const filePart = parts.find((p) => p.filename && p.name === 'photo');
   if (!filePart) throw new Error('Campo "photo" nao encontrado no upload.');
-  if (filePart.content.length > MAX_PHOTO_SIZE) throw new Error('Arquivo muito grande. Maximo: 5MB.');
+  if (filePart.content.length > MAX_PHOTO_SIZE) throw new Error('Arquivo muito grande. Maximo: 15MB.');
 
   const detectedType = filePart.contentType.split(';')[0].trim().toLowerCase();
   if (!ALLOWED_PHOTO_TYPES.includes(detectedType)) throw new Error('Tipo de arquivo nao permitido. Use JPEG, PNG ou WebP.');
