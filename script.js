@@ -2789,10 +2789,14 @@ function renderJobs() {
   
   const statusFilter = document.getElementById('jobsStatusFilter')?.value;
   const clientFilter = document.getElementById('jobsClientFilter')?.value;
+  const dateFrom = document.getElementById('jobsDateFrom')?.value;
+  const dateTo   = document.getElementById('jobsDateTo')?.value;
   
   let filtered = state.jobs || [];
   if (statusFilter) filtered = filtered.filter(j => j.status === statusFilter);
   if (clientFilter) filtered = filtered.filter(j => String(j.clientUserId) === String(clientFilter));
+  if (dateFrom) filtered = filtered.filter(j => (j.requestedDate || '').slice(0, 10) >= dateFrom);
+  if (dateTo)   filtered = filtered.filter(j => (j.requestedDate || '').slice(0, 10) <= dateTo);
   
   const formatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   const statusLabels = {
@@ -2842,6 +2846,30 @@ function renderJobs() {
     `;
   }).join('') || '<div class="stack-item">Nenhum servico encontrado.</div>';
 }
+
+window.filterJobsToday = function() {
+  const today = new Date().toISOString().slice(0, 10);
+  const fromEl = document.getElementById('jobsDateFrom');
+  const toEl   = document.getElementById('jobsDateTo');
+  if (fromEl) fromEl.value = today;
+  if (toEl)   toEl.value   = today;
+  renderJobs();
+};
+
+window.clearJobsDateFilter = function() {
+  const fromEl = document.getElementById('jobsDateFrom');
+  const toEl   = document.getElementById('jobsDateTo');
+  if (fromEl) fromEl.value = '';
+  if (toEl)   toEl.value   = '';
+  renderJobs();
+};
+
+// Wire up filter change events
+document.getElementById('jobsStatusFilter')?.addEventListener('change', renderJobs);
+document.getElementById('jobsClientFilter')?.addEventListener('change', renderJobs);
+document.getElementById('jobsDateFrom')?.addEventListener('change', renderJobs);
+document.getElementById('jobsDateTo')?.addEventListener('change', renderJobs);
+
 
 window.openAssignEmployeeModal = async function(jobId) {
   const modal = document.getElementById('assignJobModal');

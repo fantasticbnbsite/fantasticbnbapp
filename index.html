@@ -558,7 +558,7 @@
               <h3>Servicos CleanOps</h3>
               <p class="panel-kicker">Gerencie todas as solicitacoes de limpeza, designe funcionarios e acompanhe o fluxo completo.</p>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <button class="button button-primary" onclick="openAdminRequestJobModal()">+ Nova Solicitacao</button>
               <select id="jobsStatusFilter" class="filter-select" style="min-width:140px;">
                 <option value="">Todos os status</option>
@@ -572,6 +572,10 @@
               <select id="jobsClientFilter" class="filter-select" style="min-width:140px;">
                 <option value="">Todos os clientes</option>
               </select>
+              <input type="date" id="jobsDateFrom" class="filter-select" style="min-width:140px;" placeholder="De" title="Data inicial" />
+              <input type="date" id="jobsDateTo" class="filter-select" style="min-width:140px;" placeholder="Até" title="Data final" />
+              <button class="button button-secondary" onclick="filterJobsToday()">📅 Hoje</button>
+              <button class="button button-secondary" onclick="clearJobsDateFilter()">✕ Limpar datas</button>
               <button class="button button-secondary" id="refreshJobsButton">Atualizar</button>
             </div>
           </div>
