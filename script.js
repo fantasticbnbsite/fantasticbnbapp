@@ -2813,15 +2813,15 @@ function renderJobs() {
   jobsList.innerHTML = filtered.map(job => {
     let actions = `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})">Editar</button>`;
     if (job.status === 'pending' || job.status === 'assigned') {
-      actions += `<button class="button button-primary" style="margin-left:8px;" onclick="openAssignEmployeeModal(${job.id})">Designar Funcionario</button>`;
+      actions += `<button class="button button-primary" onclick="openAssignEmployeeModal(${job.id})">Designar Funcionario</button>`;
     }
     if (job.status !== 'completed' && job.status !== 'cancelled') {
-      actions += `<button class="ghost-button" style="margin-left:8px;" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
+      actions += `<button class="ghost-button" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
     }
     if (job.status === 'in_progress' || job.status === 'completed') {
-      actions += `<button class="ghost-button" style="margin-left:8px; color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')">📸 Ver Fotos</button>`;
+      actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')">📸 Ver Fotos</button>`;
     }
-    actions += `<button class="ghost-button" style="margin-left:8px; color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
+    actions += `<button class="ghost-button" style="color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
     
     let timelineHtml = '';
     if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
