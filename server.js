@@ -17,7 +17,7 @@ const DB_PATH = path.join(DB_DIR, 'fantastic-bnb.sqlite');
 const SESSION_COOKIE = 'fantastic_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 365; // 1 ano
 const BACKUP_INTERVAL_MS = 1000 * 60 * 30;
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 // Rate limiting: { key -> { count, resetAt } }
