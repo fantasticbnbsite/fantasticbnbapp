@@ -15,6 +15,8 @@ const App = (() => {
   let allJobs = [];
   let payslipMonth = currentMonthString();   // 'YYYY-MM'
   let payslipData = null;
+  let dateFilterFrom = '';
+  let dateFilterTo = '';
 
   /* ── Status config ───────────────────────────────────────────── */
   const STATUS_CONFIG = {
@@ -277,6 +279,29 @@ const App = (() => {
     renderJobGroups();
   }
 
+  function applyDateFilter() {
+    dateFilterFrom = document.getElementById('filterDateFrom').value;
+    dateFilterTo   = document.getElementById('filterDateTo').value;
+    renderJobGroups();
+  }
+
+  function filterToday() {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('filterDateFrom').value = today;
+    document.getElementById('filterDateTo').value   = today;
+    dateFilterFrom = today;
+    dateFilterTo   = today;
+    renderJobGroups();
+  }
+
+  function clearDateFilter() {
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value   = '';
+    dateFilterFrom = '';
+    dateFilterTo   = '';
+    renderJobGroups();
+  }
+
   function updateSummary() {
     const now = new Date();
     const monthStr = currentMonthString();
@@ -300,12 +325,30 @@ const App = (() => {
 
   function renderJobGroups() {
     const container = document.getElementById('jobsContainer');
+    const hint = document.getElementById('filterResultsHint');
 
-    if (allJobs.length === 0) {
+    // Apply date filter
+    let jobs = allJobs;
+    if (dateFilterFrom || dateFilterTo) {
+      jobs = allJobs.filter(j => {
+        const d = (j.requestedDate || j.createdAt || '').slice(0, 10);
+        if (dateFilterFrom && d < dateFilterFrom) return false;
+        if (dateFilterTo   && d > dateFilterTo)   return false;
+        return true;
+      });
+      if (hint) {
+        hint.textContent = `Mostrando ${jobs.length} serviço(s) no período filtrado.`;
+        hint.classList.add('visible');
+      }
+    } else {
+      if (hint) hint.classList.remove('visible');
+    }
+
+    if (jobs.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <div class="es-icon">🧹</div>
-          <div class="es-text">Nenhum serviço encontrado</div>
+          <div class="es-text">${dateFilterFrom || dateFilterTo ? 'Nenhum serviço neste período' : 'Nenhum serviço encontrado'}</div>
         </div>`;
       return;
     }
@@ -315,7 +358,7 @@ const App = (() => {
     for (const status of STATUS_DISPLAY_ORDER) {
       grouped[status] = [];
     }
-    allJobs.forEach(job => {
+    jobs.forEach(job => {
       if (grouped[job.status]) grouped[job.status].push(job);
       else grouped[job.status] = [job];
     });
@@ -329,8 +372,8 @@ const App = (() => {
 
     let html = '';
     for (const status of STATUS_DISPLAY_ORDER) {
-      const jobs = grouped[status];
-      if (!jobs || jobs.length === 0) continue;
+      const grpJobs = grouped[status];
+      if (!grpJobs || grpJobs.length === 0) continue;
 
       const cfg = STATUS_CONFIG[status] || { label: status, color: '#706356' };
       html += `
@@ -338,9 +381,9 @@ const App = (() => {
           <div class="status-group-header">
             <div class="status-dot" style="background:${cfg.color}"></div>
             <h3>${cfg.label}</h3>
-            <span class="status-count">${jobs.length}</span>
+            <span class="status-count">${grpJobs.length}</span>
           </div>
-          ${jobs.map(job => renderJobCard(job)).join('')}
+          ${grpJobs.map(job => renderJobCard(job)).join('')}
         </div>`;
     }
 
@@ -351,17 +394,11 @@ const App = (() => {
       input.addEventListener('change', handlePhotoChange);
     });
 
-    // Load photos for in_progress jobs
-    allJobs.filter(j => j.status === 'in_progress').forEach(job => {
-      loadJobPhotos(job.id);
-    });
+    // Load photos for in_progress and completed jobs
+    jobs.filter(j => j.status === 'in_progress').forEach(job => loadJobPhotos(job.id));
+    jobs.filter(j => j.status === 'completed').forEach(job => loadJobPhotos(job.id, true));
 
-    // Load photos for completed jobs
-    allJobs.filter(j => j.status === 'completed').forEach(job => {
-      loadJobPhotos(job.id, true);
-    });
-
-    // Start elapsed timers for in_progress jobs
+    // Start elapsed timers
     startElapsedTimers();
   }
 
@@ -393,12 +430,12 @@ const App = (() => {
 
     if (job.status === 'assigned') {
       actionsHtml = `
-        <div style="display:flex;gap:8px;width:100%;">
-          <button class="btn btn-accept" style="flex:1;" onclick="App.acceptJob('${job.id}', this)">
+        <div class="job-actions two-btns">
+          <button class="btn btn-accept" onclick="App.acceptJob('${job.id}', this)">
             <span class="spinner"></span>
             <span class="btn-text">✅ Aceitar</span>
           </button>
-          <button class="btn btn-finish" style="flex:1;background:#fff;border:1px solid var(--danger,#d45555);color:var(--danger,#d45555);" onclick="App.rejectJob('${job.id}', this)">
+          <button class="btn btn-danger" onclick="App.rejectJob('${job.id}', this)">
             <span class="spinner"></span>
             <span class="btn-text">❌ Recusar</span>
           </button>
@@ -407,10 +444,12 @@ const App = (() => {
 
     if (job.status === 'accepted') {
       actionsHtml = `
-        <button class="btn btn-start" onclick="App.startJob('${job.id}', this)">
-          <span class="spinner"></span>
-          <span class="btn-text">▶️ Iniciar</span>
-        </button>`;
+        <div class="job-actions one-btn">
+          <button class="btn btn-start" onclick="App.startJob('${job.id}', this)">
+            <span class="spinner"></span>
+            <span class="btn-text">▶️ Iniciar Serviço</span>
+          </button>
+        </div>`;
     }
 
     if (job.status === 'in_progress') {
@@ -418,10 +457,12 @@ const App = (() => {
         <div class="employee-notes-wrapper" style="margin-bottom: 12px;">
           <textarea id="obs-${job.id}" class="form-input" rows="2" placeholder="Alguma observação sobre a limpeza? (Opcional)"></textarea>
         </div>
-        <button class="btn btn-finish" onclick="App.finishJob('${job.id}', this)">
-          <span class="spinner"></span>
-          <span class="btn-text">🏁 Finalizar</span>
-        </button>`;
+        <div class="job-actions one-btn">
+          <button class="btn btn-finish" onclick="App.finishJob('${job.id}', this)">
+            <span class="spinner"></span>
+            <span class="btn-text">🏁 Finalizar Serviço</span>
+          </button>
+        </div>`;
 
       extraHtml = `
         <div class="photo-section">
@@ -990,8 +1031,11 @@ const App = (() => {
     printPayslip,
     openLightbox,
     logout,
-    loadServices,  // exposed for retry button
-    loadPayslip,   // exposed for retry button
+    loadServices,
+    loadPayslip,
+    applyDateFilter,
+    filterToday,
+    clearDateFilter,
   };
 
 })();

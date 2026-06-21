@@ -1067,6 +1067,124 @@
       .payslip-table thead th,
       .payslip-table tbody td { padding: 10px 12px; font-size: 0.8rem; }
     }
+
+    /* ─── Date Filter Bar ───────────────────────────────────────── */
+    .date-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+
+    .date-filter-bar label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .date-filter-bar input[type="date"] {
+      flex: 1;
+      min-width: 130px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--line);
+      background: rgba(255,255,255,0.85);
+      font-size: 0.85rem;
+      font-family: 'Manrope', sans-serif;
+      color: var(--text);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .date-filter-bar input[type="date"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(201,116,63,0.12);
+      outline: none;
+    }
+
+    .date-filter-sep {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .btn-filter-today {
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(201,116,63,0.12);
+      color: var(--primary);
+      border: 1.5px solid rgba(201,116,63,0.3);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-filter-today:hover { background: rgba(201,116,63,0.22); }
+
+    .btn-filter-clear {
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--line);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-filter-clear:hover { background: rgba(112,99,86,0.08); }
+
+    .filter-results-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .filter-results-hint.visible { display: block; }
+
+    /* ─── Better Button Alignment ───────────────────────────────── */
+    .job-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .job-actions.two-btns { grid-template-columns: 1fr 1fr; }
+    .job-actions.one-btn  { grid-template-columns: 1fr; }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 13px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 700;
+      transition: all var(--transition);
+      border: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+      width: 100%;
+    }
   </style>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#c9743f">
@@ -1200,6 +1318,18 @@
             <div class="s-sub">este mês</div>
           </div>
         </div>
+
+        <!-- Date Filter Bar -->
+        <div class="date-filter-bar">
+          <label>De</label>
+          <input type="date" id="filterDateFrom" onchange="App.applyDateFilter()" />
+          <span class="date-filter-sep">—</span>
+          <label>Até</label>
+          <input type="date" id="filterDateTo" onchange="App.applyDateFilter()" />
+          <button class="btn-filter-today" onclick="App.filterToday()">📅 Hoje</button>
+          <button class="btn-filter-clear" onclick="App.clearDateFilter()">✕ Limpar</button>
+        </div>
+        <p class="filter-results-hint" id="filterResultsHint"></p>
 
         <div id="jobsContainer">
           <div class="loading-overlay">
