@@ -3602,10 +3602,18 @@ function renderDashboard() {
   const jobs = state.dashboardJobs;
 
   const clientFilter = document.getElementById('dashboardClientFilter')?.value || 'all';
+  const dateFrom = document.getElementById('dashboardDateFrom')?.value;
+  const dateTo = document.getElementById('dashboardDateTo')?.value;
 
   let filteredJobs = jobs;
   if (clientFilter !== 'all') {
     filteredJobs = jobs.filter(j => j.client_user_id == clientFilter);
+  }
+  if (dateFrom) {
+    filteredJobs = filteredJobs.filter(j => (j.finished_at || j.requested_date || '').slice(0, 10) >= dateFrom);
+  }
+  if (dateTo) {
+    filteredJobs = filteredJobs.filter(j => (j.finished_at || j.requested_date || '').slice(0, 10) <= dateTo);
   }
 
   // Stats
@@ -3718,7 +3726,36 @@ function renderDashboard() {
       filterEl.dataset.bound = 'true';
     }
   }
+
+  const dateFromEl = document.getElementById('dashboardDateFrom');
+  if (dateFromEl && !dateFromEl.dataset.bound) {
+    dateFromEl.addEventListener('change', renderDashboard);
+    dateFromEl.dataset.bound = 'true';
+  }
+
+  const dateToEl = document.getElementById('dashboardDateTo');
+  if (dateToEl && !dateToEl.dataset.bound) {
+    dateToEl.addEventListener('change', renderDashboard);
+    dateToEl.dataset.bound = 'true';
+  }
 }
+
+window.filterDashboardToday = function() {
+  const today = new Date().toISOString().slice(0, 10);
+  const fromEl = document.getElementById('dashboardDateFrom');
+  const toEl   = document.getElementById('dashboardDateTo');
+  if (fromEl) fromEl.value = today;
+  if (toEl)   toEl.value   = today;
+  renderDashboard();
+};
+
+window.clearDashboardDateFilter = function() {
+  const fromEl = document.getElementById('dashboardDateFrom');
+  const toEl   = document.getElementById('dashboardDateTo');
+  if (fromEl) fromEl.value = '';
+  if (toEl)   toEl.value   = '';
+  renderDashboard();
+};
 
 // ── MANUAL JOB ───────────────────────────────────────────
 

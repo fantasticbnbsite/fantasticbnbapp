@@ -112,6 +112,10 @@
           </div>
           <div class="rate-grid dashboard-filter-grid">
             <select id="dashboardClientFilter"></select>
+            <input type="date" id="dashboardDateFrom" class="filter-select" placeholder="De" title="Data inicial" />
+            <input type="date" id="dashboardDateTo" class="filter-select" placeholder="Até" title="Data final" />
+            <button class="button button-secondary" onclick="filterDashboardToday()">📅 Hoje</button>
+            <button class="button button-secondary" onclick="clearDashboardDateFilter()">✕ Limpar datas</button>
           </div>
         </article>
 
