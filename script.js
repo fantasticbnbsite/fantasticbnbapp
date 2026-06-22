@@ -3657,9 +3657,8 @@ function renderDashboard() {
     }
   });
   let useDaily = false;
-  if (minDate <= maxDate) {
-    const daysSpan = (new Date(maxDate) - new Date(minDate)) / (1000 * 60 * 60 * 24);
-    if (dateFrom || dateTo || daysSpan <= 60) useDaily = true;
+  if (dateFrom || dateTo) {
+    useDaily = true;
   }
 
   filteredJobs.forEach(j => {
