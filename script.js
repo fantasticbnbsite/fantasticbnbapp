@@ -3734,6 +3734,70 @@ function renderDashboard() {
     }).join('') || '<div class="stack-item">Sem dados consolidados no periodo.</div>';
   }
 
+  // Draw Chart
+  const ctx = document.getElementById('dashboardTrendChart');
+  if (ctx && window.Chart) {
+    if (window.dashboardChartInstance) {
+      window.dashboardChartInstance.destroy();
+    }
+    
+    const monthsArrAsc = Object.keys(trendData).sort(); // chronological for chart
+    const labels = monthsArrAsc;
+    const revenueData = monthsArrAsc.map(m => trendData[m].revenue);
+    const profitData = monthsArrAsc.map(m => trendData[m].revenue - trendData[m].cost);
+    
+    window.dashboardChartInstance = new window.Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Lucro',
+            data: profitData,
+            type: 'line',
+            borderColor: '#16756b',
+            backgroundColor: '#16756b',
+            borderWidth: 3,
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Faturamento',
+            data: revenueData,
+            backgroundColor: 'rgba(201, 116, 63, 0.4)',
+            borderColor: 'rgba(201, 116, 63, 0.8)',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { callback: function(value) { return '£' + value; } } }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) label += ': ';
+                if (context.parsed.y !== null) {
+                  label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   // Populate Filter
   const filterEl = document.getElementById('dashboardClientFilter');
   if (filterEl && filterEl.options.length <= 1) {

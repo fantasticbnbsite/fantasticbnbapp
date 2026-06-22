@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=20260621b" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#c9743f">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="app-bg"></div>
@@ -120,6 +121,18 @@
         </article>
 
         <div class="holerites-stats dashboard-stats" id="dashboardStats"></div>
+
+        <article class="panel glass-card" style="margin-top: 18px; margin-bottom: 18px;">
+          <div class="panel-header compact">
+            <div>
+              <h3>Evolução de Receita e Lucro</h3>
+              <p class="panel-kicker">Acompanhe o faturamento e a lucratividade mês a mês.</p>
+            </div>
+          </div>
+          <div style="position: relative; height: 350px; width: 100%;">
+            <canvas id="dashboardTrendChart"></canvas>
+          </div>
+        </article>
 
         <div class="dashboard-grid">
           <article class="panel glass-card">
