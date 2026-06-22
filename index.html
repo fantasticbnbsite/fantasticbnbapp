@@ -45,9 +45,9 @@
         </div>
       </div>
       <nav class="side-nav">
-        <button class="nav-link active admin-nav" data-view="overview">Visao geral</button>
+        <button class="nav-link admin-nav" data-view="overview" style="display: none;">Visao geral</button>
+        <button class="nav-link active admin-nav" data-view="dashboard">Dashboard</button>
         <button class="nav-link admin-nav" data-view="jobs">&#x1F9F9; Servicos</button>
-        <button class="nav-link admin-nav" data-view="dashboard">Dashboard</button>
         <button class="nav-link admin-nav" data-view="cleaners">Cadastros</button>
         <button class="nav-link admin-nav" data-view="finance">Financeiro</button>
         <button class="nav-link admin-only admin-nav" data-view="flats">Flats</button>
@@ -75,7 +75,7 @@
         </div>
       </header>
 
-      <section class="view" id="overviewView">
+      <section class="view hidden" id="overviewView">
         <div class="stats-row" id="overviewStats"></div>
         <div class="overview-grid">
           <article class="panel glass-card">
@@ -95,7 +95,7 @@
         </div>
       </section>
 
-      <section class="view hidden" id="dashboardView">
+      <section class="view" id="dashboardView">
         <div class="holerites-hero glass-card dashboard-hero">
           <div>
             <p class="eyebrow">Visao executiva</p>

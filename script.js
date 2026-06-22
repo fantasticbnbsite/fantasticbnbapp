@@ -431,7 +431,7 @@ async function loadApp() {
   if (isAdmin()) await loadUsers();
   loadGeneratedDocuments();
   await loadHolerites();
-  switchView(isCollaborator() ? 'holerites' : 'overview');
+  switchView(isCollaborator() ? 'holerites' : 'dashboard');
 }
 
 async function refreshClientContext() {
