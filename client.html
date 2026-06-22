@@ -857,6 +857,12 @@
       <h2 class="view-title">My Invoices</h2>
       <p class="view-sub">Official invoices generated and sent</p>
       
+      <div class="rate-grid" style="margin-bottom: 16px;">
+        <input type="text" id="filterInvoiceNo" class="filter-select" placeholder="Invoice nº" />
+        <input type="date" id="filterInvoiceDate" class="filter-select" placeholder="Date" />
+        <button class="button button-secondary" onclick="renderInvoices()">Filter</button>
+      </div>
+      
       <div id="invoicesContainer">
         <div class="loading-overlay">
           <div class="big-spinner"></div>

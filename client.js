@@ -362,74 +362,107 @@ if (tabInvoicesDesk) tabInvoicesDesk.addEventListener('click', () => switchView(
 
 /* ─── Load Invoices ──────────────────────────────────────── */
 
+let globalClientInvoices = [];
+
 async function loadInvoices() {
   const container = document.getElementById('invoicesContainer');
   container.innerHTML = `<div class="loading-overlay"><div class="big-spinner"></div><span>Loading invoices...</span></div>`;
   try {
     const data = await api('GET', '/api/finance/invoices/mine');
-    const invoices = data.invoices || [];
-    if (invoices.length === 0) {
-      container.innerHTML = `
-        <div style="text-align:center; padding: 40px; color: var(--muted);">
-          <div style="font-size:3rem; margin-bottom:12px;">🧾</div>
-          No invoices generated at the moment.
-        </div>
-      `;
-      return;
-    }
-    container.innerHTML = invoices.map(i => {
-      const jobs = i.jobs || [];
-      
-      // Agrupar jobs por data e flat
-      const groupedJobs = {};
-      jobs.forEach(j => {
-        const dateStr = j.finished_at ? fmtDate(j.finished_at) : 'No date';
-        const flatStr = j.flat_address || 'Unknown';
-        const key = dateStr + '|' + flatStr;
-        if (!groupedJobs[key]) {
-          groupedJobs[key] = {
-            dateStr,
-            flatStr,
-            totalClientAmount: 0,
-            totalDurationHours: 0
-          };
-        }
-        groupedJobs[key].totalClientAmount += Number(j.client_amount || 0);
-        groupedJobs[key].totalDurationHours += Number(j.duration_hours || 0);
-      });
-
-      const rows = Object.values(groupedJobs).map(g => `
-        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-          <div>
-            <div>${g.dateStr} - ${escHtml(g.flatStr)}</div>
-            <div style="font-size:0.85rem; color:var(--muted);">${g.totalDurationHours ? fmtHours(g.totalDurationHours) : ''}</div>
-          </div>
-          <div style="font-weight:600; display:flex; align-items:center;">£${g.totalClientAmount.toFixed(2)}</div>
-        </div>
-      `).join('');
-      return `
-        <div class="form-card glass-card" style="margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <div>
-              <strong style="font-size:1.1rem;">Invoice #${i.id}</strong>
-              <div style="color:var(--muted); font-size:0.9rem;">Period: ${i.period_from} to ${i.period_to}</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-weight:700; font-size:1.2rem; color:var(--primary);">£${Number(i.total_amount).toFixed(2)}</div>
-              <span class="status-badge status-${i.status}">${i.status}</span>
-              <div style="margin-top: 12px;">
-                <a href="/print/invoice/${i.id}" target="_blank" class="btn btn-primary" style="font-size:0.8rem; padding: 6px 12px; text-decoration:none; display:inline-block;">Download PDF</a>
-              </div>
-            </div>
-          </div>
-          <div>${rows}</div>
-        </div>
-      `;
-    }).join('');
+    globalClientInvoices = data.invoices || [];
+    renderInvoices();
   } catch (err) {
     container.innerHTML = `<div style="text-align:center; padding:20px; color:red;">Error loading invoices: ${err.message}</div>`;
   }
 }
+
+window.renderInvoices = function() {
+  const container = document.getElementById('invoicesContainer');
+  const invNo = document.getElementById('filterInvoiceNo')?.value.toLowerCase().trim();
+  const invDate = document.getElementById('filterInvoiceDate')?.value;
+
+  let filtered = globalClientInvoices;
+  if (invNo) {
+    filtered = filtered.filter(i => String(i.id).includes(invNo));
+  }
+  if (invDate) {
+    filtered = filtered.filter(i => i.period_from <= invDate && i.period_to >= invDate);
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 40px; color: var(--muted);">
+        <div style="font-size:3rem; margin-bottom:12px;">🧾</div>
+        No invoices found.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(i => {
+    const jobs = i.jobs || [];
+    
+    // Group jobs by date and flat
+    const groupedJobs = {};
+    jobs.forEach(j => {
+      const dateStr = j.finished_at ? fmtDate(j.finished_at) : 'No date';
+      const flatStr = j.flat_address || 'Unknown';
+      const key = dateStr + '|' + flatStr;
+      if (!groupedJobs[key]) {
+        groupedJobs[key] = {
+          dateStr,
+          flatStr,
+          totalClientAmount: 0,
+          totalDurationHours: 0
+        };
+      }
+      groupedJobs[key].totalClientAmount += Number(j.client_amount || 0);
+      groupedJobs[key].totalDurationHours += Number(j.duration_hours || 0);
+    });
+
+    const rows = Object.values(groupedJobs).map(g => `
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">
+        <div>
+          <div style="font-size:0.95rem;">${g.dateStr} - ${escHtml(g.flatStr)}</div>
+          <div style="font-size:0.85rem; color:var(--muted);">${g.totalDurationHours ? fmtHours(g.totalDurationHours) : ''}</div>
+        </div>
+        <div style="font-weight:600; display:flex; align-items:center;">£${g.totalClientAmount.toFixed(2)}</div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="form-card glass-card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <strong style="font-size:1.15rem; color:var(--text);">Invoice nº ${i.id}</strong>
+            <div style="color:var(--muted); font-size:0.9rem; margin-top:4px;">Period: ${fmtDate(i.period_from)} to ${fmtDate(i.period_to)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:700; font-size:1.2rem; color:var(--primary); margin-bottom:4px;">£${Number(i.total_amount).toFixed(2)}</div>
+            <span class="status-badge status-${i.status}">${i.status}</span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; display:flex; gap: 8px;">
+          <a href="/print/invoice/${i.id}" target="_blank" class="button button-primary" style="flex:1; text-align:center; padding:12px; text-decoration:none; font-size:0.9rem; border-radius:12px;">Download PDF</a>
+          <button class="button button-secondary" style="flex:1; font-size:0.9rem; border-radius:12px;" onclick="toggleInvoiceDetails(${i.id})">Details</button>
+        </div>
+
+        <div id="invoiceDetails_${i.id}" style="display:none; margin-top: 16px; padding-top: 12px;">
+          <h4 style="font-size:0.9rem; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Job Breakdown</h4>
+          ${rows || '<div style="color:var(--muted); font-size:0.9rem;">No jobs attached.</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+window.toggleInvoiceDetails = function(id) {
+  const el = document.getElementById('invoiceDetails_' + id);
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+};
 
 /* ─── Load Jobs ──────────────────────────────────────────── */
 
