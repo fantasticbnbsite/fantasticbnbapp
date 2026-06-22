@@ -2787,8 +2787,30 @@ function renderJobs() {
   const jobsStats = document.getElementById('jobsStats');
   if (!jobsList) return;
   
-  const statusFilter = document.getElementById('jobsStatusFilter')?.value;
-  const clientFilter = document.getElementById('jobsClientFilter')?.value;
+  const statusFilterEl = document.getElementById('jobsStatusFilter');
+  const clientFilterEl = document.getElementById('jobsClientFilter');
+  
+  if (clientFilterEl && state.jobs) {
+    const clients = {};
+    state.jobs.forEach(j => {
+      if (j.clientUserId && j.clientName) {
+        clients[j.clientUserId] = j.clientName;
+      }
+    });
+    const currentOptions = Array.from(clientFilterEl.options).map(o => o.value);
+    const newClientIds = Object.keys(clients);
+    
+    // Only rebuild if there are new clients we don't have yet, to preserve selection
+    if (newClientIds.some(id => !currentOptions.includes(id))) {
+      const currentVal = clientFilterEl.value;
+      clientFilterEl.innerHTML = '<option value="">Todos os clientes</option>' + 
+        newClientIds.sort((a,b) => clients[a].localeCompare(clients[b])).map(id => `<option value="${id}">${escapeHtml(clients[id])}</option>`).join('');
+      clientFilterEl.value = currentVal;
+    }
+  }
+  
+  const statusFilter = statusFilterEl?.value;
+  const clientFilter = clientFilterEl?.value;
   const dateFrom = document.getElementById('jobsDateFrom')?.value;
   const dateTo   = document.getElementById('jobsDateTo')?.value;
   
