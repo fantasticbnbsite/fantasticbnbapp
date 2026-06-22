@@ -3647,6 +3647,21 @@ function renderDashboard() {
   const cleanerData = {};
   const trendData = {};
 
+  let minDate = '9999-99-99';
+  let maxDate = '0000-00-00';
+  filteredJobs.forEach(j => {
+    const d = (j.finished_at || j.requested_date || '').substring(0, 10);
+    if (d && d.length === 10) {
+      if (d < minDate) minDate = d;
+      if (d > maxDate) maxDate = d;
+    }
+  });
+  let useDaily = false;
+  if (minDate <= maxDate) {
+    const daysSpan = (new Date(maxDate) - new Date(minDate)) / (1000 * 60 * 60 * 24);
+    if (dateFrom || dateTo || daysSpan <= 60) useDaily = true;
+  }
+
   filteredJobs.forEach(j => {
     const revenue = j.client_amount || 0;
     const cost = j.employee_amount || 0;
@@ -3669,11 +3684,12 @@ function renderDashboard() {
     }
 
     // Trend
-    if (j.finished_at) {
-      const month = j.finished_at.substring(0, 7); // YYYY-MM
-      if (!trendData[month]) trendData[month] = { revenue: 0, cost: 0 };
-      trendData[month].revenue += revenue;
-      trendData[month].cost += cost;
+    const d = j.finished_at || j.requested_date;
+    if (d) {
+      const periodKey = useDaily ? d.substring(0, 10) : d.substring(0, 7);
+      if (!trendData[periodKey]) trendData[periodKey] = { revenue: 0, cost: 0 };
+      trendData[periodKey].revenue += revenue;
+      trendData[periodKey].cost += cost;
     }
   });
 
@@ -3742,8 +3758,9 @@ function renderDashboard() {
     }
     
     const monthsArrAsc = Object.keys(trendData).sort(); // chronological for chart
-    const labels = monthsArrAsc;
+    const labels = monthsArrAsc.map(d => d.length === 10 ? d.split('-').reverse().join('/') : d);
     const revenueData = monthsArrAsc.map(m => trendData[m].revenue);
+    const costData = monthsArrAsc.map(m => trendData[m].cost);
     const profitData = monthsArrAsc.map(m => trendData[m].revenue - trendData[m].cost);
     
     window.dashboardChartInstance = new window.Chart(ctx, {
@@ -3764,8 +3781,17 @@ function renderDashboard() {
           {
             label: 'Faturamento',
             data: revenueData,
-            backgroundColor: 'rgba(201, 116, 63, 0.4)',
-            borderColor: 'rgba(201, 116, 63, 0.8)',
+            backgroundColor: 'rgba(201, 116, 63, 0.5)',
+            borderColor: 'rgba(201, 116, 63, 0.9)',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Despesas',
+            data: costData,
+            backgroundColor: 'rgba(212, 85, 85, 0.5)',
+            borderColor: 'rgba(212, 85, 85, 0.9)',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y'
