@@ -810,6 +810,15 @@
     <div id="viewJobs" class="view active">
       <h2 class="view-title">My Cleans</h2>
       <p class="view-sub">Track the status of your cleans</p>
+      
+      <div class="rate-grid" style="margin-bottom: 16px;">
+        <select id="filterJobFlat" class="filter-select">
+          <option value="all">All Flats</option>
+        </select>
+        <input type="date" id="filterJobDate" class="filter-select" placeholder="Date" />
+        <button class="button button-secondary" onclick="renderJobs()">Filter</button>
+      </div>
+
       <div id="jobList">
         <!-- skeleton placeholders -->
         <div class="skeleton glass-card"><div class="skeleton-inner"></div></div>

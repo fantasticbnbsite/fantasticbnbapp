@@ -498,6 +498,17 @@ async function loadJobs() {
       ...g,
       id: g.jobIds.join(',')
     })).sort((a, b) => new Date(b.requestedDate) - new Date(a.requestedDate));
+
+    // Populate filter drop down
+    const filterJobFlat = document.getElementById('filterJobFlat');
+    if (filterJobFlat) {
+      const uniqueFlats = [...new Set(state.jobs.map(j => j.flatAddress).filter(Boolean))].sort();
+      const currentVal = filterJobFlat.value;
+      filterJobFlat.innerHTML = '<option value="all">All Flats</option>' + 
+        uniqueFlats.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
+      filterJobFlat.value = currentVal;
+    }
+
     renderJobs();
   } catch (err) {
     console.error('[client] Error loading jobs:', err);
@@ -509,19 +520,31 @@ async function loadJobs() {
   }
 }
 
-function renderJobs() {
-  if (state.jobs.length === 0) {
+window.renderJobs = function() {
+  const jobFlat = document.getElementById('filterJobFlat')?.value;
+  const jobDate = document.getElementById('filterJobDate')?.value;
+
+  let filtered = state.jobs;
+
+  if (jobFlat && jobFlat !== 'all') {
+    filtered = filtered.filter(j => j.flatAddress === jobFlat);
+  }
+  if (jobDate) {
+    filtered = filtered.filter(j => j.requestedDate && j.requestedDate.slice(0, 10) === jobDate);
+  }
+
+  if (filtered.length === 0) {
     jobList.innerHTML = `
       <div class="empty-state glass-card" style="border-radius:24px">
         <span class="empty-icon">🏡</span>
-        <h3>No cleans yet</h3>
-        <p>Request your first clean using the tab below.</p>
+        <h3>No cleans found</h3>
+        <p>No cleans match your filters.</p>
       </div>
     `;
     return;
   }
 
-  jobList.innerHTML = state.jobs.map(job => jobCardHTML(job)).join('');
+  jobList.innerHTML = filtered.map(job => jobCardHTML(job)).join('');
 
   // Attach photo button listeners
   jobList.querySelectorAll('[data-photos-job]').forEach(btn => {
