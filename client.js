@@ -444,8 +444,8 @@ window.renderInvoices = function() {
         </div>
         
         <div style="margin-top: 20px; display:flex; gap: 8px;">
-          <a href="/print/invoice/${i.id}" target="_blank" class="button button-primary" style="flex:1; text-align:center; padding:12px; text-decoration:none; font-size:0.9rem; border-radius:12px;">Download PDF</a>
-          <button class="button button-secondary" style="flex:1; font-size:0.9rem; border-radius:12px;" onclick="toggleInvoiceDetails(${i.id})">Details</button>
+          <a href="/print/invoice/${i.id}" target="_blank" class="btn btn-primary" style="flex:1; text-align:center; padding:12px; text-decoration:none; font-size:0.9rem; border-radius:12px;">Download PDF</a>
+          <button class="btn btn-ghost" style="flex:1; padding:12px; font-size:0.9rem; border-radius:12px; background:rgba(0,0,0,0.05);" onclick="toggleInvoiceDetails(${i.id})">Details</button>
         </div>
 
         <div id="invoiceDetails_${i.id}" style="display:none; margin-top: 16px; padding-top: 12px;">
