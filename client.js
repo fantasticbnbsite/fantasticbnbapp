@@ -521,6 +521,9 @@ async function loadJobs() {
 }
 
 window.renderJobs = function() {
+  const jobList = document.getElementById('jobList');
+  if (!jobList) return;
+
   const jobFlat = document.getElementById('filterJobFlat')?.value;
   const jobDate = document.getElementById('filterJobDate')?.value;
 
@@ -550,7 +553,23 @@ window.renderJobs = function() {
   jobList.querySelectorAll('[data-photos-job]').forEach(btn => {
     btn.addEventListener('click', () => openPhotosModal(btn.dataset.photosJob, btn.dataset.photosAddress));
   });
-}
+};
+
+window.clearJobsFilter = function() {
+  const flatEl = document.getElementById('filterJobFlat');
+  const dateEl = document.getElementById('filterJobDate');
+  if (flatEl) flatEl.value = 'all';
+  if (dateEl) dateEl.value = '';
+  window.renderJobs();
+};
+
+window.clearInvoicesFilter = function() {
+  const noEl = document.getElementById('filterInvoiceNo');
+  const dateEl = document.getElementById('filterInvoiceDate');
+  if (noEl) noEl.value = '';
+  if (dateEl) dateEl.value = '';
+  window.renderInvoices();
+};
 
 function jobCardHTML(job) {
   const cfg = STATUS_CONFIG[job.status] || STATUS_CONFIG.pending;

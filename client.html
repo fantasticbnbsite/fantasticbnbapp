@@ -811,12 +811,21 @@
       <h2 class="view-title">My Cleans</h2>
       <p class="view-sub">Track the status of your cleans</p>
       
-      <div class="rate-grid" style="margin-bottom: 16px;">
-        <select id="filterJobFlat" class="filter-select">
-          <option value="all">All Flats</option>
-        </select>
-        <input type="date" id="filterJobDate" class="filter-select" placeholder="Date" />
-        <button class="button button-secondary" onclick="renderJobs()">Filter</button>
+      <div class="rate-grid" style="margin-bottom: 16px; align-items: end;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--muted); margin-bottom:4px; display:block;">Property</label>
+          <select id="filterJobFlat" class="filter-select">
+            <option value="all">All Flats</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--muted); margin-bottom:4px; display:block;">Date</label>
+          <input type="date" id="filterJobDate" class="filter-select" />
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="button button-secondary" style="flex:1" onclick="renderJobs()">Filter</button>
+          <button class="button button-ghost" style="flex:1; padding:0 12px;" onclick="clearJobsFilter()">Clear</button>
+        </div>
       </div>
 
       <div id="jobList">
@@ -866,10 +875,19 @@
       <h2 class="view-title">My Invoices</h2>
       <p class="view-sub">Official invoices generated and sent</p>
       
-      <div class="rate-grid" style="margin-bottom: 16px;">
-        <input type="text" id="filterInvoiceNo" class="filter-select" placeholder="Invoice nº" />
-        <input type="date" id="filterInvoiceDate" class="filter-select" placeholder="Date" />
-        <button class="button button-secondary" onclick="renderInvoices()">Filter</button>
+      <div class="rate-grid" style="margin-bottom: 16px; align-items: end;">
+        <div>
+          <label style="font-size:0.8rem; color:var(--muted); margin-bottom:4px; display:block;">Invoice nº</label>
+          <input type="text" id="filterInvoiceNo" class="filter-select" placeholder="Ex: 15" />
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--muted); margin-bottom:4px; display:block;">Date</label>
+          <input type="date" id="filterInvoiceDate" class="filter-select" />
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="button button-secondary" style="flex:1" onclick="renderInvoices()">Filter</button>
+          <button class="button button-ghost" style="flex:1; padding:0 12px;" onclick="clearInvoicesFilter()">Clear</button>
+        </div>
       </div>
       
       <div id="invoicesContainer">
