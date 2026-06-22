@@ -80,7 +80,6 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
         <td>${e.description} (x${e.quantity})</td>
         <td colspan="2" style="text-align:center;">£${Number(e.total).toFixed(2)}</td>
       </tr>`;
-      totalExtras += Number(e.total);
     });
   } catch(e) {}
 
@@ -167,10 +166,10 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
         <td>${formatHours(weekendsHours)}</td>
         <td>£${weekendsAmount.toFixed(2)}</td>
       </tr>
-      ${totalExtras > 0 || extrasHtml !== '' ? `
+      ${totalExtras > 0 ? `
       <tr>
         <td>${extraLabel} (Jobs)</td>
-        <td colspan="2" style="text-align:center;">£${(totalExtras - (extrasHtml !== '' ? totalExtras : 0)).toFixed(2)}</td>
+        <td colspan="2" style="text-align:center;">£${totalExtras.toFixed(2)}</td>
       </tr>
       ` : ''}
       ${extrasHtml}
