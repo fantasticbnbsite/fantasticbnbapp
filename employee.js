@@ -3,6 +3,229 @@
  * Fantastic BNB | vanilla JS, no dependencies
  */
 
+/* ─────────────────────────────────────────────────────────────────
+   OFFLINE MODULE — self-contained, safe to remove if needed
+   Handles:
+   1. Draft auto-save  (localStorage, per job)
+   2. Offline action queue (IndexedDB) for API calls that fail offline
+   3. Visual banners for offline / syncing states
+─────────────────────────────────────────────────────────────────── */
+const OfflineModule = (() => {
+  'use strict';
+
+  const DB_NAME    = 'fantastic_offline_v1';
+  const STORE_NAME = 'action_queue';
+  let db = null;
+
+  // ── Open (or create) the IndexedDB ──────────────────────────
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (db) { resolve(db); return; }
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const store = e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('by_job', 'jobId', { unique: false });
+      };
+      req.onsuccess  = (e) => { db = e.target.result; resolve(db); };
+      req.onerror    = (e) => reject(e.target.error);
+    });
+  }
+
+  // ── Queue an action when offline ────────────────────────────
+  async function enqueue(action) {
+    try {
+      const _db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = _db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).add({ ...action, savedAt: Date.now() });
+        tx.oncomplete = resolve;
+        tx.onerror    = (e) => reject(e.target.error);
+      });
+    } catch (e) {
+      console.warn('[Offline] Could not enqueue action:', e);
+    }
+  }
+
+  // ── Get all queued actions ───────────────────────────────────
+  async function getAllQueued() {
+    try {
+      const _db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = _db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = (e) => resolve(e.target.result || []);
+        req.onerror   = (e) => reject(e.target.error);
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ── Remove a successfully synced action from the queue ──────
+  async function dequeue(id) {
+    try {
+      const _db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = _db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = resolve;
+        tx.onerror    = (e) => reject(e.target.error);
+      });
+    } catch (e) {
+      console.warn('[Offline] Could not dequeue action:', e);
+    }
+  }
+
+  // ── Show / hide the offline banners ─────────────────────────
+  function showBanner(id, show) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? 'block' : 'none';
+  }
+
+  // ── Sync the queue when back online ────────────────────────
+  async function syncQueue() {
+    const items = await getAllQueued();
+    if (items.length === 0) return;
+
+    showBanner('syncBanner', true);
+    showBanner('offlineBanner', false);
+
+    let anyFailed = false;
+    for (const item of items) {
+      try {
+        const fetchOpts = { method: item.method, credentials: 'include' };
+        if (item.type === 'json') {
+          fetchOpts.headers = { 'Content-Type': 'application/json' };
+          fetchOpts.body = item.body;
+        } else if (item.type === 'photo' && item.photoData) {
+          // Rebuild FormData from stored base64
+          const res = await fetch(item.photoData);
+          const blob = await res.blob();
+          const fd = new FormData();
+          fd.append('photo', blob, item.photoName || 'photo.jpg');
+          fetchOpts.body = fd;
+        }
+        const resp = await fetch(item.url, fetchOpts);
+        if (resp.ok || resp.status === 401) {
+          await dequeue(item.id);
+        } else {
+          anyFailed = true;
+        }
+      } catch (e) {
+        anyFailed = true;
+      }
+    }
+
+    showBanner('syncBanner', false);
+    if (!anyFailed) {
+      // All synced — reload to show fresh server state
+      if (typeof App !== 'undefined' && App.reloadServices) App.reloadServices();
+    }
+  }
+
+  // ── Online / offline event handlers ─────────────────────────
+  function onOnline()  {
+    showBanner('offlineBanner', false);
+    syncQueue();
+  }
+  function onOffline() {
+    showBanner('offlineBanner', true);
+    showBanner('syncBanner', false);
+  }
+
+  window.addEventListener('online',  onOnline);
+  window.addEventListener('offline', onOffline);
+
+  // Check state immediately when page loads
+  if (!navigator.onLine) showBanner('offlineBanner', true);
+
+  // ── Auto-save draft notes (localStorage) ─────────────────────
+  const DRAFT_PREFIX = 'fb_draft_obs_';
+
+  function saveDraft(jobId, text) {
+    try {
+      if (text && text.trim()) {
+        localStorage.setItem(DRAFT_PREFIX + jobId, text);
+      } else {
+        localStorage.removeItem(DRAFT_PREFIX + jobId);
+      }
+    } catch(e) { /* storage quota exceeded — ignore */ }
+  }
+
+  function loadDraft(jobId) {
+    try { return localStorage.getItem(DRAFT_PREFIX + jobId) || ''; }
+    catch(e) { return ''; }
+  }
+
+  function clearDraft(jobId) {
+    try { localStorage.removeItem(DRAFT_PREFIX + jobId); }
+    catch(e) {}
+  }
+
+  // Restore draft text into a textarea after it is rendered
+  function restoreDraftIntoTextarea(jobId) {
+    const draft = loadDraft(jobId);
+    if (!draft) return;
+    const ta = document.getElementById('obs-' + jobId);
+    if (ta && !ta.value) {
+      ta.value = draft;
+      ta.style.borderColor = '#c9743f';
+      ta.title = 'Rascunho guardado automaticamente';
+    }
+  }
+
+  // Wire up auto-save to a textarea
+  function attachDraftAutoSave(jobId) {
+    const ta = document.getElementById('obs-' + jobId);
+    if (!ta || ta.dataset.draftWired) return;
+    ta.dataset.draftWired = '1';
+    ta.addEventListener('input', () => saveDraft(jobId, ta.value));
+  }
+
+  // ── Intercept photo upload when offline ─────────────────────
+  // Returns true if the photo was queued offline, false if online (let caller proceed)
+  async function tryQueuePhotoOffline(jobId, file) {
+    if (navigator.onLine) return false; // online — don't intercept
+
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        await enqueue({
+          type: 'photo',
+          url: `/api/jobs/${jobId}/photos`,
+          method: 'POST',
+          jobId: String(jobId),
+          photoData: e.target.result,
+          photoName: file.name,
+        });
+        resolve(true);
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Intercept JSON API call when offline ────────────────────
+  // Returns true if queued offline, false if online
+  async function tryQueueJsonOffline(url, method, body) {
+    if (navigator.onLine) return false;
+    await enqueue({ type: 'json', url, method, body, jobId: '' });
+    return true;
+  }
+
+  // ── Public API ───────────────────────────────────────────────
+  return {
+    saveDraft,
+    loadDraft,
+    clearDraft,
+    restoreDraftIntoTextarea,
+    attachDraftAutoSave,
+    tryQueuePhotoOffline,
+    tryQueueJsonOffline,
+    syncQueue,
+  };
+})();
+
 'use strict';
 
 /* ─────────────────────────────────────────────────────────────────
@@ -398,6 +621,12 @@ const App = (() => {
     jobs.filter(j => j.status === 'in_progress').forEach(job => loadJobPhotos(job.id));
     jobs.filter(j => j.status === 'completed').forEach(job => loadJobPhotos(job.id, true));
 
+    // ── Offline hooks: restore drafts + wire up auto-save ──────
+    jobs.filter(j => j.status === 'in_progress').forEach(job => {
+      OfflineModule.restoreDraftIntoTextarea(job.id);
+      OfflineModule.attachDraftAutoSave(job.id);
+    });
+
     // Start elapsed timers
     startElapsedTimers();
   }
@@ -654,6 +883,15 @@ const App = (() => {
       console.warn('Compress error, using original', err);
     }
 
+    // ── Offline interception: if no network, store for later ──
+    const wasQueued = await OfflineModule.tryQueuePhotoOffline(jobId, file);
+    if (wasQueued) {
+      skeleton.remove();
+      showToast('📵 Sem rede — foto guardada e será enviada automaticamente quando a ligação for restaurada', 'info', 5000);
+      input.value = '';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('photo', file);
 
@@ -760,6 +998,7 @@ const App = (() => {
         body: JSON.stringify({ employeeNotes })
       });
       showToast('Serviço concluído! 🎉', 'success');
+      OfflineModule.clearDraft(jobId); // clear saved draft on success
       // Merge returned job data if available
       if (data && data.job) {
         const i = allJobs.findIndex(j => String(j.id) === String(jobId));
