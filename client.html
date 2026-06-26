@@ -644,20 +644,23 @@
       inset: 0;
       z-index: 60;
       display: none;
-      background: rgba(10,6,4,0.88);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      background: rgba(10,6,4,0.92);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       place-items: center;
-      cursor: zoom-out;
+      user-select: none;
     }
     #lightbox.open { display: grid; }
     #lightboxImg {
       max-width: min(92vw, 1000px);
-      max-height: 88vh;
+      max-height: 82vh;
       border-radius: 16px;
       box-shadow: 0 40px 100px rgba(0,0,0,0.6);
       object-fit: contain;
+      transition: opacity 0.2s ease;
+      cursor: grab;
     }
+    #lightboxImg.fade { opacity: 0; }
     #lightboxClose {
       position: absolute;
       top: 16px;
@@ -669,8 +672,41 @@
       cursor: pointer;
       line-height: 1;
       transition: color 160ms;
+      z-index: 2;
     }
     #lightboxClose:hover { color: #fff; }
+    .lb-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.12);
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.2s;
+      z-index: 2;
+      backdrop-filter: blur(4px);
+    }
+    .lb-nav-btn:hover { background: rgba(255,255,255,0.28); }
+    #lightboxPrev { left: 16px; }
+    #lightboxNext { right: 16px; }
+    #lightboxCounter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      pointer-events: none;
+    }
 
     /* ─── TOAST ─────────────────────────────────────────────────────── */
     #toast {
@@ -945,7 +981,10 @@
 ═══════════════════════════════════════════════ -->
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Full size photo">
   <button id="lightboxClose" aria-label="Close lightbox">✕</button>
+  <button id="lightboxPrev" class="lb-nav-btn" aria-label="Previous photo">‹</button>
   <img id="lightboxImg" src="" alt="Clean photo" />
+  <button id="lightboxNext" class="lb-nav-btn" aria-label="Next photo">›</button>
+  <span id="lightboxCounter"></span>
 </div>
 
 <!-- ══════════════════════════════════════════════

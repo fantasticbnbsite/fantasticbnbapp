@@ -2502,6 +2502,104 @@ document.getElementById('adminHoleriteMonth')?.addEventListener('change', render
 document.getElementById('adminInvoiceClientSelect')?.addEventListener('change', renderAdminInvoice);
 document.getElementById('adminInvoiceMonth')?.addEventListener('change', renderAdminInvoice);
 
+let lbSrcs  = [];   // all photo srcs for current job
+let lbIndex = 0;    // currently shown index
+
+function openLightbox(src, srcsArray) {
+  const modal = document.getElementById('lightboxModal');
+  const img = document.getElementById('lightboxImg');
+  
+  // Try to parse srcsArray if it was passed as stringified JSON from HTML
+  let parsedSrcs = [];
+  if (typeof srcsArray === 'string') {
+    try { parsedSrcs = JSON.parse(srcsArray); } catch(e) {}
+  } else if (Array.isArray(srcsArray)) {
+    parsedSrcs = srcsArray;
+  }
+  
+  lbSrcs  = parsedSrcs.length ? parsedSrcs : [src];
+  lbIndex = Math.max(0, lbSrcs.indexOf(src));
+  
+  _lbShowAdmin();
+  modal.classList.remove('hidden');
+}
+
+function _lbShowAdmin() {
+  const img = document.getElementById('lightboxImg');
+  const prevBtn = document.getElementById('lightboxPrev');
+  const nextBtn = document.getElementById('lightboxNext');
+  const counter = document.getElementById('lightboxCounter');
+  
+  img.src = lbSrcs[lbIndex];
+  const total = lbSrcs.length;
+  
+  if (counter) counter.textContent = total > 1 ? `${lbIndex + 1} / ${total}` : '';
+  if (prevBtn) prevBtn.style.display = total > 1 ? 'grid' : 'none';
+  if (nextBtn) nextBtn.style.display = total > 1 ? 'grid' : 'none';
+}
+
+function _lbNavigateAdmin(delta) {
+  if (lbSrcs.length <= 1) return;
+  const img = document.getElementById('lightboxImg');
+  const counter = document.getElementById('lightboxCounter');
+  
+  img.style.opacity = '0';
+  setTimeout(() => {
+    lbIndex = (lbIndex + delta + lbSrcs.length) % lbSrcs.length;
+    img.src = lbSrcs[lbIndex];
+    if (counter) counter.textContent = `${lbIndex + 1} / ${lbSrcs.length}`;
+    img.style.opacity = '1';
+  }, 200);
+}
+
+// Bind lightbox events once DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const lightboxModal = document.getElementById('lightboxModal');
+  const lightboxClose = document.getElementById('closeLightbox');
+  const lightboxPrev = document.getElementById('lightboxPrev');
+  const lightboxNext = document.getElementById('lightboxNext');
+  
+  if (lightboxClose) {
+    lightboxClose.addEventListener('click', () => {
+      lightboxModal.classList.add('hidden');
+    });
+  }
+  
+  if (lightboxPrev) {
+    lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigateAdmin(-1); });
+  }
+  
+  if (lightboxNext) {
+    lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigateAdmin(+1); });
+  }
+  
+  if (lightboxModal) {
+    lightboxModal.addEventListener('click', (e) => {
+      if (e.target === lightboxModal) lightboxModal.classList.add('hidden');
+    });
+    
+    // Touch swipe support
+    let _lbTouchX = null;
+    lightboxModal.addEventListener('touchstart', (e) => { _lbTouchX = e.touches[0].clientX; }, { passive: true });
+    lightboxModal.addEventListener('touchend', (e) => {
+      if (_lbTouchX === null) return;
+      const dx = e.changedTouches[0].clientX - _lbTouchX;
+      _lbTouchX = null;
+      if (Math.abs(dx) > 40) _lbNavigateAdmin(dx < 0 ? +1 : -1);
+    }, { passive: true });
+  }
+  
+  document.addEventListener('keydown', (e) => {
+    if (lightboxModal && !lightboxModal.classList.contains('hidden')) {
+      if (e.key === 'ArrowRight') { _lbNavigateAdmin(+1); }
+      if (e.key === 'ArrowLeft')  { _lbNavigateAdmin(-1); }
+      if (e.key === 'Escape')     { lightboxModal.classList.add('hidden'); }
+    }
+  });
+});
+
+window.openLightbox = openLightbox;
+
 // ── Override switchView to also load new views ─────────────────────────────
 const _origSwitchViewForCleanOps = switchView;
 switchView = function(view) {
@@ -3212,23 +3310,26 @@ async function openJobPhotos(jobId, address) {
     if (photos.length === 0) {
       photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Nenhuma foto enviada para este servico.</div>`;
     } else {
-      photoGrid.innerHTML = photos.map(p => `
+      const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
+      const allSrcsJson = escapeHtml(JSON.stringify(allSrcs));
+      photoGrid.innerHTML = photos.map(p => {
+        const src = `/uploads/${escapeHtml(p.filename)}`;
+        return `
         <div style="display:flex; flex-direction:column; gap:4px;">
           <div class="photo-thumb" style="aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f5f5f5; border:1px solid #ddd; position:relative;">
-            <img src="/uploads/${escapeHtml(p.filename)}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openLightbox('/uploads/${escapeHtml(p.filename)}')" />
+            <img src="${src}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openLightbox('${src}', ${allSrcsJson})" />
           </div>
-          <a href="/uploads/${escapeHtml(p.filename)}" download="${escapeHtml(p.originalName || p.filename)}" class="button" style="padding: 4px; font-size: 0.8rem; background: #eee; color: #333; text-align: center; border-radius: 4px; text-decoration: none;">⬇️ Baixar</a>
+          <a href="${src}" download="${escapeHtml(p.originalName || p.filename)}" class="button" style="padding: 4px; font-size: 0.8rem; background: #eee; color: #333; text-align: center; border-radius: 4px; text-decoration: none;">⬇️ Baixar</a>
         </div>
-      `).join('');
+        `;
+      }).join('');
     }
   } catch (err) {
     photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--primary);padding:40px;">Erro ao carregar fotos.</div>`;
   }
 }
 
-function openLightbox(src) {
-  window.open(src, '_blank');
-}
+
 
 let currentFinanceEditType = null;
 let currentFinanceEditId = null;
