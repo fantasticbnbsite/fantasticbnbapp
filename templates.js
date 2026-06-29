@@ -68,6 +68,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
       <td style="text-align:center;">${g.dateStr}</td>
       <td style="text-align:center;">${g.flatAddress}</td>
       <td style="text-align:center;">${hoursStr}</td>
+      <td style="text-align:center;">£${Number(g.clientAmount).toFixed(2)}</td>
     </tr>`;
   }).join('');
   
@@ -139,7 +140,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     
     <table class="main-table">
       <thead>
-        <tr><th>Date</th><th>Flat</th><th>Total Hours</th></tr>
+        <tr><th>Date</th><th>Flat</th><th>Total Hours</th><th>Amount</th></tr>
       </thead>
       <tbody>
         ${rows}
