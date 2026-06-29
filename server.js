@@ -1631,7 +1631,7 @@ async function handlePrintRequest(req, res, requestUrl) {
   // ── Print Invoice ──
   const printInvoiceMatch = requestUrl.pathname.match(/^\/print\/invoice\/(\d+)$/);
   if (printInvoiceMatch && req.method === 'GET') {
-    if (session.user.role !== 'client' && !isAdminRole(session.user.role) && session.user.role !== 'viewer') {
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !isAdminRole(session.user.role) && session.user.role !== 'viewer') {
       res.writeHead(403);
       return res.end('Acesso negado.');
     }
@@ -1641,9 +1641,13 @@ async function handlePrintRequest(req, res, requestUrl) {
       res.writeHead(404);
       return res.end('Fatura nao encontrada.');
     }
-    if (session.user.role === 'client' && String(invoice.client_user_id) !== String(session.user.id)) {
-      res.writeHead(403);
-      return res.end('Acesso negado.');
+    
+    if (session.user.role === 'client' || session.user.role === 'client_user') {
+      const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+      if (String(invoice.client_user_id) !== String(targetClientId)) {
+        res.writeHead(403);
+        return res.end('Acesso negado.');
+      }
     }
     const client = db.prepare('SELECT * FROM users WHERE id = ?').get(invoice.client_user_id) || {};
     const jobs = db.prepare('SELECT j.*, f.address as flat_address FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ? ORDER BY j.finished_at ASC').all(invoice.id);
@@ -1710,23 +1714,7 @@ async function handlePrintRequest(req, res, requestUrl) {
     return res.end(html);
   }
 
-  const matchPrintInvoice = requestUrl.pathname.match(/^\/print\/invoice\/(\d+)$/);
-  if (matchPrintInvoice && req.method === 'GET') {
-    if (!session || !session.user) return sendJson(res, 401, { error: 'Nao autenticado.' });
-    const invoiceId = Number(matchPrintInvoice[1]);
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
-    if (!invoice) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
-    const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
-    if ((session.user.role === 'client' || session.user.role === 'client_user') && invoice.client_user_id !== targetClientId) {
-      return sendJson(res, 403, { error: 'Sem permissao' });
-    }
-    const clientUser = db.prepare('SELECT * FROM users WHERE id = ?').get(invoice.client_user_id) || {};
-    const jobs = db.prepare('SELECT j.*, f.address as flat_address FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ? ORDER BY j.finished_at ASC').all(invoiceId);
-    
-    const html = renderClientInvoicePrintHtml(invoice, clientUser, jobs);
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(html);
-  }
+
 
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('Rota nao encontrada.');
@@ -2052,87 +2040,6 @@ async function sendSmtpEmail({ host, port, user, pass, from, to, subject, html }
   });
 }
 
-function renderClientInvoicePrintHtml(invoice, clientUser, jobs) {
-  const totalHours = jobs.reduce((sum, j) => sum + Number(j.duration_hours || 0), 0);
-  
-  const entriesHtml = jobs.map(j => `
-    <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${(j.requested_date || j.finished_at || '').slice(0,10)}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${j.flat_address || '-'}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${formatHours(j.duration_hours || 0)}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #ddd;">£${(j.client_amount || 0).toFixed(2)}</td>
-    </tr>
-  `).join('');
-
-  return `<!DOCTYPE html>
-<html lang="pt">
-<head>
-  <meta charset="UTF-8">
-  <title>Invoice #${invoice.id} - ${clientUser.name}</title>
-  <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 40px; }
-    h1 { margin: 0; font-size: 28px; }
-    .company-details { text-align: right; font-size: 14px; color: #666; }
-    .invoice-details { display: flex; justify-content: space-between; margin-bottom: 40px; }
-    .bill-to h3 { margin-top: 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-    th { text-align: left; padding: 12px; border-bottom: 2px solid #ddd; background: #f9f9f9; }
-    .totals { text-align: right; font-size: 18px; }
-    .totals div { margin-bottom: 10px; }
-    .grand-total { font-size: 24px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; display: inline-block; }
-    @media print { body { padding: 0; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div style="display:flex; align-items:center; gap: 20px;">
-      <img src="/icon-192.png" style="max-height: 80px; border-radius: 8px;" alt="Logo" />
-      <div>
-        <h1>INVOICE</h1>
-        <p style="margin: 5px 0 0 0; color: #666;">Data: ${new Date(invoice.created_at).toLocaleDateString()}</p>
-        <p style="margin: 5px 0 0 0; color: #666;">Fatura #: ${invoice.id}</p>
-      </div>
-    </div>
-    <div class="company-details">
-      <strong>Fantastic BNB</strong><br>
-      contact@fantasticbnb.com<br>
-      Londres, UK
-    </div>
-  </div>
-
-  <div class="invoice-details">
-    <div class="bill-to">
-      <h3>Faturado para:</h3>
-      <strong>${clientUser.name || 'Cliente'}</strong><br>
-      ${clientUser.email || ''}
-    </div>
-    <div class="period">
-      <strong>Período:</strong><br>
-      ${invoice.period_from.slice(0,10)} a ${invoice.period_to.slice(0,10)}
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Imóvel</th>
-        <th>Horas</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${entriesHtml || '<tr><td colspan="4" style="text-align:center; padding: 20px;">Nenhum serviço faturado neste período.</td></tr>'}
-    </tbody>
-  </table>
-
-  <div class="totals">
-    <div>Subtotal Horas: <strong>${totalHours.toFixed(2)}h</strong></div>
-    <div class="grand-total">Total: £${(invoice.total_amount || 0).toFixed(2)}</div>
-  </div>
-</body>
-</html>`;
 }
 
 function renderPayslipPrintHtml(payslip, month) {
