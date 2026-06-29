@@ -356,6 +356,7 @@ try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES
 try { db.exec('ALTER TABLE jobs ADD COLUMN employee_notes TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN full_address TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN invoice_number TEXT;'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -1361,6 +1362,18 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { invoices });
   }
 
+  // ── Edit Invoice Number ──
+  const matchFinanceInvoiceNumber = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/number$/);
+  if (matchFinanceInvoiceNumber && req.method === 'PATCH') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(matchFinanceInvoiceNumber[1]);
+    const body = await parseBody(req);
+    const invoiceNumber = body.invoiceNumber || null;
+    
+    db.prepare('UPDATE invoices SET invoice_number = ? WHERE id = ?').run(invoiceNumber, invoiceId);
+    return sendJson(res, 200, { success: true });
+  }
+
   // ── Edit Finance Jobs ──
   const matchFinanceInvoiceJob = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/jobs\/(\d+)$/);
   if (matchFinanceInvoiceJob && req.method === 'PATCH') {
@@ -2038,8 +2051,6 @@ async function sendSmtpEmail({ host, port, user, pass, from, to, subject, html }
     };
     connect();
   });
-}
-
 }
 
 function renderPayslipPrintHtml(payslip, month) {

@@ -2708,7 +2708,7 @@ window.renderFinanceSummary = async function() {
           <div class="card stack-card" style="flex-direction: column;">
             <div style="display: flex; justify-content: space-between; width: 100%;">
               <div>
-                <strong>Fatura #${i.id}</strong> - ${escapeHtml(i.client_name)}
+                <strong>Fatura #${i.invoice_number || i.id}</strong> - ${escapeHtml(i.client_name)}
                 <div class="subtitle">Período: ${i.period_from} a ${i.period_to}</div>
               </div>
               <div style="text-align: right;">
@@ -3455,8 +3455,15 @@ async function removeFinanceExtra(type, parentId, index) {
 function openEditInvoiceModal(id) {
   const invoice = state.finance.invoices.find(i => i.id === id);
   if (!invoice) return;
-  document.getElementById('financeEditTitle').textContent = `Editar Fatura #${id} - ${invoice.client_name}`;
+  document.getElementById('financeEditTitle').textContent = `Editar Fatura #${invoice.invoice_number || id} - ${invoice.client_name}`;
   document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
+  
+  const invNumberContainer = document.getElementById('financeInvoiceNumberContainer');
+  if (invNumberContainer) {
+    invNumberContainer.style.display = 'flex';
+    document.getElementById('financeEditInvoiceNumber').value = invoice.invoice_number || '';
+    invNumberContainer.dataset.invoiceId = id;
+  }
   
   let html = `<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
     <thead>
@@ -3505,6 +3512,9 @@ function openEditPayrollModal(id) {
   document.getElementById('financeEditTitle').textContent = `Editar Holerite #${id} - ${payroll.employee_name}`;
   document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/payslip/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
   
+  const invNumberContainer = document.getElementById('financeInvoiceNumberContainer');
+  if (invNumberContainer) invNumberContainer.style.display = 'none';
+  
   let html = `<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
     <thead>
       <tr style="border-bottom: 1px solid var(--border);">
@@ -3544,6 +3554,30 @@ function openEditPayrollModal(id) {
   renderFinanceExtras('payroll', payroll);
   
   document.getElementById('financeEditModal').classList.remove('hidden');
+}
+
+async function saveFinanceInvoiceNumber() {
+  const container = document.getElementById('financeInvoiceNumberContainer');
+  const invoiceId = Number(container.dataset.invoiceId);
+  const invoiceNumber = document.getElementById('financeEditInvoiceNumber').value.trim();
+  
+  if (!invoiceId) return;
+  
+  try {
+    await api(`/api/finance/invoices/${invoiceId}/number`, {
+      method: 'PATCH',
+      body: { invoiceNumber }
+    });
+    toast('Número da fatura atualizado', 'success');
+    
+    const inv = state.finance.invoices.find(i => i.id === invoiceId);
+    if (inv) inv.invoice_number = invoiceNumber || null;
+    
+    renderFinanceSummary();
+    openEditInvoiceModal(invoiceId);
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 async function saveFinanceJob(type, parentId, jobId) {

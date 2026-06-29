@@ -434,7 +434,7 @@ window.renderInvoices = function() {
       <div class="form-card glass-card" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
-            <strong style="font-size:1.15rem; color:var(--text);">Invoice nº ${i.id}</strong>
+            <strong style="font-size:1.15rem; color:var(--text);">Invoice nº ${i.invoice_number || i.id}</strong>
             <div style="color:var(--muted); font-size:0.9rem; margin-top:4px;">Period: ${fmtDate(i.period_from)} to ${fmtDate(i.period_to)}</div>
           </div>
           <div style="text-align:right;">

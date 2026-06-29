@@ -936,6 +936,11 @@
         </div>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <div id="financeInvoiceNumberContainer" style="margin-top: 16px; display: none; align-items: center; gap: 8px;">
+          <label style="font-weight: 600; font-size: 0.9rem;">Invoice Number:</label>
+          <input type="text" id="financeEditInvoiceNumber" placeholder="Ex: INV-2023-01" style="width: 200px; padding: 6px; font-size: 0.9rem;" />
+          <button class="button button-primary button-sm" onclick="saveFinanceInvoiceNumber()">Salvar</button>
+        </div>
         <div id="financeEditJobsList" style="margin-top: 16px;"></div>
         <div style="margin-top: 12px; text-align: right;">
           <button type="button" class="button button-secondary button-small" onclick="openManualJobForFinance()">+ Adicionar Serviço Esquecido</button>

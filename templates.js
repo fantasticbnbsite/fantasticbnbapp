@@ -88,7 +88,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Invoice #${invoice.id}</title>
+  <title>Invoice #${invoice.invoice_number || invoice.id}</title>
   <style>
     body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; color: #000; }
     .invoice-box { max-width: 800px; margin: auto; border: 2px solid #000; padding: 0; }
@@ -128,7 +128,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
         <td class="details-cell">
           <table class="details-table">
             <tr><td>Email:</td><td>fantasticbnbservicss@gmail.com</td></tr>
-            <tr><td>Invoice nº</td><td>#${invoice.id}</td></tr>
+            <tr><td>Invoice nº</td><td>#${invoice.invoice_number || invoice.id}</td></tr>
             <tr><td>Period:</td><td>${new Date(invoice.period_from).toLocaleDateString('en-GB')} - ${new Date(invoice.period_to).toLocaleDateString('en-GB')}</td></tr>
             <tr><td>Bill To:</td><td style="color:#0044cc;">${invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name}</td></tr>
             <tr><td>Email:</td><td>${client.email}</td></tr>
