@@ -10,6 +10,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
   let weekendsHours = 0, weekendsAmount = 0;
   let holidaysHours = 0, holidaysAmount = 0;
   let totalHours = 0;
+  let projectsAmount = 0;
   let totalExtras = 0;
   let extraLabel = 'BED LINEN'; // fallback
   
@@ -29,7 +30,8 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
         clientAmount: 0,
         extraAmount: 0,
         extraLabel: j.extra_label,
-        d: rawDate ? new Date(rawDate) : new Date()
+        d: rawDate ? new Date(rawDate) : new Date(),
+        billingType: j.flat_billing_type
       };
     }
     groupedJobs[key].durationHours += (j.duration_hours || 0);
@@ -43,21 +45,26 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
   const rows = Object.values(groupedJobs)
   .sort((a, b) => a.d - b.d)
   .map(g => {
-    const hoursStr = formatHours(g.durationHours);
+    const isProject = g.billingType === 'project';
+    const hoursStr = isProject ? '-' : formatHours(g.durationHours);
     
     // Grouping for totals
-    const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
-    if (g.isHoliday) {
-      holidaysHours += g.durationHours;
-      holidaysAmount += g.clientAmount;
-    } else if (isWknd) {
-      weekendsHours += g.durationHours;
-      weekendsAmount += g.clientAmount;
+    if (isProject) {
+      projectsAmount += g.clientAmount;
     } else {
-      weekdaysHours += g.durationHours;
-      weekdaysAmount += g.clientAmount;
+      const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
+      if (g.isHoliday) {
+        holidaysHours += g.durationHours;
+        holidaysAmount += g.clientAmount;
+      } else if (isWknd) {
+        weekendsHours += g.durationHours;
+        weekendsAmount += g.clientAmount;
+      } else {
+        weekdaysHours += g.durationHours;
+        weekdaysAmount += g.clientAmount;
+      }
+      totalHours += g.durationHours;
     }
-    totalHours += g.durationHours;
     
     if (g.extraAmount) {
       totalExtras += g.extraAmount;
@@ -167,6 +174,13 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
         <td>${formatHours(weekendsHours)}</td>
         <td>£${weekendsAmount.toFixed(2)}</td>
       </tr>
+      ${projectsAmount > 0 ? `
+      <tr>
+        <td>Projects (Fixed Rate)</td>
+        <td>-</td>
+        <td>£${projectsAmount.toFixed(2)}</td>
+      </tr>
+      ` : ''}
       ${totalExtras > 0 ? `
       <tr>
         <td>${extraLabel} (Jobs)</td>
