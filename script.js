@@ -3960,11 +3960,18 @@ function renderDashboard() {
 
   // Populate Filter
   const filterEl = document.getElementById('dashboardClientFilter');
-  if (filterEl && filterEl.options.length <= 1) {
-    const allClients = Object.keys(clientData).map(id => ({ id, name: clientData[id].name })).sort((a,b) => a.name.localeCompare(b.name));
-    const currentVal = filterEl.value;
-    filterEl.innerHTML = '<option value="all">Visao Geral da Operacao</option>' + allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-    filterEl.value = currentVal;
+  if (filterEl && state.users) {
+    const currentVal = filterEl.value || 'all';
+    const allClients = state.users.filter(u => u.role === 'client').sort((a,b) => a.name.localeCompare(b.name));
+    
+    const usersHash = allClients.map(c => c.id).join(',');
+    
+    // Only rebuild if the clients list has actually changed
+    if (filterEl.dataset.usersHash !== usersHash) {
+      filterEl.innerHTML = '<option value="all">Visão Geral da Operação</option>' + allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      filterEl.value = currentVal;
+      filterEl.dataset.usersHash = usersHash;
+    }
     
     // attach event
     if (!filterEl.dataset.bound) {
