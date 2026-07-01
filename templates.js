@@ -155,25 +155,33 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     </table>
     
     <table class="totals-table">
+      ${totalHours > 0 ? `
       <tr>
         <td>Total Hours</td>
         <td colspan="2">${formatHours(totalHours)}</td>
       </tr>
+      ` : ''}
+      ${(weekdaysHours > 0 || weekdaysAmount > 0) ? `
       <tr>
         <td>Weekdays Hours</td>
         <td>${formatHours(weekdaysHours)}</td>
         <td>£${weekdaysAmount.toFixed(2)}</td>
       </tr>
+      ` : ''}
+      ${(holidaysHours > 0 || holidaysAmount > 0) ? `
       <tr>
         <td>Bank Holiday</td>
         <td>${formatHours(holidaysHours)}</td>
         <td>£${holidaysAmount.toFixed(2)}</td>
       </tr>
+      ` : ''}
+      ${(weekendsHours > 0 || weekendsAmount > 0) ? `
       <tr>
         <td>Weekends Hours</td>
         <td>${formatHours(weekendsHours)}</td>
         <td>£${weekendsAmount.toFixed(2)}</td>
       </tr>
+      ` : ''}
       ${projectsAmount > 0 ? `
       <tr>
         <td>Projects (Fixed Rate)</td>
