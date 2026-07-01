@@ -101,29 +101,29 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; color: #000; }
     .invoice-box { max-width: 800px; margin: auto; border: 2px solid #000; padding: 0; }
     .header-table { width: 100%; border-collapse: collapse; }
-    .header-table td { border: 1px solid #000; padding: 8px; font-size: 16px; font-weight: bold; }
+    .header-table td { border: 1px solid #000; padding: 8px; font-size: 14px; font-weight: bold; }
     .logo-cell { width: 40%; text-align: center; vertical-align: middle; padding: 10px; }
     .details-cell { padding: 0 !important; }
     .details-table { width: 100%; border-collapse: collapse; }
-    .details-table td { border-bottom: 1px solid #000; padding: 6px 12px; }
+    .details-table td { border-bottom: 1px solid #000; padding: 6px 12px; font-size: 14px; font-weight: normal; }
     .details-table tr:last-child td { border-bottom: none; }
-    .details-table td:first-child { width: 120px; }
+    .details-table td:first-child { width: 120px; font-weight: bold; }
     
     .main-table { width: 100%; border-collapse: collapse; margin-top: -1px; }
-    .main-table th { padding: 10px; font-size: 18px; border-top: 1px solid #000; }
-    .main-table td { padding: 4px 10px; font-size: 16px; }
+    .main-table th { padding: 10px; font-size: 16px; border-top: 1px solid #000; }
+    .main-table td { padding: 4px 10px; font-size: 14px; }
     
     .totals-table { width: 100%; border-collapse: collapse; border-top: 2px solid #000; }
-    .totals-table td { border: 1px solid #000; padding: 6px 12px; font-size: 16px; }
+    .totals-table td { border: 1px solid #000; padding: 6px 12px; font-size: 14px; }
     .totals-table td:first-child { width: 250px; text-align: center; font-weight: bold; }
     .totals-table td:nth-child(2) { text-align: center; }
     .totals-table td:nth-child(3) { text-align: right; font-weight: bold; width: 150px; }
     
-    .grand-total { background: #dce5d8; font-size: 48px !important; font-weight: normal !important; text-align: center; padding: 10px !important; }
-    .grand-total-val { font-size: 48px !important; text-align: right; }
+    .grand-total { background: #dce5d8; font-size: 38px !important; font-weight: normal !important; text-align: center; padding: 10px !important; }
+    .grand-total-val { font-size: 38px !important; text-align: right; }
     
-    .payment-info { background: #999; text-align: center; color: #fff; font-weight: bold; font-size: 18px; padding: 4px; border: 1px solid #000; }
-    .bank-details { text-align: center; padding: 10px; font-size: 18px; font-weight: bold; border: 1px solid #000; border-top: none; }
+    .payment-info { background: #999; text-align: center; color: #fff; font-weight: bold; font-size: 16px; padding: 4px; border: 1px solid #000; }
+    .bank-details { text-align: center; padding: 10px; font-size: 16px; font-weight: bold; border: 1px solid #000; border-top: none; }
   </style>
 </head>
 <body>
