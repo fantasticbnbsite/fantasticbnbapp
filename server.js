@@ -842,9 +842,13 @@ async function handleApi(req, res, requestUrl) {
     const employeeAmount = roundCurrency(durationHours * employeeRate);
     
     let clientRate = isHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
-    const clientAmount = flat.billing_type === 'project' 
-      ? roundCurrency(Number(flat.project_rate || 0)) 
-      : roundCurrency(durationHours * clientRate);
+    let clientAmount = 0;
+    if (flat.billing_type === 'project') {
+      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND client_amount > 0').get(flatId, body.requestedDate);
+      clientAmount = existingJob ? 0 : roundCurrency(Number(flat.project_rate || 0));
+    } else {
+      clientAmount = roundCurrency(durationHours * clientRate);
+    }
 
     const now = new Date().toISOString();
     
@@ -932,9 +936,13 @@ async function handleApi(req, res, requestUrl) {
       let clientRate = updatedIsHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
       
       updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
-      updatedClientAmount = flat.billing_type === 'project' 
-        ? roundCurrency(Number(flat.project_rate || 0)) 
-        : roundCurrency(updatedDurationHours * clientRate);
+      
+      if (flat.billing_type === 'project') {
+        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND id != ? AND client_amount > 0').get(job.flat_id, updatedRequestedDate, jobId);
+        updatedClientAmount = existingJob ? 0 : roundCurrency(Number(flat.project_rate || 0));
+      } else {
+        updatedClientAmount = roundCurrency(updatedDurationHours * clientRate);
+      }
     }
 
     db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, updated_at=? WHERE id=?`)
