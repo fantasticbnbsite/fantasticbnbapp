@@ -30,7 +30,7 @@ const replacements = [
   ['Faturas', 'Invoices'],
   ['Solicitar', 'Request'],
   ['📸 Fotos da Limpeza', '📸 Clean Photos'],
-  ['Aviso: As fotos deste serviço ficarão disponíveis no servidor por apenas 1 mês (30 dias).<br>\n      Para baixar uma foto, clique no botão "Baixar" abaixo dela.', 'Note: Photos for this service will be available on the server for only 1 month (30 days).<br>\n      To download a photo, click the "Download" button below it.'],
+  ['Aviso: As fotos deste serviço ficarão disponíveis no servidor por apenas 14 dias.<br>\n      Para baixar uma foto, clique no botão "Baixar" abaixo dela.', 'Note: Photos for this service will be available on the server for only 14 days.<br>\n      To download a photo, click the "Download" button below it.'],
   ['Fotos da limpeza', 'Clean photos'],
   ['Fechar', 'Close'],
   ['Foto em tamanho real', 'Full size photo'],

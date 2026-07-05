@@ -911,7 +911,7 @@
       <button class="modal-close" id="closePhotosModal" aria-label="Fechar" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">✕</button>
     </div>
     <div style="padding: 0 0 16px 0; color: #d45555; font-size: 0.85rem; font-weight: 500;">
-      Aviso: As fotos deste serviço ficarão disponíveis no servidor por apenas 1 mês (30 dias).<br>
+      Aviso: As fotos deste serviço ficarão disponíveis no servidor por apenas 14 dias.<br>
       Para baixar uma foto, clique no botão "Baixar" abaixo dela.
     </div>
     <div class="modal-body">
