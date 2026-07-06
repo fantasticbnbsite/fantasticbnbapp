@@ -2693,8 +2693,8 @@ window.renderFinanceSummary = async function() {
     }
     if (selPayClientList) {
       selPayClientList.innerHTML = clients.map(c => `
-        <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
-          <input type="checkbox" value="${c.id}" class="payroll-client-cb" checked onchange="document.getElementById('genPayrollClientAll').checked = false;" />
+        <label style="display:flex; align-items:center; gap:12px; font-size:1rem; cursor:pointer;">
+          <input type="checkbox" value="${c.id}" class="payroll-client-cb" checked onchange="document.getElementById('genPayrollClientAll').checked = false;" style="min-height:auto; width:22px; height:22px; margin:0; padding:0; accent-color:var(--primary);" />
           ${escapeHtml(c.name)}
         </label>
       `).join('');
