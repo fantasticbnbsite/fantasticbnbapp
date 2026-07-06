@@ -1260,7 +1260,10 @@ async function handleApi(req, res, requestUrl) {
       jobs.forEach(j => {
         if (!j.payroll_id && j.employee_user_id) {
           if (targetId && targetId !== 'all' && String(j.employee_user_id) !== String(targetId)) return;
-          if (targetClientId && targetClientId !== 'all' && String(j.client_user_id) !== String(targetClientId)) return;
+          if (targetClientId && targetClientId !== 'all') {
+            const allowedClients = Array.isArray(targetClientId) ? targetClientId : [String(targetClientId)];
+            if (!allowedClients.includes(String(j.client_user_id))) return;
+          }
           
           const groupKey = groupByClient ? `${j.employee_user_id}::${j.client_user_id}` : `${j.employee_user_id}`;
           if (!jobsByEmployee[groupKey]) jobsByEmployee[groupKey] = [];

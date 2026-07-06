@@ -2642,7 +2642,10 @@ document.addEventListener('click', async (e) => {
     const from = document.getElementById('genPayrollFrom').value;
     const to = document.getElementById('genPayrollTo').value;
     const empId = document.getElementById('genPayrollEmployee').value;
-    const targetClientId = document.getElementById('genPayrollClient').value;
+    const allChecked = document.getElementById('genPayrollClientAll')?.checked;
+    const clientCheckboxes = document.querySelectorAll('#genPayrollClientList input[type="checkbox"]:checked');
+    const targetClientId = allChecked ? 'all' : Array.from(clientCheckboxes).map(cb => cb.value);
+
     const groupByClient = document.getElementById('genPayrollGroupByClient').value === 'true';
     if (!from || !to) return toast('Selecione as datas de inicio e fim.');
     
@@ -2684,12 +2687,17 @@ window.renderFinanceSummary = async function() {
       selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     }
     const selEmp = document.getElementById('genPayrollEmployee');
-    const selPayClient = document.getElementById('genPayrollClient');
+    const selPayClientList = document.getElementById('genPayrollClientList');
     if (selEmp) {
       selEmp.innerHTML = '<option value="all">Todos os Funcionários</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
     }
-    if (selPayClient) {
-      selPayClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    if (selPayClientList) {
+      selPayClientList.innerHTML = clients.map(c => `
+        <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+          <input type="checkbox" value="${c.id}" class="payroll-client-cb" checked onchange="document.getElementById('genPayrollClientAll').checked = false;" />
+          ${escapeHtml(c.name)}
+        </label>
+      `).join('');
     }
   } catch (err) {
     console.error('Erro populando seletores:', err);
@@ -4241,4 +4249,8 @@ async function submitChangePassword(e) {
     btn.disabled = false;
     btn.textContent = 'Salvar Senha';
   }
+}
+
+function toggleAllPayrollClients(cb) {
+  document.querySelectorAll('.payroll-client-cb').forEach(el => el.checked = cb.checked);
 }
