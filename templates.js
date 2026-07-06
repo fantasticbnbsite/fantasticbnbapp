@@ -124,9 +124,13 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     
     .payment-info { background: #999; text-align: center; color: #fff; font-weight: bold; font-size: 16px; padding: 4px; border: 1px solid #000; }
     .bank-details { text-align: center; padding: 10px; font-size: 16px; font-weight: bold; border: 1px solid #000; border-top: none; }
+    @media print { .no-print { display: none !important; } }
   </style>
 </head>
 <body>
+  <div class="no-print" style="padding: 16px; text-align: center; background: #151b25;">
+    <button onclick="window.close(); if(!window.closed) window.location.href='/';" style="padding: 12px 24px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #3b82f6; color: white; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">← Voltar para o App</button>
+  </div>
   <div class="invoice-box">
     <table class="header-table">
       <tr>
@@ -293,9 +297,13 @@ export function renderPayslipHtml(payroll, jobs, employee) {
     .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; }
     .main-table th { background: #f4f4f4; }
     .totals { text-align: right; font-size: 18px; font-weight: bold; }
+    @media print { .no-print { display: none !important; } }
   </style>
 </head>
 <body>
+  <div class="no-print" style="padding: 16px; text-align: center; background: #151b25;">
+    <button onclick="window.close(); if(!window.closed) window.location.href='/';" style="padding: 12px 24px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #3b82f6; color: white; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">← Voltar para o App</button>
+  </div>
   <div class="invoice-box">
     <div class="header">
       <img src="/icon-512.png" alt="Fantastic BNB" style="max-width: 200px; max-height: 100px; object-fit: contain; margin-bottom: 10px;" />
