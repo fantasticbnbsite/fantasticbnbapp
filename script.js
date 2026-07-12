@@ -3487,6 +3487,7 @@ function openEditInvoiceModal(id) {
     <tbody>`;
     
   (invoice.jobs || []).forEach(j => {
+    const hourlyRate = (j.duration_hours && Number(j.duration_hours) > 0) ? (Number(j.client_amount) / Number(j.duration_hours)) : 0;
     html += `
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 8px;">${j.id}</td>
@@ -3496,7 +3497,7 @@ function openEditInvoiceModal(id) {
           <input type="number" id="fin_client_amt_${j.id}" value="${Number(j.client_amount || 0).toFixed(2)}" step="0.01" style="width: 100px; padding: 4px;" />
         </td>
         <td style="padding: 8px; text-align: right;">
-          <input type="number" id="fin_client_hrs_${j.id}" value="${Number(j.duration_hours || 0).toFixed(2)}" step="0.25" style="width: 80px; padding: 4px;" />
+          <input type="number" id="fin_client_hrs_${j.id}" value="${Number(j.duration_hours || 0).toFixed(2)}" step="0.25" style="width: 80px; padding: 4px;" oninput="document.getElementById('fin_client_amt_${j.id}').value = (this.value * ${hourlyRate}).toFixed(2)" />
         </td>
         <td style="padding: 8px; text-align: right;">
           <button class="button button-primary button-sm" onclick="saveFinanceJob('invoice', ${invoice.id}, ${j.id})">Salvar</button>
@@ -3537,6 +3538,7 @@ function openEditPayrollModal(id) {
     <tbody>`;
     
   (payroll.jobs || []).forEach(j => {
+    const hourlyRate = (j.duration_hours && Number(j.duration_hours) > 0) ? (Number(j.employee_amount) / Number(j.duration_hours)) : 0;
     html += `
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 8px;">${j.id}</td>
@@ -3546,7 +3548,7 @@ function openEditPayrollModal(id) {
           <input type="number" id="fin_emp_amt_${j.id}" value="${Number(j.employee_amount || 0).toFixed(2)}" step="0.01" style="width: 100px; padding: 4px;" />
         </td>
         <td style="padding: 8px; text-align: right;">
-          <input type="number" id="fin_emp_hrs_${j.id}" value="${Number(j.duration_hours || 0).toFixed(2)}" step="0.25" style="width: 80px; padding: 4px;" />
+          <input type="number" id="fin_emp_hrs_${j.id}" value="${Number(j.duration_hours || 0).toFixed(2)}" step="0.25" style="width: 80px; padding: 4px;" oninput="document.getElementById('fin_emp_amt_${j.id}').value = (this.value * ${hourlyRate}).toFixed(2)" />
         </td>
         <td style="padding: 8px; text-align: right;">
           <button class="button button-primary button-sm" onclick="saveFinanceJob('payroll', ${payroll.id}, ${j.id})">Salvar</button>
