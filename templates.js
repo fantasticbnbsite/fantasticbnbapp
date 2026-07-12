@@ -126,7 +126,10 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
     
     .payment-info { background: #999; text-align: center; color: #fff; font-weight: bold; font-size: 16px; padding: 4px; border: 1px solid #000; }
     .bank-details { text-align: center; padding: 10px; font-size: 16px; font-weight: bold; border: 1px solid #000; border-top: none; }
-    @media print { .no-print { display: none !important; } }
+    @media print {
+      .no-print { display: none !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
   </style>
 </head>
 <body>
