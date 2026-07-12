@@ -49,10 +49,10 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
     const hoursStr = isProject ? '-' : formatHours(g.durationHours);
     
     // Grouping for totals
+    const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
     if (isProject) {
       projectsAmount += g.clientAmount;
     } else {
-      const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
       if (g.isHoliday) {
         holidaysHours += g.durationHours;
         holidaysAmount += g.clientAmount;
@@ -71,7 +71,9 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
       if (g.extraLabel) extraLabel = g.extraLabel;
     }
     
-    return `<tr>
+    const rowBg = (!isProject && isWknd) ? 'background-color: #fff2cc;' : '';
+    
+    return `<tr style="${rowBg}">
       <td style="text-align:center;">${g.dateStr}</td>
       <td style="text-align:center;">${g.flatAddress}</td>
       <td style="text-align:center;">${hoursStr}</td>
@@ -180,7 +182,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config) {
       </tr>
       ` : ''}
       ${(weekendsHours > 0 || weekendsAmount > 0) ? `
-      <tr>
+      <tr style="background-color: #fff2cc;">
         <td>Weekends Hours</td>
         <td>${formatHours(weekendsHours)}</td>
         <td>£${weekendsAmount.toFixed(2)}</td>
