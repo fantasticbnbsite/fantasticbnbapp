@@ -1677,7 +1677,8 @@ async function handlePrintRequest(req, res, requestUrl) {
     const jobs = db.prepare('SELECT j.*, f.address as flat_address, f.billing_type as flat_billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ? ORDER BY j.finished_at ASC').all(invoice.id);
     const config = db.prepare('SELECT * FROM config LIMIT 1').get() || {};
     
-    const html = renderInvoiceHtml(invoice, jobs, client, config);
+    const isClient = session.user.role === 'client' || session.user.role === 'client_user';
+    const html = renderInvoiceHtml(invoice, jobs, client, config, isClient);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(html);
   }
