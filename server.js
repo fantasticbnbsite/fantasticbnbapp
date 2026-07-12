@@ -1248,7 +1248,11 @@ async function handleApi(req, res, requestUrl) {
         const invoiceGroup = cityGroup === 'Automático' ? 'Automático' : cityGroup;
         const totalAmount = clientJobs.reduce((s, j) => s + (j.client_amount || 0), 0);
         if (totalAmount <= 0) continue;
-        const inv = db.prepare('INSERT INTO invoices (client_user_id, period_from, period_to, total_amount, invoice_group, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(clientId, periodFrom, periodTo, totalAmount, invoiceGroup, now);
+        
+        const maxRow = db.prepare('SELECT MAX(CAST(IFNULL(invoice_number, 0) AS INTEGER)) as max_num FROM invoices WHERE client_user_id = ?').get(clientId);
+        const nextNum = maxRow && maxRow.max_num > 0 ? maxRow.max_num + 1 : 1;
+        
+        const inv = db.prepare('INSERT INTO invoices (client_user_id, period_from, period_to, total_amount, invoice_group, invoice_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(clientId, periodFrom, periodTo, totalAmount, invoiceGroup, String(nextNum), now);
         clientJobs.forEach(j => {
           db.prepare('UPDATE jobs SET invoice_id = ? WHERE id = ?').run(inv.lastInsertRowid, j.id);
         });
