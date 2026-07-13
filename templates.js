@@ -105,8 +105,15 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
       if (o.manualWeekendsHours) weekendsHours = parseHoursStr(o.manualWeekendsHours);
       if (o.manualWeekendsAmount) weekendsAmount = Number(o.manualWeekendsAmount);
       
-      // Recalcular total de horas e deixar totalAmount atualizar na renderizacao
+      // Recalcular total de horas
       totalHours = weekdaysHours + weekendsHours + holidaysHours;
+      
+      // Recalcular o valor TOTAL da fatura
+      let sumExtras = 0;
+      extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
+        sumExtras += Number(e.total || 0);
+      });
+      invoice.total_amount = weekdaysAmount + weekendsAmount + holidaysAmount + projectsAmount + totalExtras + sumExtras;
     }
     
     extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
