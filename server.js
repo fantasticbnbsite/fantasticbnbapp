@@ -1432,7 +1432,23 @@ async function handleApi(req, res, requestUrl) {
     const body = await parseBody(req);
     const invoiceNumber = body.invoiceNumber || null;
     
-    db.prepare('UPDATE invoices SET invoice_number = ? WHERE id = ?').run(invoiceNumber, invoiceId);
+    const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
+    let extras = safeJsonParse(invoice?.extras_json) || [];
+    extras = extras.filter(e => e.type !== '__manualOverrides');
+    
+    if (body.manualWeekdaysHours || body.manualWeekdaysAmount || body.manualWeekendsHours || body.manualWeekendsAmount) {
+      extras.push({
+        type: '__manualOverrides',
+        data: {
+          manualWeekdaysHours: body.manualWeekdaysHours,
+          manualWeekdaysAmount: body.manualWeekdaysAmount,
+          manualWeekendsHours: body.manualWeekendsHours,
+          manualWeekendsAmount: body.manualWeekendsAmount
+        }
+      });
+    }
+    
+    db.prepare('UPDATE invoices SET invoice_number = ?, extras_json = ? WHERE id = ?').run(invoiceNumber, JSON.stringify(extras), invoiceId);
     return sendJson(res, 200, { success: true });
   }
 

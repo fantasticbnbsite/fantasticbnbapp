@@ -81,10 +81,35 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
     </tr>`;
   }).join('');
   
+  function parseHoursStr(str) {
+    if (!str) return 0;
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      const h = Number(parts[0]) || 0;
+      const m = Number(parts[1]) || 0;
+      return h + (m / 60);
+    }
+    return Number(str) || 0;
+  }
+
   let extrasHtml = '';
   try {
     const extrasArr = JSON.parse(invoice.extras_json || '[]');
-    extrasArr.forEach(e => {
+    
+    // Aplicar Overrides Manuais
+    const overridesItem = extrasArr.find(e => e.type === '__manualOverrides');
+    if (overridesItem && overridesItem.data) {
+      const o = overridesItem.data;
+      if (o.manualWeekdaysHours) weekdaysHours = parseHoursStr(o.manualWeekdaysHours);
+      if (o.manualWeekdaysAmount) weekdaysAmount = Number(o.manualWeekdaysAmount);
+      if (o.manualWeekendsHours) weekendsHours = parseHoursStr(o.manualWeekendsHours);
+      if (o.manualWeekendsAmount) weekendsAmount = Number(o.manualWeekendsAmount);
+      
+      // Recalcular total de horas e deixar totalAmount atualizar na renderizacao
+      totalHours = weekdaysHours + weekendsHours + holidaysHours;
+    }
+    
+    extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
       extrasHtml += `
       <tr>
         <td>${e.description} (x${e.quantity})</td>

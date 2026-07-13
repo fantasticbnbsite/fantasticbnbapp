@@ -3470,6 +3470,23 @@ function openEditInvoiceModal(id) {
   if (invNumberContainer) {
     invNumberContainer.style.display = 'flex';
     document.getElementById('financeEditInvoiceNumber').value = invoice.invoice_number || '';
+    
+    let overrides = {};
+    try {
+      if (invoice.extras_json) {
+        const parsed = JSON.parse(invoice.extras_json);
+        if (Array.isArray(parsed)) {
+          const overridesItem = parsed.find(item => item.type === '__manualOverrides');
+          if (overridesItem) overrides = overridesItem.data || {};
+        }
+      }
+    } catch(e) {}
+    
+    document.getElementById('financeEditManualWeekdaysHours').value = overrides.manualWeekdaysHours || '';
+    document.getElementById('financeEditManualWeekdaysAmount').value = overrides.manualWeekdaysAmount || '';
+    document.getElementById('financeEditManualWeekendsHours').value = overrides.manualWeekendsHours || '';
+    document.getElementById('financeEditManualWeekendsAmount').value = overrides.manualWeekendsAmount || '';
+    
     invNumberContainer.dataset.invoiceId = id;
   }
   
@@ -3571,14 +3588,19 @@ async function saveFinanceInvoiceNumber() {
   const invoiceId = Number(container.dataset.invoiceId);
   const invoiceNumber = document.getElementById('financeEditInvoiceNumber').value.trim();
   
+  const manualWeekdaysHours = document.getElementById('financeEditManualWeekdaysHours')?.value.trim();
+  const manualWeekdaysAmount = document.getElementById('financeEditManualWeekdaysAmount')?.value.trim();
+  const manualWeekendsHours = document.getElementById('financeEditManualWeekendsHours')?.value.trim();
+  const manualWeekendsAmount = document.getElementById('financeEditManualWeekendsAmount')?.value.trim();
+  
   if (!invoiceId) return;
   
   try {
     await api(`/api/finance/invoices/${invoiceId}/number`, {
       method: 'PATCH',
-      body: { invoiceNumber }
+      body: { invoiceNumber, manualWeekdaysHours, manualWeekdaysAmount, manualWeekendsHours, manualWeekendsAmount }
     });
-    toast('Número da fatura atualizado', 'success');
+    toast('Fatura atualizada com sucesso', 'success');
     
     const inv = state.finance.invoices.find(i => i.id === invoiceId);
     if (inv) inv.invoice_number = invoiceNumber || null;

@@ -941,10 +941,35 @@
         </div>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-        <div id="financeInvoiceNumberContainer" style="margin-top: 16px; display: none; align-items: center; gap: 8px;">
-          <label style="font-weight: 600; font-size: 0.9rem;">Invoice Number:</label>
-          <input type="text" id="financeEditInvoiceNumber" placeholder="Ex: INV-2023-01" style="width: 200px; padding: 6px; font-size: 0.9rem;" />
-          <button class="button button-primary button-sm" onclick="saveFinanceInvoiceNumber()">Salvar</button>
+        <div id="financeInvoiceNumberContainer" style="margin-top: 16px; display: none; flex-direction: column; gap: 12px; background: var(--surface-2); padding: 12px; border-radius: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-weight: 600; font-size: 0.9rem; width: 140px;">Invoice Number:</label>
+            <input type="text" id="financeEditInvoiceNumber" placeholder="Ex: INV-2023-01" style="flex: 1; max-width: 200px; padding: 6px; font-size: 0.9rem;" />
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-2); margin-top: 8px;">
+            <strong>Forçar Totais do PDF (Opcional)</strong> - Preencha apenas se quiser ignorar a soma automática dos serviços.
+          </div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.8rem;">Weekdays (Horas)</label>
+              <input type="text" id="financeEditManualWeekdaysHours" placeholder="Ex: 15:01" style="width: 100px; padding: 6px; font-size: 0.9rem;" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.8rem;">Weekdays (£)</label>
+              <input type="number" step="0.01" id="financeEditManualWeekdaysAmount" placeholder="Ex: 277.68" style="width: 100px; padding: 6px; font-size: 0.9rem;" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.8rem;">Weekends (Horas)</label>
+              <input type="text" id="financeEditManualWeekendsHours" placeholder="Ex: 24:45" style="width: 100px; padding: 6px; font-size: 0.9rem;" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.8rem;">Weekends (£)</label>
+              <input type="number" step="0.01" id="financeEditManualWeekendsAmount" placeholder="Ex: 495.00" style="width: 100px; padding: 6px; font-size: 0.9rem;" />
+            </div>
+          </div>
+          <div style="text-align: right; margin-top: 8px;">
+            <button class="button button-primary button-sm" onclick="saveFinanceInvoiceNumber()">Salvar Ajustes do Invoice</button>
+          </div>
         </div>
         <div id="financeEditJobsList" style="margin-top: 16px;"></div>
         <div style="margin-top: 12px; text-align: right;">
