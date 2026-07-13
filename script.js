@@ -3460,11 +3460,29 @@ async function removeFinanceExtra(type, parentId, index) {
   }
 }
 
+async function fixInvoice(id) {
+  if (!confirm('Deseja recalcular todos os serviços desta fatura para corrigir possíveis erros de dízima? Isso forçará o arredondamento dos minutos e re-aplicará as tarifas do flat.')) return;
+  try {
+    const res = await api('/api/finance/fix-invoice/' + id);
+    toast(res.message || 'Invoice corrigido com sucesso', 'success');
+    renderFinanceSummary();
+    setTimeout(() => openEditInvoiceModal(id), 500);
+  } catch(e) {
+    toast('Erro ao recalcular: ' + e.message, 'error');
+  }
+}
+
 function openEditInvoiceModal(id) {
   const invoice = state.finance.invoices.find(i => i.id === id);
   if (!invoice) return;
   document.getElementById('financeEditTitle').textContent = `Editar Fatura #${invoice.invoice_number || id} - ${invoice.client_name}`;
-  document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
+  document.getElementById('financeEditPrintContainer').innerHTML = `
+    <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;margin-right:8px;color:#d97706;border-color:#d97706;" onclick="fixInvoice(${id})">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      Recalcular Valores
+    </button>
+    <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>
+  `;
   
   const invNumberContainer = document.getElementById('financeInvoiceNumberContainer');
   if (invNumberContainer) {
