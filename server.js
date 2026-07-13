@@ -1368,9 +1368,9 @@ async function handleApi(req, res, requestUrl) {
     });
   }
 
-  if (requestUrl.pathname.match(/^\\/api\\/finance\\/fix-invoice\\/(\\d+)$/) && req.method === 'GET') {
+  if (requestUrl.pathname.match(/^\/api\/finance\/fix-invoice\/(\d+)$/) && req.method === 'GET') {
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
-    const invoiceId = Number(requestUrl.pathname.match(/^\\/api\\/finance\\/fix-invoice\\/(\\d+)$/)[1]);
+    const invoiceId = Number(requestUrl.pathname.match(/^\/api\/finance\/fix-invoice\/(\d+)$/)[1]);
     
     // Get all jobs for this invoice
     const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
