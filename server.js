@@ -1368,6 +1368,52 @@ async function handleApi(req, res, requestUrl) {
     });
   }
 
+  if (requestUrl.pathname.match(/^\\/api\\/finance\\/fix-invoice\\/(\\d+)$/) && req.method === 'GET') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(requestUrl.pathname.match(/^\\/api\\/finance\\/fix-invoice\\/(\\d+)$/)[1]);
+    
+    // Get all jobs for this invoice
+    const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
+    
+    let totalUpdated = 0;
+    for (const j of jobsToFix) {
+      if (j.billing_type === 'project') continue; // Skip projects
+      
+      const startedAt = new Date(j.started_at);
+      const finishedAt = new Date(j.finished_at);
+      
+      // se nao tiver start/finish validos, vamos usar as horas atuais do banco
+      let durationMinutes = 0;
+      if (j.started_at && j.finished_at) {
+        const durationMs = finishedAt - startedAt;
+        durationMinutes = Math.round(durationMs / 60_000);
+      } else {
+        durationMinutes = Math.round(Number(j.duration_hours) * 60);
+      }
+      
+      const exactDurationHours = durationMinutes / 60;
+      
+      const reqDate = new Date(j.requested_date);
+      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+      
+      let clientRate = 0;
+      if (j.is_holiday) clientRate = Number(j.hourly_holiday_rate || j.hourly_rate || 0);
+      else if (isWeekend) clientRate = Number(j.hourly_weekend_rate || j.hourly_rate || 0);
+      else clientRate = Number(j.hourly_rate || 0);
+      
+      const newClientAmount = roundCurrency(exactDurationHours * clientRate);
+      
+      db.prepare('UPDATE jobs SET duration_hours = ?, client_amount = ? WHERE id = ?').run(exactDurationHours, newClientAmount, j.id);
+      totalUpdated++;
+    }
+    
+    // Recalculate invoice total
+    const invoiceTotal = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
+    db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(invoiceTotal, invoiceId);
+    
+    return sendJson(res, 200, { success: true, message: `Corrigidos ${totalUpdated} serviços da fatura ${invoiceId}. Novo total: £${invoiceTotal}` });
+  }
+
   if (requestUrl.pathname === '/api/finance/invoices/mine' && req.method === 'GET') {
     if (session.user.role !== 'client' && session.user.role !== 'client_user') return sendJson(res, 403, { error: 'Apenas clientes.' });
     const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
