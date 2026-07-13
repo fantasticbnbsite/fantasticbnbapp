@@ -1020,7 +1020,8 @@ async function handleApi(req, res, requestUrl) {
       const startedAt = new Date(job.started_at);
       const finishedAt = new Date(now);
       const durationMs = finishedAt - startedAt;
-      const durationHours = durationMs / 3_600_000;
+      const durationMinutes = Math.round(durationMs / 60_000);
+      const durationHours = durationMinutes / 60;
 
       const employee = db.prepare('SELECT * FROM users WHERE id = ?').get(session.user.id);
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
