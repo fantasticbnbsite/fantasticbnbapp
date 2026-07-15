@@ -2215,7 +2215,9 @@ function openFlatForm(flat) {
   document.getElementById('flatHourlyRate').value = flat ? flat.hourly_rate : '';
   document.getElementById('flatHourlyWeekendRate').value = flat ? flat.hourly_weekend_rate : '';
   document.getElementById('flatHourlyHolidayRate').value = flat ? flat.hourly_holiday_rate : '';
-  document.getElementById('flatProjectRate').value = flat ? flat.project_rate : '';
+  document.getElementById('flatProjectRate').value = flat && flat.project_rate !== undefined ? flat.project_rate : '';
+  if(document.getElementById('flatProjectWeekendRate')) document.getElementById('flatProjectWeekendRate').value = flat && flat.project_weekend_rate !== undefined ? flat.project_weekend_rate : '';
+  if(document.getElementById('flatProjectHolidayRate')) document.getElementById('flatProjectHolidayRate').value = flat && flat.project_holiday_rate !== undefined ? flat.project_holiday_rate : '';
   if (flat && flat.client_user_id) {
     const sel = document.getElementById('flatClientUser');
     if (sel) sel.value = String(flat.client_user_id);
@@ -2239,6 +2241,8 @@ async function onFlatSubmit(e) {
     hourlyWeekendRate: document.getElementById('flatHourlyWeekendRate').value,
     hourlyHolidayRate: document.getElementById('flatHourlyHolidayRate').value,
     projectRate: document.getElementById('flatProjectRate').value,
+    projectWeekendRate: document.getElementById('flatProjectWeekendRate') ? document.getElementById('flatProjectWeekendRate').value : '',
+    projectHolidayRate: document.getElementById('flatProjectHolidayRate') ? document.getElementById('flatProjectHolidayRate').value : '',
   };
   const btn = document.getElementById('flatSubmitButton');
   btn.disabled = true;

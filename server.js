@@ -350,6 +350,8 @@ try { db.exec('ALTER TABLE users ADD COLUMN parent_client_id INTEGER REFERENCES 
 try { db.exec('ALTER TABLE users ADD COLUMN hourly_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN hourly_weekend_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN hourly_holiday_rate REAL NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN project_weekend_rate REAL NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN project_holiday_rate REAL NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN payroll_id INTEGER REFERENCES payrolls(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
@@ -693,7 +695,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -703,6 +705,8 @@ async function handleApi(req, res, requestUrl) {
       Number(body.hourlyWeekendRate || 0),
       Number(body.hourlyHolidayRate || 0),
       Number(body.projectRate || 0),
+      Number(body.projectWeekendRate || 0),
+      Number(body.projectHolidayRate || 0),
       body.city || ''
     );
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
@@ -715,7 +719,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, city=?, active=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -725,6 +729,8 @@ async function handleApi(req, res, requestUrl) {
       Number(body.hourlyWeekendRate ?? flat.hourly_weekend_rate),
       Number(body.hourlyHolidayRate ?? flat.hourly_holiday_rate),
       Number(body.projectRate ?? flat.project_rate),
+      Number(body.projectWeekendRate ?? flat.project_weekend_rate ?? 0),
+      Number(body.projectHolidayRate ?? flat.project_holiday_rate ?? 0),
       body.city ?? flat.city,
       body.active === false ? 0 : 1,
       flatId
@@ -1046,7 +1052,12 @@ async function handleApi(req, res, requestUrl) {
       } else {
         clientRate = Number(flat.hourly_rate || 0);
       }
-      const clientAmount = flat.billing_type === 'project' ? roundCurrency(Number(flat.project_rate || 0)) : roundCurrency(durationHours * clientRate);
+      let finalProjectRate = Number(flat.project_rate || 0);
+      if (flat.billing_type === 'project') {
+        if (job.is_holiday && Number(flat.project_holiday_rate) > 0) finalProjectRate = Number(flat.project_holiday_rate);
+        else if (isWeekend && Number(flat.project_weekend_rate) > 0) finalProjectRate = Number(flat.project_weekend_rate);
+      }
+      const clientAmount = flat.billing_type === 'project' ? roundCurrency(finalProjectRate) : roundCurrency(durationHours * clientRate);
 
       db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', now, jobId);
 
@@ -1373,11 +1384,23 @@ async function handleApi(req, res, requestUrl) {
     const invoiceId = Number(requestUrl.pathname.match(/^\/api\/finance\/fix-invoice\/(\d+)$/)[1]);
     
     // Get all jobs for this invoice
-    const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
+    const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.project_weekend_rate, f.project_holiday_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
     
     let totalUpdated = 0;
     for (const j of jobsToFix) {
-      if (j.billing_type === 'project') continue; // Skip projects
+      const reqDate = new Date(j.requested_date);
+      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+
+      if (j.billing_type === 'project') {
+        let finalProjectRate = Number(j.project_rate || 0);
+        if (j.is_holiday && Number(j.project_holiday_rate) > 0) finalProjectRate = Number(j.project_holiday_rate);
+        else if (isWeekend && Number(j.project_weekend_rate) > 0) finalProjectRate = Number(j.project_weekend_rate);
+        
+        const newClientAmount = roundCurrency(finalProjectRate);
+        db.prepare('UPDATE jobs SET client_amount = ? WHERE id = ?').run(newClientAmount, j.id);
+        totalUpdated++;
+        continue;
+      }
       
       const startedAt = new Date(j.started_at);
       const finishedAt = new Date(j.finished_at);
@@ -1392,9 +1415,6 @@ async function handleApi(req, res, requestUrl) {
       }
       
       const exactDurationHours = durationMinutes / 60;
-      
-      const reqDate = new Date(j.requested_date);
-      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
       
       let clientRate = 0;
       if (j.is_holiday) clientRate = Number(j.hourly_holiday_rate || j.hourly_rate || 0);
