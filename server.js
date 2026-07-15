@@ -824,6 +824,10 @@ async function handleApi(req, res, requestUrl) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
     }
 
+    if (!isAdminRole(session.user.role)) {
+      notifyAdmins({ title: 'Nova Limpeza Solicitada 🧹', body: `O flat ${flat.address} tem um novo pedido de limpeza para o dia ${body.requestedDate.split('T')[0]}` }).catch(()=>{});
+    }
+
     return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
@@ -953,6 +957,11 @@ async function handleApi(req, res, requestUrl) {
 
     db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, updated_at=? WHERE id=?`)
       .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, now, jobId);
+
+    if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
+      const flatName = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id).address;
+      sendPushNotification(updatedEmployeeUserId, { title: 'Novo Serviço Designado 📅', body: `Você foi escalado para limpar o flat ${flatName}.` }).catch(() => {});
+    }
 
     const updatedJob = db.prepare(`
       SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
