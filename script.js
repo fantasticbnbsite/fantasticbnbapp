@@ -2956,8 +2956,10 @@ function renderJobs() {
     actions += `<button class="ghost-button" style="color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
     
     let timelineHtml = '';
-    if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
-    if (job.finishedAt) timelineHtml += `<small style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</small>`;
+    if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
+      if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
+      if (job.finishedAt) timelineHtml += `<small style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</small>`;
+    }
     
     return `
       <div class="stack-item">
