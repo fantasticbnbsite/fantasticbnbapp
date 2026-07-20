@@ -934,11 +934,16 @@ window.openEditJobModal = function(jobId) {
   document.getElementById('clientEditJobId').value = job.id;
   document.getElementById('clientEditJobDate').value = job.requestedDate || (job.requested_date ? job.requested_date.slice(0,10) : '');
   document.getElementById('clientEditJobNotes').value = job.notes || '';
-  document.getElementById('clientEditJobModal').classList.add('open');
+  
+  const modal = document.getElementById('clientEditJobModal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
 };
 
 document.getElementById('closeClientEditJobModal')?.addEventListener('click', () => {
-  document.getElementById('clientEditJobModal').classList.remove('open');
+  const modal = document.getElementById('clientEditJobModal');
+  modal.classList.remove('active');
+  setTimeout(() => modal.style.display = 'none', 300);
 });
 
 document.getElementById('clientEditJobForm')?.addEventListener('submit', async (e) => {
@@ -953,8 +958,12 @@ document.getElementById('clientEditJobForm')?.addEventListener('submit', async (
 
   try {
     await api('PUT', `/api/jobs/${jobId}/client`, { requestedDate, notes });
-    showToast('Request updated successfully!');
-    document.getElementById('clientEditJobModal').classList.remove('open');
+    showToast('Request updated successfully!', 'success');
+    
+    const modal = document.getElementById('clientEditJobModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+    
     loadJobs();
   } catch (err) {
     showToast(err.message, true);
