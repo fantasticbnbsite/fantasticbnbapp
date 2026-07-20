@@ -611,7 +611,7 @@ function jobCardHTML(job) {
     let actionBtn = '';
     if (job.status !== 'cancelled') {
       actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')">❌ Cancel</button>`;
-      if (job.status === 'pending' || job.status === 'assigned') {
+      if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
         actionBtn = `<button class="btn btn-ghost btn-sm" onclick="openEditJobModal('${job.id}')">✏️ Edit</button> ` + actionBtn;
       }
     } else {

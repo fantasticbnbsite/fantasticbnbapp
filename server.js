@@ -912,9 +912,9 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 403, { error: 'Este servico nao pertence a voce.' });
     }
     
-    // Allow editing only if pending or assigned
-    if (job.status !== 'pending' && job.status !== 'assigned') {
-      return sendJson(res, 400, { error: 'Nao e possivel editar um servico que ja foi aceito ou iniciado.' });
+    // Allow editing only if pending, assigned, or accepted
+    if (job.status !== 'pending' && job.status !== 'assigned' && job.status !== 'accepted') {
+      return sendJson(res, 400, { error: 'Nao e possivel editar um servico que ja esta em progresso ou finalizado.' });
     }
     
     const body = await parseBody(req);

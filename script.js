@@ -2993,7 +2993,7 @@ function renderJobs() {
   jobsList.innerHTML = filtered.map(job => {
     let actions = '';
     if (state.user.role === 'client' || state.user.role === 'client_user') {
-      if (job.status === 'pending' || job.status === 'assigned') {
+      if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
         actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})">Editar Pedido</button>`;
       }
     } else {
