@@ -1,16 +1,15 @@
-const CACHE_NAME = 'fantastic-bnb-v9';
+const CACHE_NAME = 'fantastic-bnb-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/login.html',
   '/client.html',
   '/employee.html',
-  '/style.css',
+  '/styles.css',
   '/script.js',
   '/client.js',
   '/employee.js',
   '/manifest.json',
-  '/icon.svg',
   '/icon-192.png',
   '/icon-512.png'
 ];
