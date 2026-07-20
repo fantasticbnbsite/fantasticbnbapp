@@ -2882,6 +2882,52 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
   }
 });
 
+window.openClientEditJobModal = function(jobId) {
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!job) return;
+  document.getElementById('clientEditJobId').value = job.id;
+  document.getElementById('clientEditJobDate').value = job.requestedDate || (job.requested_date ? job.requested_date.slice(0,10) : '');
+  document.getElementById('clientEditJobNotes').value = job.notes || '';
+  document.getElementById('clientEditJobModal').classList.remove('hidden');
+};
+
+document.getElementById('closeClientEditJobModal')?.addEventListener('click', () => {
+  document.getElementById('clientEditJobModal').classList.add('hidden');
+});
+
+document.getElementById('confirmClientEditJobButton')?.addEventListener('click', async (e) => {
+  const jobId = document.getElementById('clientEditJobId').value;
+  const requestedDate = document.getElementById('clientEditJobDate').value;
+  const notes = document.getElementById('clientEditJobNotes').value;
+  
+  if (!requestedDate) {
+    return toast('A data é obrigatoria.', 'error');
+  }
+
+  e.target.disabled = true;
+  e.target.textContent = 'Salvando...';
+
+  try {
+    const res = await fetch(`/api/jobs/${jobId}/client`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestedDate, notes })
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Falha ao atualizar servico');
+    }
+    toast('Servico atualizado com sucesso!');
+    document.getElementById('clientEditJobModal').classList.add('hidden');
+    loadJobs();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    e.target.disabled = false;
+    e.target.textContent = 'Salvar Alteracoes';
+  }
+});
+
 // --- RESTORED CODE ---
 async function loadJobs() {
   try {
@@ -2945,12 +2991,22 @@ function renderJobs() {
   const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
   
   jobsList.innerHTML = filtered.map(job => {
-    let actions = `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})">Editar</button>`;
-    if (job.status === 'pending' || job.status === 'assigned') {
-      actions += `<button class="button button-primary" onclick="openAssignEmployeeModal(${job.id})">Designar Funcionario</button>`;
+    let actions = '';
+    if (state.user.role === 'client' || state.user.role === 'client_user') {
+      if (job.status === 'pending' || job.status === 'assigned') {
+        actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})">Editar Pedido</button>`;
+      }
+    } else {
+      actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})">Editar</button>`;
     }
-    if (job.status !== 'completed' && job.status !== 'cancelled') {
-      actions += `<button class="ghost-button" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
+    
+    if (state.user.role !== 'client' && state.user.role !== 'client_user') {
+      if (job.status === 'pending' || job.status === 'assigned') {
+        actions += `<button class="button button-primary" onclick="openAssignEmployeeModal(${job.id})">Designar Funcionario</button>`;
+      }
+      if (job.status !== 'completed' && job.status !== 'cancelled') {
+        actions += `<button class="ghost-button" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
+      }
     }
     if (job.status === 'in_progress' || job.status === 'completed') {
       actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')">📸 Ver Fotos</button>`;

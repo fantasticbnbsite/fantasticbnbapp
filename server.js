@@ -898,6 +898,38 @@ async function handleApi(req, res, requestUrl) {
   }
 
   // Job status transitions and edits
+  const jobClientEditMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)\/client$/);
+  if (jobClientEditMatch && req.method === 'PUT') {
+    if (session.user.role !== 'client' && session.user.role !== 'client_user') {
+      return sendJson(res, 403, { error: 'Apenas clientes podem usar esta rota.' });
+    }
+    const jobId = Number(jobClientEditMatch[1]);
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
+    if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
+    
+    const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+    if (job.client_user_id !== targetClientId) {
+      return sendJson(res, 403, { error: 'Este servico nao pertence a voce.' });
+    }
+    
+    // Allow editing only if pending or assigned
+    if (job.status !== 'pending' && job.status !== 'assigned') {
+      return sendJson(res, 400, { error: 'Nao e possivel editar um servico que ja foi aceito ou iniciado.' });
+    }
+    
+    const body = await parseBody(req);
+    const now = new Date().toISOString();
+    
+    const updatedRequestedDate = body.requestedDate || job.requested_date;
+    const updatedNotes = body.notes !== undefined ? body.notes : job.notes;
+    
+    db.prepare('UPDATE jobs SET requested_date=?, notes=?, updated_at=? WHERE id=?').run(
+      updatedRequestedDate, updatedNotes, now, jobId
+    );
+    
+    return sendJson(res, 200, { ok: true });
+  }
+
   const jobCrudMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)$/);
   if (jobCrudMatch && req.method === 'PUT') {
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
@@ -918,6 +950,7 @@ async function handleApi(req, res, requestUrl) {
     let updatedDurationHours = job.duration_hours;
     let updatedClientAmount = job.client_amount;
     let updatedEmployeeAmount = job.employee_amount;
+    const updatedNotes = body.notes !== undefined ? body.notes : job.notes;
 
     let updatedIsHoliday = job.is_holiday;
     if (body.isHoliday !== undefined) {
@@ -958,8 +991,8 @@ async function handleApi(req, res, requestUrl) {
       }
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, now, jobId);
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, now, jobId);
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
       const flatName = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id).address;
