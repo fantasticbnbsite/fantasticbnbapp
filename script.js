@@ -2218,6 +2218,7 @@ function openFlatForm(flat) {
   document.getElementById('flatProjectRate').value = flat && flat.project_rate !== undefined ? flat.project_rate : '';
   if(document.getElementById('flatProjectWeekendRate')) document.getElementById('flatProjectWeekendRate').value = flat && flat.project_weekend_rate !== undefined ? flat.project_weekend_rate : '';
   if(document.getElementById('flatProjectHolidayRate')) document.getElementById('flatProjectHolidayRate').value = flat && flat.project_holiday_rate !== undefined ? flat.project_holiday_rate : '';
+  if(document.getElementById('flatShowProjectHours')) document.getElementById('flatShowProjectHours').checked = flat ? !!flat.show_project_hours : false;
   if (flat && flat.client_user_id) {
     const sel = document.getElementById('flatClientUser');
     if (sel) sel.value = String(flat.client_user_id);
@@ -2243,6 +2244,7 @@ async function onFlatSubmit(e) {
     projectRate: document.getElementById('flatProjectRate').value,
     projectWeekendRate: document.getElementById('flatProjectWeekendRate') ? document.getElementById('flatProjectWeekendRate').value : '',
     projectHolidayRate: document.getElementById('flatProjectHolidayRate') ? document.getElementById('flatProjectHolidayRate').value : '',
+    showProjectHours: document.getElementById('flatShowProjectHours') ? document.getElementById('flatShowProjectHours').checked : false,
   };
   const btn = document.getElementById('flatSubmitButton');
   btn.disabled = true;

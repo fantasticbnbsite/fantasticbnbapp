@@ -31,7 +31,8 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
         extraAmount: 0,
         extraLabel: j.extra_label,
         d: rawDate ? new Date(rawDate) : new Date(),
-        billingType: j.flat_billing_type
+        billingType: j.flat_billing_type,
+        showProjectHours: j.flat_show_project_hours
       };
     }
     groupedJobs[key].durationHours += (j.duration_hours || 0);
@@ -46,7 +47,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
   .sort((a, b) => a.d - b.d)
   .map(g => {
     const isProject = g.billingType === 'project';
-    const hoursStr = isProject ? '-' : formatHours(g.durationHours);
+    const hoursStr = (isProject && !g.showProjectHours) ? '-' : formatHours(g.durationHours);
     
     // Grouping for totals
     const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);

@@ -358,6 +358,7 @@ try { db.exec('ALTER TABLE payrolls ADD COLUMN client_user_id INTEGER REFERENCES
 try { db.exec('ALTER TABLE jobs ADD COLUMN employee_notes TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN full_address TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN show_project_hours INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN invoice_number TEXT;'); } catch {}
 migrateUserRoles();
 seedDatabase();
@@ -695,7 +696,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -707,7 +708,8 @@ async function handleApi(req, res, requestUrl) {
       Number(body.projectRate || 0),
       Number(body.projectWeekendRate || 0),
       Number(body.projectHolidayRate || 0),
-      body.city || ''
+      body.city || '',
+      body.showProjectHours ? 1 : 0
     );
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
   }
@@ -719,7 +721,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -733,6 +735,7 @@ async function handleApi(req, res, requestUrl) {
       Number(body.projectHolidayRate ?? flat.project_holiday_rate ?? 0),
       body.city ?? flat.city,
       body.active === false ? 0 : 1,
+      body.showProjectHours !== undefined ? (body.showProjectHours ? 1 : 0) : (flat.show_project_hours || 0),
       flatId
     );
     return sendJson(res, 200, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId) });
@@ -1770,7 +1773,7 @@ async function handlePrintRequest(req, res, requestUrl) {
       }
     }
     const client = db.prepare('SELECT * FROM users WHERE id = ?').get(invoice.client_user_id) || {};
-    const jobs = db.prepare('SELECT j.*, f.address as flat_address, f.billing_type as flat_billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ? ORDER BY j.finished_at ASC').all(invoice.id);
+    const jobs = db.prepare('SELECT j.*, f.address as flat_address, f.billing_type as flat_billing_type, f.show_project_hours as flat_show_project_hours FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ? ORDER BY j.finished_at ASC').all(invoice.id);
     const config = db.prepare('SELECT * FROM config LIMIT 1').get() || {};
     
     const isClient = session.user.role === 'client' || session.user.role === 'client_user';
