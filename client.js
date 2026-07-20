@@ -611,6 +611,9 @@ function jobCardHTML(job) {
     let actionBtn = '';
     if (job.status !== 'cancelled') {
       actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')">❌ Cancel</button>`;
+      if (job.status === 'pending' || job.status === 'assigned') {
+        actionBtn = `<button class="btn btn-ghost btn-sm" onclick="openEditJobModal('${job.id}')">✏️ Edit</button> ` + actionBtn;
+      }
     } else {
       actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted); margin-left: auto;" onclick="deleteJob('${job.id}')">🗑️ Delete</button>`;
     }
@@ -923,6 +926,43 @@ function escHtml(str) {
 
 /* ─── Start ──────────────────────────────────────────────── */
 boot();
+
+
+window.openEditJobModal = function(jobId) {
+  const job = state.jobs.find(j => String(j.id) === String(jobId));
+  if (!job) return;
+  document.getElementById('clientEditJobId').value = job.id;
+  document.getElementById('clientEditJobDate').value = job.requestedDate || (job.requested_date ? job.requested_date.slice(0,10) : '');
+  document.getElementById('clientEditJobNotes').value = job.notes || '';
+  document.getElementById('clientEditJobModal').classList.add('open');
+};
+
+document.getElementById('closeClientEditJobModal')?.addEventListener('click', () => {
+  document.getElementById('clientEditJobModal').classList.remove('open');
+});
+
+document.getElementById('clientEditJobForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const jobId = document.getElementById('clientEditJobId').value;
+  const requestedDate = document.getElementById('clientEditJobDate').value;
+  const notes = document.getElementById('clientEditJobNotes').value;
+  
+  const btn = document.getElementById('confirmClientEditJobButton');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    await api('PUT', `/api/jobs/${jobId}/client`, { requestedDate, notes });
+    showToast('Request updated successfully!');
+    document.getElementById('clientEditJobModal').classList.remove('open');
+    loadJobs();
+  } catch (err) {
+    showToast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+});
 
 window.cancelJob = async function(jobId) {
   if (!confirm('Are you sure you want to cancel this service request?')) return;
