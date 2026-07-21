@@ -190,7 +190,7 @@ async function boot() {
 
 function showPushBanner() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if (localStorage.getItem('hidePushBanner') === 'true') return;
+  // if (localStorage.getItem('hidePushBanner') === 'true') return;
   if (Notification.permission === 'granted') {
     setupPushNotifications();
     return;
