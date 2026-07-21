@@ -1035,6 +1035,24 @@
       box-shadow: var(--shadow);
     }
 
+    #lightboxClose {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10001;
+    }
+
     /* ─── Utility ───────────────────────────────────────────────── */
     .hidden { display: none !important; }
 
@@ -1399,7 +1417,8 @@
   </div>
 
   <!-- Image Lightbox -->
-  <div id="lightbox" onclick="this.classList.remove('open')">
+  <div id="lightbox" onclick="if(event.target === this) this.classList.remove('open')">
+    <button id="lightboxClose" aria-label="Close lightbox" onclick="document.getElementById('lightbox').classList.remove('open')">✕</button>
     <img id="lightboxImg" src="" alt="Foto do serviço" />
   </div>
 
