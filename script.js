@@ -3036,7 +3036,13 @@ function renderJobs() {
         <div class="table-actions" style="margin-top:8px;">${actions}</div>
       </div>
     `;
-  }).join('') || '<div class="stack-item">Nenhum servico encontrado.</div>';
+  }).join('') || `
+    <div class="empty-state glass-card" style="border-radius:24px; text-align:center; padding:40px 20px; margin-top:16px;">
+      <div class="empty-illustration" style="font-size:3rem; margin-bottom:1rem; opacity:0.8;">✨</div>
+      <h3 style="margin-bottom:0.5rem;">Nenhum serviço encontrado</h3>
+      <p style="color:var(--muted); font-size:0.9rem;">Não há serviços correspondentes aos filtros selecionados.</p>
+    </div>
+  `;
 }
 
 window.filterJobsToday = function() {

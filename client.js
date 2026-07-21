@@ -285,7 +285,7 @@ if (loginForm) {
     }
 
     loginBtn.disabled = true;
-    loginBtn.textContent = 'Logging in…';
+    loginBtn.innerHTML = '<span class="spinner"></span> Logging in…';
 
     try {
       await api('POST', '/api/auth/login', { email, password });
@@ -538,10 +538,10 @@ window.renderJobs = function() {
 
   if (filtered.length === 0) {
     jobList.innerHTML = `
-      <div class="empty-state glass-card" style="border-radius:24px">
-        <span class="empty-icon">🏡</span>
+      <div class="empty-state glass-card" style="border-radius:24px; text-align:center; padding:40px 20px;">
+        <div class="empty-illustration">✨</div>
         <h3>No cleans found</h3>
-        <p>No cleans match your filters.</p>
+        <p>You don't have any requests matching your filters.</p>
       </div>
     `;
     return;
@@ -954,7 +954,7 @@ document.getElementById('clientEditJobForm')?.addEventListener('submit', async (
   
   const btn = document.getElementById('confirmClientEditJobButton');
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.innerHTML = '<span class="spinner"></span> Saving...';
 
   try {
     await api('PUT', `/api/jobs/${jobId}/client`, { requestedDate, notes });
@@ -969,7 +969,7 @@ document.getElementById('clientEditJobForm')?.addEventListener('submit', async (
     showToast(err.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save Changes';
+    btn.innerHTML = 'Save Changes';
   }
 });
 
@@ -1018,7 +1018,7 @@ async function submitChangePassword(e) {
   
   const btn = document.getElementById('cpSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.innerHTML = '<span class="spinner"></span> Saving...';
   
   try {
     const res = await fetch('/api/me/password', {

@@ -569,9 +569,10 @@ const App = (() => {
 
     if (jobs.length === 0) {
       container.innerHTML = `
-        <div class="empty-state">
-          <div class="es-icon">🧹</div>
-          <div class="es-text">${dateFilterFrom || dateFilterTo ? 'Nenhum serviço neste período' : 'Nenhum serviço encontrado'}</div>
+        <div class="empty-state glass-card" style="border-radius:24px; text-align:center; padding:40px 20px; background:var(--surface);">
+          <div class="empty-illustration">✨</div>
+          <h3>${dateFilterFrom || dateFilterTo ? 'Nenhum serviço neste período' : 'Tudo limpo!'}</h3>
+          <p>Você não tem nenhum serviço agendado para hoje.</p>
         </div>`;
       return;
     }
@@ -1305,7 +1306,7 @@ async function submitChangePassword(e) {
   
   const btn = document.getElementById('cpSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.innerHTML = '<span class="spinner"></span> Salvando...';
   
   try {
     const res = await fetch('/api/me/password', {
