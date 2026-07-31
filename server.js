@@ -769,7 +769,7 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
-    sql += ' ORDER BY j.created_at DESC LIMIT 200';
+    sql += ' ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 3000';
     const jobs = db.prepare(sql).all(...params).map(hydrateJob);
     return sendJson(res, 200, { jobs });
   }
@@ -791,7 +791,7 @@ async function handleApi(req, res, requestUrl) {
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
       WHERE ${whereField} = ?
-      ORDER BY j.created_at DESC LIMIT 100
+      ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 1500
     `).all(filterId).map(hydrateJob);
     return sendJson(res, 200, { jobs });
   }
