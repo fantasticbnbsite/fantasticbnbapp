@@ -1047,6 +1047,8 @@ async function handleApi(req, res, requestUrl) {
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel aceitar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('accepted', now, jobId);
       notifyAdmins({ title: 'Serviço Aceito ✅', body: `O serviço #${jobId} foi aceito.` });
+      const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
+      sendPushNotification(job.client_user_id, { title: 'Serviço Aceito ✅', body: `A limpeza no flat ${flat.address} foi confirmada pelo funcionário.` }).catch(() => {});
     } else if (action === 'reject') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
       if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem recusar servicos.' });
@@ -1060,7 +1062,6 @@ async function handleApi(req, res, requestUrl) {
       
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
-      sendPushNotification(job.client_user_id, { title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} começou agora.` }).catch(() => {});
       notifyAdmins({ title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} foi iniciada.` });
     } else if (action === 'finish') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
@@ -1109,7 +1110,6 @@ async function handleApi(req, res, requestUrl) {
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e));
-      sendPushNotification(job.client_user_id, { title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` }).catch(() => {});
       notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` });
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
