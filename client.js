@@ -629,6 +629,13 @@ function jobCardHTML(job) {
   let notesHTML = job.notes
     ? `<div class="job-meta-item" style="width:100%;margin-top:2px;"><span>📝</span> <em style="color:var(--muted);font-style:normal;font-size:0.83rem;">${escHtml(job.notes)}</em></div>`
     : '';
+  
+  if (job.is_urgent) {
+    notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:8px;padding:8px;background:#fffcfc;border:1px solid #d45555;border-radius:8px;">
+      <div style="font-weight:bold;color:#d45555;margin-bottom:4px;font-size:0.85rem;">🚨 ALERTA IMPORTANTE DA EQUIPE</div>
+      <div style="color:#d45555;font-size:0.85rem;">${escHtml(job.employeeNotes)}</div>
+    </div>`;
+  }
     
   if (job.status === 'cancelled') {
     const cancelDate = job.updatedAt ? new Intl.DateTimeFormat('en-GB').format(new Date(job.updatedAt)) : '';

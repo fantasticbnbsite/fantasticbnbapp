@@ -281,6 +281,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   employee_amount REAL,
   invoice_sent INTEGER NOT NULL DEFAULT 0,
   is_holiday INTEGER NOT NULL DEFAULT 0,
+  is_urgent INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE,
@@ -360,6 +361,7 @@ try { db.exec('ALTER TABLE flats ADD COLUMN full_address TEXT NOT NULL DEFAULT "
 try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN show_project_hours INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN invoice_number TEXT;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN is_urgent INTEGER NOT NULL DEFAULT 0;'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -1105,12 +1107,18 @@ async function handleApi(req, res, requestUrl) {
       }
       const clientAmount = flat.billing_type === 'project' ? roundCurrency(finalProjectRate) : roundCurrency(durationHours * clientRate);
 
-      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', now, jobId);
+      const isUrgent = body.isUrgent === true ? 1 : 0;
+      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, is_urgent=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', isUrgent, now, jobId);
 
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e));
       notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` });
+      
+      if (isUrgent) {
+        notifyAdmins({ title: '⚠️ Observação Urgente', body: `Flat ${flat.address}: ${body.employeeNotes}` });
+        sendPushNotification(job.client_user_id, { title: '⚠️ Atenção', body: `A equipe deixou um alerta importante sobre o seu flat (${flat.address}). Abra o app para ler.` }).catch(() => {});
+      }
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
         const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;

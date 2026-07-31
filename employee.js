@@ -686,6 +686,9 @@ const App = (() => {
       actionsHtml = `
         <div class="employee-notes-wrapper" style="margin-bottom: 12px;">
           <textarea id="obs-${job.id}" class="form-input" rows="2" placeholder="Alguma observação sobre a limpeza? (Opcional)"></textarea>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:600; color:#d45555;">
+            <input type="checkbox" id="urgent-${job.id}" style="width:20px;height:20px;"> 🚨 Marcar observação como URGENTE
+          </label>
         </div>
         <div class="job-actions one-btn">
           <button class="btn btn-finish" onclick="App.finishJob('${job.id}', this)">
@@ -986,6 +989,8 @@ const App = (() => {
   async function finishJob(jobId, btn) {
     const obsInput = document.getElementById('obs-' + jobId);
     const employeeNotes = obsInput ? obsInput.value : '';
+    const urgentInput = document.getElementById('urgent-' + jobId);
+    const isUrgent = urgentInput ? urgentInput.checked : false;
 
     // Optimistic update
     const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
@@ -996,7 +1001,7 @@ const App = (() => {
     try {
       const data = await apiFetch(`/api/jobs/${jobId}/finish`, { 
         method: 'PATCH',
-        body: JSON.stringify({ employeeNotes })
+        body: JSON.stringify({ employeeNotes, isUrgent })
       });
       showToast('Serviço concluído! 🎉', 'success');
       OfflineModule.clearDraft(jobId); // clear saved draft on success

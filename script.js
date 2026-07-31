@@ -3020,9 +3020,10 @@ function renderJobs() {
     }
     
     return `
-      <div class="stack-item">
+      <div class="stack-item" ${job.is_urgent ? 'style="border: 2px solid #d45555; background: #fffcfc;"' : ''}>
         <strong>Flat: ${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
         <span class="status-badge ${escapeHtml(job.status)}">${statusLabels[job.status] || job.status}</span>
+        ${job.is_urgent ? '<span style="display:inline-block; margin-bottom:8px; background:#d45555; color:#fff; padding:4px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">🚨 OBSERVAÇÃO URGENTE</span>' : ''}
         <small>Data solicitada: ${escapeHtml(job.requestedDate)}</small>
         <small>Funcionario: ${escapeHtml(job.employeeName || 'Nenhum')}</small>
         ${job.flatFullAddress ? `<small>Endereço: ${escapeHtml(job.flatFullAddress)}</small>` : ''}
@@ -3031,7 +3032,7 @@ function renderJobs() {
         ${job.employeeAmount != null ? `<small style="color:#2e9b6c; font-weight:500;">A Pagar (Funcionario): ${formatCurrencyGBP(job.employeeAmount)}</small>` : ''}
         ${job.clientAmount != null ? `<small style="color:#16756b; font-weight:500;">A Cobrar (Cliente): ${formatCurrencyGBP(job.clientAmount)}</small>` : ''}
         ${job.notes ? `<small>Notas: ${escapeHtml(job.notes)}</small>` : ''}
-        ${job.employeeNotes ? `<small style="color:var(--primary); font-weight:500;">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
+        ${job.employeeNotes ? `<small style="color:${job.is_urgent ? '#d45555' : 'var(--primary)'}; font-weight:${job.is_urgent ? 'bold' : '500'};">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
         ${timelineHtml ? `<div>${timelineHtml}</div>` : ''}
         <div class="table-actions" style="margin-top:8px;">${actions}</div>
       </div>
