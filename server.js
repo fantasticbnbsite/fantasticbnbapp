@@ -851,7 +851,7 @@ async function handleApi(req, res, requestUrl) {
     const durationHours = Number(body.durationHours) || 0;
     const isHoliday = body.isHoliday ? 1 : 0;
     const reqDate = new Date(body.requestedDate);
-    const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+    const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
     
     let employeeRate = isHoliday ? Number(emp.holiday_rate || emp.hourly_rate || 0) : (isWeekend ? Number(emp.weekend_rate || emp.hourly_rate || 0) : Number(emp.hourly_rate || 0));
     const employeeAmount = roundCurrency(durationHours * employeeRate);
@@ -859,8 +859,14 @@ async function handleApi(req, res, requestUrl) {
     let clientRate = isHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
     let clientAmount = 0;
     if (flat.billing_type === 'project') {
-      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND client_amount > 0').get(flatId, body.requestedDate);
-      clientAmount = existingJob ? 0 : roundCurrency(Number(flat.project_rate || 0));
+      let finalProjectRate = Number(flat.project_rate || 0);
+      if (isHoliday && Number(flat.project_holiday_rate || 0) > 0) {
+        finalProjectRate = Number(flat.project_holiday_rate);
+      } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
+        finalProjectRate = Number(flat.project_weekend_rate);
+      }
+      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND client_amount > 0 AND status != ?').get(flatId, body.requestedDate, 'cancelled');
+      clientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
     } else {
       clientAmount = roundCurrency(durationHours * clientRate);
     }
@@ -959,16 +965,20 @@ async function handleApi(req, res, requestUrl) {
       updatedIsHoliday = body.isHoliday ? 1 : 0;
     }
 
-    if (body.durationHours !== undefined && updatedStatus === 'completed') {
-      updatedDurationHours = Number(body.durationHours) || 0;
+    if (updatedStatus === 'completed') {
+      if (body.durationHours !== undefined) {
+        updatedDurationHours = Number(body.durationHours) || 0;
+      } else {
+        updatedDurationHours = Number(job.duration_hours) || 0;
+      }
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
+      const reqDate = new Date(updatedRequestedDate);
+      const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
       
       let employeeRate = 0;
       if (updatedEmployeeUserId) {
         const emp = db.prepare('SELECT * FROM users WHERE id = ?').get(updatedEmployeeUserId);
         if (emp) {
-          const reqDate = new Date(updatedRequestedDate);
-          const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
           if (updatedIsHoliday) {
             employeeRate = Number(emp.holiday_rate || emp.hourly_rate || 0);
           } else if (isWeekend) {
@@ -979,15 +989,19 @@ async function handleApi(req, res, requestUrl) {
         }
       }
       
-      const reqDate = new Date(updatedRequestedDate);
-      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
       let clientRate = updatedIsHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
       
       updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
       
       if (flat.billing_type === 'project') {
-        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND id != ? AND client_amount > 0').get(job.flat_id, updatedRequestedDate, jobId);
-        updatedClientAmount = existingJob ? 0 : roundCurrency(Number(flat.project_rate || 0));
+        let finalProjectRate = Number(flat.project_rate || 0);
+        if (updatedIsHoliday && Number(flat.project_holiday_rate || 0) > 0) {
+          finalProjectRate = Number(flat.project_holiday_rate);
+        } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
+          finalProjectRate = Number(flat.project_weekend_rate);
+        }
+        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND id != ? AND client_amount > 0 AND status != ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled');
+        updatedClientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
       } else {
         updatedClientAmount = roundCurrency(updatedDurationHours * clientRate);
       }
@@ -1081,7 +1095,7 @@ async function handleApi(req, res, requestUrl) {
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
 
       const reqDate = new Date(job.requested_date);
-      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+      const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
       let employeeRate = 0;
       if (job.is_holiday) {
         employeeRate = Number(employee.holiday_rate || employee.hourly_rate || 0);
@@ -1102,8 +1116,8 @@ async function handleApi(req, res, requestUrl) {
       }
       let finalProjectRate = Number(flat.project_rate || 0);
       if (flat.billing_type === 'project') {
-        if (job.is_holiday && Number(flat.project_holiday_rate) > 0) finalProjectRate = Number(flat.project_holiday_rate);
-        else if (isWeekend && Number(flat.project_weekend_rate) > 0) finalProjectRate = Number(flat.project_weekend_rate);
+        if (job.is_holiday && Number(flat.project_holiday_rate || 0) > 0) finalProjectRate = Number(flat.project_holiday_rate);
+        else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) finalProjectRate = Number(flat.project_weekend_rate);
       }
       const clientAmount = flat.billing_type === 'project' ? roundCurrency(finalProjectRate) : roundCurrency(durationHours * clientRate);
 
@@ -1442,12 +1456,12 @@ async function handleApi(req, res, requestUrl) {
     let totalUpdated = 0;
     for (const j of jobsToFix) {
       const reqDate = new Date(j.requested_date);
-      const isWeekend = reqDate.getDay() === 0 || reqDate.getDay() === 6;
+      const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
 
       if (j.billing_type === 'project') {
         let finalProjectRate = Number(j.project_rate || 0);
-        if (j.is_holiday && Number(j.project_holiday_rate) > 0) finalProjectRate = Number(j.project_holiday_rate);
-        else if (isWeekend && Number(j.project_weekend_rate) > 0) finalProjectRate = Number(j.project_weekend_rate);
+        if (j.is_holiday && Number(j.project_holiday_rate || 0) > 0) finalProjectRate = Number(j.project_holiday_rate);
+        else if (isWeekend && Number(j.project_weekend_rate || 0) > 0) finalProjectRate = Number(j.project_weekend_rate);
         
         const newClientAmount = roundCurrency(finalProjectRate);
         db.prepare('UPDATE jobs SET client_amount = ? WHERE id = ?').run(newClientAmount, j.id);

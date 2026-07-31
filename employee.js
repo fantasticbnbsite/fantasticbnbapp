@@ -534,7 +534,7 @@ const App = (() => {
 
     const completedThisMonth = allJobs.filter(j => {
       if (j.status !== 'completed') return false;
-      const date = new Date(j.finishedAt || j.requestedDate);
+      const date = new Date(j.requestedDate || j.finishedAt);
       return date.toISOString().slice(0, 7) === monthStr;
     });
 

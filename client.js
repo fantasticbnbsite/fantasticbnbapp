@@ -405,7 +405,8 @@ window.renderInvoices = function() {
     // Group jobs by date and flat
     const groupedJobs = {};
     jobs.forEach(j => {
-      const dateStr = j.finished_at ? fmtDate(j.finished_at) : 'No date';
+      const rawDate = j.requested_date || j.requestedDate || j.finished_at || j.finishedAt;
+      const dateStr = rawDate ? fmtDate(rawDate) : 'No date';
       const flatStr = j.flat_address || 'Unknown';
       const key = dateStr + '|' + flatStr;
       if (!groupedJobs[key]) {
