@@ -1327,7 +1327,7 @@ async function handleApi(req, res, requestUrl) {
       for (const [groupKey, clientJobs] of Object.entries(jobsByClientGroup)) {
         const [clientId, cityGroup] = groupKey.split('::');
         const invoiceGroup = cityGroup === 'Automático' ? 'Automático' : cityGroup;
-        const totalAmount = clientJobs.reduce((s, j) => s + (j.client_amount || 0), 0);
+        const totalAmount = roundCurrency(clientJobs.reduce((s, j) => s + (j.client_amount || 0), 0));
         if (totalAmount <= 0) continue;
         
         const maxRow = db.prepare('SELECT MAX(CAST(IFNULL(invoice_number, 0) AS INTEGER)) as max_num FROM invoices WHERE client_user_id = ?').get(clientId);
@@ -1360,7 +1360,7 @@ async function handleApi(req, res, requestUrl) {
         const employeeId = parts[0];
         const clientId = parts[1] || null;
         
-        const totalAmount = empJobs.reduce((s, j) => s + (j.employee_amount || 0), 0);
+        const totalAmount = roundCurrency(empJobs.reduce((s, j) => s + (j.employee_amount || 0), 0));
         if (totalAmount <= 0) continue;
         const pr = db.prepare('INSERT INTO payrolls (employee_user_id, client_user_id, period_from, period_to, total_amount, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(employeeId, clientId, periodFrom, periodTo, totalAmount, now);
         empJobs.forEach(j => {
@@ -1456,51 +1456,57 @@ async function handleApi(req, res, requestUrl) {
     const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.project_weekend_rate, f.project_holiday_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
     
     let totalUpdated = 0;
-    for (const j of jobsToFix) {
-      const reqDate = new Date(j.requested_date);
-      const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
+    db.exec('BEGIN TRANSACTION');
+    try {
+      for (const j of jobsToFix) {
+        const reqDate = new Date(j.requested_date);
+        const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
 
-      if (j.billing_type === 'project') {
-        let finalProjectRate = Number(j.project_rate || 0);
-        if (j.is_holiday && Number(j.project_holiday_rate || 0) > 0) finalProjectRate = Number(j.project_holiday_rate);
-        else if (isWeekend && Number(j.project_weekend_rate || 0) > 0) finalProjectRate = Number(j.project_weekend_rate);
+        if (j.billing_type === 'project') {
+          let finalProjectRate = Number(j.project_rate || 0);
+          if (j.is_holiday && Number(j.project_holiday_rate || 0) > 0) finalProjectRate = Number(j.project_holiday_rate);
+          else if (isWeekend && Number(j.project_weekend_rate || 0) > 0) finalProjectRate = Number(j.project_weekend_rate);
+          
+          const newClientAmount = roundCurrency(finalProjectRate);
+          db.prepare('UPDATE jobs SET client_amount = ? WHERE id = ?').run(newClientAmount, j.id);
+          totalUpdated++;
+          continue;
+        }
         
-        const newClientAmount = roundCurrency(finalProjectRate);
-        db.prepare('UPDATE jobs SET client_amount = ? WHERE id = ?').run(newClientAmount, j.id);
+        const startedAt = new Date(j.started_at);
+        const finishedAt = new Date(j.finished_at);
+        
+        // se nao tiver start/finish validos, vamos usar as horas atuais do banco
+        let durationMinutes = 0;
+        if (j.started_at && j.finished_at) {
+          const durationMs = finishedAt - startedAt;
+          durationMinutes = Math.round(durationMs / 60_000);
+        } else {
+          durationMinutes = Math.round(Number(j.duration_hours) * 60);
+        }
+        
+        const exactDurationHours = durationMinutes / 60;
+        
+        let clientRate = 0;
+        if (j.is_holiday) clientRate = Number(j.hourly_holiday_rate || j.hourly_rate || 0);
+        else if (isWeekend) clientRate = Number(j.hourly_weekend_rate || j.hourly_rate || 0);
+        else clientRate = Number(j.hourly_rate || 0);
+        
+        const newClientAmount = roundCurrency(exactDurationHours * clientRate);
+        
+        db.prepare('UPDATE jobs SET duration_hours = ?, client_amount = ? WHERE id = ?').run(exactDurationHours, newClientAmount, j.id);
         totalUpdated++;
-        continue;
       }
       
-      const startedAt = new Date(j.started_at);
-      const finishedAt = new Date(j.finished_at);
-      
-      // se nao tiver start/finish validos, vamos usar as horas atuais do banco
-      let durationMinutes = 0;
-      if (j.started_at && j.finished_at) {
-        const durationMs = finishedAt - startedAt;
-        durationMinutes = Math.round(durationMs / 60_000);
-      } else {
-        durationMinutes = Math.round(Number(j.duration_hours) * 60);
-      }
-      
-      const exactDurationHours = durationMinutes / 60;
-      
-      let clientRate = 0;
-      if (j.is_holiday) clientRate = Number(j.hourly_holiday_rate || j.hourly_rate || 0);
-      else if (isWeekend) clientRate = Number(j.hourly_weekend_rate || j.hourly_rate || 0);
-      else clientRate = Number(j.hourly_rate || 0);
-      
-      const newClientAmount = roundCurrency(exactDurationHours * clientRate);
-      
-      db.prepare('UPDATE jobs SET duration_hours = ?, client_amount = ? WHERE id = ?').run(exactDurationHours, newClientAmount, j.id);
-      totalUpdated++;
+      // Recalculate invoice total
+      const invoiceTotal = roundCurrency(db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0);
+      db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(invoiceTotal, invoiceId);
+      db.exec('COMMIT');
+      return sendJson(res, 200, { success: true, message: `Corrigidos ${totalUpdated} serviços da fatura ${invoiceId}. Novo total: £${invoiceTotal}` });
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
     }
-    
-    // Recalculate invoice total
-    const invoiceTotal = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
-    db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(invoiceTotal, invoiceId);
-    
-    return sendJson(res, 200, { success: true, message: `Corrigidos ${totalUpdated} serviços da fatura ${invoiceId}. Novo total: £${invoiceTotal}` });
   }
 
   if (requestUrl.pathname === '/api/finance/invoices/mine' && req.method === 'GET') {
@@ -1552,7 +1558,7 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('UPDATE jobs SET client_amount = ?, duration_hours = ? WHERE id = ? AND invoice_id = ?')
       .run(Number(body.clientAmount) || 0, Number(body.durationHours) || 0, jobId, invoiceId);
       
-    const total = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
+    const total = roundCurrency(db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
     
     return sendJson(res, 200, { success: true, newTotal: total });
@@ -1572,7 +1578,7 @@ async function handleApi(req, res, requestUrl) {
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
     const extras = safeJsonParse(payroll.extras_json) || [];
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
-    const total = totalJobs + totalExtras;
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
     
     return sendJson(res, 200, { success: true, newTotal: total });
@@ -1591,7 +1597,7 @@ async function handleApi(req, res, requestUrl) {
     
     const totalJobs = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
-    const total = totalJobs + totalExtras;
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
     return sendJson(res, 200, { success: true, newTotal: total, extras });
   }
@@ -1608,7 +1614,7 @@ async function handleApi(req, res, requestUrl) {
     
     const totalJobs = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
-    const total = totalJobs + totalExtras;
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
     return sendJson(res, 200, { success: true, newTotal: total, extras });
   }
@@ -1625,7 +1631,7 @@ async function handleApi(req, res, requestUrl) {
     
     const totalJobs = db.prepare('SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ?').get(payrollId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
-    const total = totalJobs + totalExtras;
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
     return sendJson(res, 200, { success: true, newTotal: total, extras });
   }
@@ -1642,7 +1648,7 @@ async function handleApi(req, res, requestUrl) {
     
     const totalJobs = db.prepare('SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ?').get(payrollId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
-    const total = totalJobs + totalExtras;
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
     return sendJson(res, 200, { success: true, newTotal: total, extras });
   }
@@ -2636,7 +2642,13 @@ function requireSession(req, res) {
 function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0), parent_client_id: user.parent_client_id }; }
 function buildSessionPayload(user) { return { user: { ...sanitizeUser(user), collaborator: getCollaboratorProfile(user.id) } }; }
 function ensureRole(user, roles, res) { if (!roles.includes(user.role)) { sendJson(res, 403, { error: 'Permissao insuficiente.' }); return false; } return true; }
-function cleanupExpiredSessions() { db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString()); }
+function cleanupExpiredSessions() {
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
+  const now = Date.now();
+  for (const [key, data] of loginAttempts.entries()) {
+    if (now > data.resetAt) loginAttempts.delete(key);
+  }
+}
 function getSession(req) { const token = parseCookies(req.headers.cookie || '')[SESSION_COOKIE]; if (!token) return null; const row = db.prepare('SELECT s.token, s.expires_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?').get(token); return row && new Date(row.expires_at).getTime() >= Date.now() ? { token, user: sanitizeUser(row) } : null; }
 function getAccessibleClients(user) { if (isAdminRole(user.role) || user.role === 'superadmin') return db.prepare('SELECT * FROM clients ORDER BY name').all(); return db.prepare('SELECT c.* FROM clients c JOIN user_clients uc ON uc.client_id = c.id WHERE uc.user_id = ? ORDER BY c.name').all(user.id); }
 function canAccessClient(user, clientId) { return getAccessibleClients(user).some((c) => c.id === clientId); }

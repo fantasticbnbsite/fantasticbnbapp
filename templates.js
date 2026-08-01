@@ -1,3 +1,5 @@
+function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
 export function renderInvoiceHtml(invoice, jobs, client, config, isClient = false) {
   function formatHours(h) {
     if (h == null) return '00:00';
@@ -76,7 +78,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
     
     return `<tr style="${rowBg}">
       <td style="text-align:center;">${g.dateStr}</td>
-      <td style="text-align:center;">${g.flatAddress}</td>
+      <td style="text-align:center;">${esc(g.flatAddress)}</td>
       <td style="text-align:center;">${hoursStr}</td>
       <td style="text-align:center;">£${Number(g.clientAmount).toFixed(2)}</td>
     </tr>`;
@@ -114,13 +116,13 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
       extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
         sumExtras += Number(e.total || 0);
       });
-      invoice.total_amount = weekdaysAmount + weekendsAmount + holidaysAmount + projectsAmount + totalExtras + sumExtras;
+      invoice.total_amount = Math.round((weekdaysAmount + weekendsAmount + holidaysAmount + projectsAmount + totalExtras + sumExtras + Number.EPSILON) * 100) / 100;
     }
     
     extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
       extrasHtml += `
       <tr>
-        <td>${e.description} (x${e.quantity})</td>
+        <td>${esc(e.description)} (x${e.quantity})</td>
         <td colspan="2" style="text-align:center;">£${Number(e.total).toFixed(2)}</td>
       </tr>`;
     });
@@ -180,8 +182,8 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
             <tr><td>Email:</td><td>fantasticbnbservicss@gmail.com</td></tr>
             <tr><td>Invoice nº:</td><td>#${invoice.invoice_number || invoice.id}</td></tr>
             <tr><td>Period:</td><td>${new Date(invoice.period_from).toLocaleDateString('en-GB')} - ${new Date(invoice.period_to).toLocaleDateString('en-GB')}</td></tr>
-            <tr><td>Bill To:</td><td style="color:#0044cc;">${invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name}</td></tr>
-            <tr><td>Email:</td><td>${client.email}</td></tr>
+            <tr><td>Bill To:</td><td style="color:#0044cc;">${esc(invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name)}</td></tr>
+            <tr><td>Email:</td><td>${esc(client.email)}</td></tr>
           </table>
         </td>
       </tr>
@@ -295,8 +297,8 @@ export function renderPayslipHtml(payroll, jobs, employee) {
     
     return `<tr>
       <td style="text-align:center;">${g.dateStr}</td>
-      <td style="text-align:center;">${g.clientName}</td>
-      <td style="text-align:center;">${g.flatAddress}</td>
+      <td style="text-align:center;">${esc(g.clientName)}</td>
+      <td style="text-align:center;">${esc(g.flatAddress)}</td>
       <td style="text-align:center;">${hoursStr}</td>
       <td style="text-align:right;">£${g.employeeAmount.toFixed(2)}</td>
     </tr>`;
@@ -308,7 +310,7 @@ export function renderPayslipHtml(payroll, jobs, employee) {
     extrasArr.forEach(e => {
       extrasHtml += `
       <tr>
-        <td colspan="4" style="text-align:right;">${e.description} (x${e.quantity})</td>
+        <td colspan="4" style="text-align:right;">${esc(e.description)} (x${e.quantity})</td>
         <td style="text-align:right; font-weight:bold; color: ${e.total < 0 ? '#d45555' : '#34c38f'};">£${Number(e.total).toFixed(2)}</td>
       </tr>`;
     });
@@ -350,8 +352,8 @@ export function renderPayslipHtml(payroll, jobs, employee) {
     </div>
     <div class="details">
       <div>
-        <strong>Contractor:</strong> ${employee.name}<br>
-        <strong>Email:</strong> ${employee.email}
+        <strong>Contractor:</strong> ${esc(employee.name)}<br>
+        <strong>Email:</strong> ${esc(employee.email)}
       </div>
       <div>
         <strong>Period:</strong> ${new Date(payroll.period_from).toLocaleDateString('en-GB')} - ${new Date(payroll.period_to).toLocaleDateString('en-GB')}<br>
