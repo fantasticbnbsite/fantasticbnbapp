@@ -867,7 +867,7 @@ async function handleApi(req, res, requestUrl) {
       } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
         finalProjectRate = Number(flat.project_weekend_rate);
       }
-      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND client_amount > 0 AND status != ?').get(flatId, body.requestedDate, 'cancelled');
+      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND client_amount > 0 AND status != ?').get(flatId, body.requestedDate, 'cancelled');
       clientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
     } else {
       clientAmount = roundCurrency(durationHours * clientRate);
@@ -1002,7 +1002,7 @@ async function handleApi(req, res, requestUrl) {
         } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
           finalProjectRate = Number(flat.project_weekend_rate);
         }
-        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND requested_date = ? AND id != ? AND client_amount > 0 AND status != ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled');
+        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND id != ? AND client_amount > 0 AND status != ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled');
         updatedClientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
       } else {
         updatedClientAmount = roundCurrency(updatedDurationHours * clientRate);
@@ -1011,6 +1011,7 @@ async function handleApi(req, res, requestUrl) {
 
     db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, updated_at=? WHERE id=?`)
       .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, now, jobId);
+    recalculateFinancialTotals(job.invoice_id, job.payroll_id);
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
       const flatName = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id).address;
@@ -1035,6 +1036,7 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 403, { error: 'Voce nao tem permissao para excluir este servico.' });
     }
     db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
+    recalculateFinancialTotals(job.invoice_id, job.payroll_id);
     return sendNoContent(res);
   }
 
@@ -1087,11 +1089,11 @@ async function handleApi(req, res, requestUrl) {
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'in_progress') return sendJson(res, 400, { error: `Nao e possivel finalizar um servico com status '${job.status}'.` });
 
-      const startedAt = new Date(job.started_at);
+      const startedAt = new Date(job.started_at || now);
       const finishedAt = new Date(now);
-      const durationMs = finishedAt - startedAt;
-      const durationMinutes = Math.round(durationMs / 60_000);
-      const durationHours = durationMinutes / 60;
+      const durationMs = Math.max(0, finishedAt - startedAt);
+      const durationMinutes = Math.min(1440, Math.round(durationMs / 60_000)); // Cap at 24 hours
+      const durationHours = Math.round((durationMinutes / 60) * 100) / 100;
 
       const employee = db.prepare('SELECT * FROM users WHERE id = ?').get(session.user.id);
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
@@ -1145,6 +1147,7 @@ async function handleApi(req, res, requestUrl) {
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('cancelled', now, jobId);
+      recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
         sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.` }).catch(() => {});
       }
@@ -1307,8 +1310,8 @@ async function handleApi(req, res, requestUrl) {
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
       WHERE j.status = 'completed'
-        AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
-        AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
+        AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
+        AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     `).all(periodFrom, periodTo);
 
     let invoicesGenerated = 0;
@@ -1922,8 +1925,8 @@ function buildJobPayslip(employeeId, month) {
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.employee_user_id = ? AND j.status = 'completed'
-      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
-      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
+      AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
+      AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     ORDER BY j.finished_at ASC
   `).all(employeeId, fromDate, toDate);
 
@@ -1960,8 +1963,8 @@ function buildClientInvoice(clientId, month) {
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
     WHERE j.client_user_id = ? AND j.status = 'completed'
-      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?
-      AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?
+      AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
+      AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     ORDER BY j.finished_at ASC
   `).all(clientId, fromDate, toDate);
 
@@ -2001,8 +2004,8 @@ function buildFinancialReport(from, to) {
     LEFT JOIN users eu ON eu.id = j.employee_user_id
     WHERE j.status = 'completed'`;
   const params = [];
-  if (from) { sql += ' AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) >= ?'; params.push(from); }
-  if (to) { sql += ' AND COALESCE(j.requested_date, substr(j.finished_at, 1, 10)) <= ?'; params.push(to); }
+  if (from) { sql += ' AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)'; params.push(from); }
+  if (to) { sql += ' AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)'; params.push(to); }
   const jobs = db.prepare(sql).all(...params);
 
   const totalRevenue = roundCurrency(jobs.reduce((s, j) => s + Number(j.client_amount || 0), 0));
@@ -2661,4 +2664,27 @@ function listRecords(clientId, filters) {
   if (filters.filterField && filters.filterValue) { sql += ' AND lower(json_extract(payload_json, ?)) LIKE ?'; params.push(`$.${filters.filterField}`, `%${filters.filterValue.toLowerCase()}%`); }
   sql += ` ORDER BY ${filters.sort} ${filters.direction} LIMIT 500`;
   return db.prepare(sql).all(...params).map(hydrateRecord);
+}
+
+function recalculateFinancialTotals(invoiceId, payrollId) {
+  if (invoiceId) {
+    const jData = db.prepare('SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ? AND status != ?').get(invoiceId, 'cancelled');
+    const inv = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
+    let ex = 0;
+    if (inv) {
+      const arr = safeJsonParse(inv.extras_json) || [];
+      ex = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
+    }
+    db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(roundCurrency((jData.s || 0) + ex), invoiceId);
+  }
+  if (payrollId) {
+    const pData = db.prepare('SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ? AND status != ?').get(payrollId, 'cancelled');
+    const p = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
+    let px = 0;
+    if (p) {
+      const arr = safeJsonParse(p.extras_json) || [];
+      px = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
+    }
+    db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(roundCurrency((pData.s || 0) + px), payrollId);
+  }
 }

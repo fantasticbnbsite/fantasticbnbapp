@@ -3598,7 +3598,7 @@ function openEditInvoiceModal(id) {
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 8px;">${j.id}</td>
         <td style="padding: 8px;">${escapeHtml(j.flat_address || j.flat_id || 'Avulso')}</td>
-        <td style="padding: 8px;">${String(j.finished_at).slice(0, 10)}</td>
+        <td style="padding: 8px;">${(j.requested_date || j.finished_at || '-').slice(0, 10)}</td>
         <td style="padding: 8px; text-align: right;">
           <input type="number" id="fin_client_amt_${j.id}" value="${Number(j.client_amount || 0).toFixed(2)}" step="0.01" style="width: 100px; padding: 4px;" />
         </td>
@@ -3649,7 +3649,7 @@ function openEditPayrollModal(id) {
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 8px;">${j.id}</td>
         <td style="padding: 8px;">${escapeHtml(j.flat_address || j.flat_id || 'Avulso')}</td>
-        <td style="padding: 8px;">${String(j.finished_at).slice(0, 10)}</td>
+        <td style="padding: 8px;">${(j.requested_date || j.finished_at || '-').slice(0, 10)}</td>
         <td style="padding: 8px; text-align: right;">
           <input type="number" id="fin_emp_amt_${j.id}" value="${Number(j.employee_amount || 0).toFixed(2)}" step="0.01" style="width: 100px; padding: 4px;" />
         </td>
