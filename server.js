@@ -416,7 +416,9 @@ createServer(async (req, res) => {
       const ext = path.extname(filename).toLowerCase();
       const mimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
       res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
-      createReadStream(filePath).pipe(res);
+      const stream = createReadStream(filePath);
+      stream.on('error', (err) => { console.error('ReadStream Error:', err); if (!res.headersSent) sendJson(res, 500, { error: 'Erro de leitura do arquivo' }); else res.end(); });
+      stream.pipe(res);
       return;
     }
 
@@ -2570,14 +2572,27 @@ function normalizeFieldType(fieldType) { return ['text', 'number', 'date', 'stat
 function hashPassword(password) { const salt = crypto.randomBytes(16).toString('hex'); const hash = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return { salt, hash }; }
 function verifyPassword(password, salt, hash) { const candidate = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex')); }
 function parseCookies(raw) { return raw.split(';').map((item) => item.trim()).filter(Boolean).reduce((acc, item) => { const [key, ...rest] = item.split('='); acc[key] = decodeURIComponent(rest.join('=')); return acc; }, {}); }
-async function parseBody(req) { const chunks = []; for await (const chunk of req) chunks.push(chunk); const raw = Buffer.concat(chunks).toString('utf8'); return raw ? JSON.parse(raw) : {}; }
+async function parseBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 50 * 1024 * 1024) throw new Error('Carga útil excedeu o limite máximo (50MB).');
+    chunks.push(chunk);
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
 function sendJson(res, status, payload) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(payload)); }
 function sendNoContent(res) { res.writeHead(204, { 'Cache-Control': 'no-store' }); res.end(); }
 async function sendFile(res, filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8' };
   res.writeHead(200, { 'Content-Type': types[ext] || 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-  createReadStream(filePath).pipe(res);
+  const stream = createReadStream(filePath);
+  stream.on('error', (err) => { console.error('Static ReadStream Error:', err); res.end(); });
+  stream.pipe(res);
 }
 function safeJsonParse(value) { try { return JSON.parse(value || '{}'); } catch { return {}; } }
 function slugify(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || `item-${Date.now()}`; }

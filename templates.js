@@ -50,7 +50,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
     const hoursStr = (isProject && !g.showProjectHours) ? '-' : formatHours(g.durationHours);
     
     // Grouping for totals
-    const isWknd = (g.d.getDay() === 0 || g.d.getDay() === 6);
+    const isWknd = (g.d.getUTCDay() === 0 || g.d.getUTCDay() === 6);
     if (isProject) {
       projectsAmount += g.clientAmount;
     } else {

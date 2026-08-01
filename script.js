@@ -927,8 +927,8 @@ function filterCleaningsByPeriod(entries) {
 function detectDayType(dateValue, isHoliday) {
   if (isHoliday) return 'Holiday';
   if (!dateValue) return 'Weekdays';
-  const date = new Date(`${dateValue}T00:00:00`);
-  const day = date.getDay();
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  const day = date.getUTCDay();
   return day === 0 || day === 6 ? 'Weekends' : 'Weekdays';
 }
 
@@ -1323,7 +1323,7 @@ function buildInvoiceGroups(entries) {
     const target = map.get(key);
     const durationHours = Number(item.duration_hours || 0);
     const minutes = Math.round(durationHours * 60);
-    const isWeekend = (new Date(item.requested_date)).getDay() === 0 || (new Date(item.requested_date)).getDay() === 6;
+    const isWeekend = (new Date(item.requested_date)).getUTCDay() === 0 || (new Date(item.requested_date)).getUTCDay() === 6;
     
     if (isWeekend || item.is_holiday) {
       target.weekendHoursMinutes += minutes;
@@ -1963,7 +1963,7 @@ function buildPayrollDrafts(entries) {
     const target = map.get(key);
     const durationHours = roundToTwo(Number(item.duration_hours || 0));
     const isHoliday = Boolean(item.is_holiday);
-    const isWeekend = (new Date(item.requested_date)).getDay() === 0 || (new Date(item.requested_date)).getDay() === 6;
+    const isWeekend = (new Date(item.requested_date)).getUTCDay() === 0 || (new Date(item.requested_date)).getUTCDay() === 6;
     
     if (isHoliday) target.hoursHoliday += durationHours;
     else if (isWeekend) target.hoursWeekend += durationHours;
