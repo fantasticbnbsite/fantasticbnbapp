@@ -1072,7 +1072,7 @@ const App = (() => {
       <div class="payslip-totals">
         <div class="total-item">
           <div class="t-label">Total de Horas</div>
-          <div class="t-value">${totalHours.toFixed(1)}h</div>
+          <div class="t-value">${Number(totalHours || 0).toFixed(2)}h</div>
         </div>
         <div class="total-item">
           <div class="t-label">Total a Receber</div>

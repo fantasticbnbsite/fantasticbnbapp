@@ -242,7 +242,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
       ${extrasHtml}
       <tr>
         <td class="grand-total" colspan="2">TOTAL</td>
-        <td class="grand-total-val" style="background:#dce5d8; border-left:none;">£${invoice.total_amount.toFixed(2)}</td>
+        <td class="grand-total-val" style="background:#dce5d8; border-left:none;">£${Number(invoice.total_amount || 0).toFixed(2)}</td>
       </tr>
     </table>
     
@@ -300,7 +300,7 @@ export function renderPayslipHtml(payroll, jobs, employee) {
       <td style="text-align:center;">${esc(g.clientName)}</td>
       <td style="text-align:center;">${esc(g.flatAddress)}</td>
       <td style="text-align:center;">${hoursStr}</td>
-      <td style="text-align:right;">£${g.employeeAmount.toFixed(2)}</td>
+      <td style="text-align:right;">£${Number(g.employeeAmount || 0).toFixed(2)}</td>
     </tr>`;
   }).join('');
 
@@ -371,7 +371,7 @@ export function renderPayslipHtml(payroll, jobs, employee) {
     </table>
     <div class="totals">
       <p>Total Hours: ${formatHours(totalHours)}</p>
-      <p style="font-size: 24px; color: #0044cc;">Total Amount: £${payroll.total_amount.toFixed(2)}</p>
+      <p style="font-size: 24px; color: #0044cc;">Total Amount: £${Number(payroll.total_amount || 0).toFixed(2)}</p>
     </div>
   </div>
   <script>window.print();</script>

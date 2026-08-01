@@ -344,6 +344,10 @@ CREATE INDEX IF NOT EXISTS idx_jobs_client ON jobs(client_user_id, created_at DE
 CREATE INDEX IF NOT EXISTS idx_jobs_employee ON jobs(employee_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_job_photos_job ON job_photos(job_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_invoice ON jobs(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_payroll ON jobs(payroll_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_flat_date ON jobs(flat_id, requested_date);
+CREATE INDEX IF NOT EXISTS idx_flats_client ON flats(client_user_id);
 `);
 
 // --- Migrations & schema adjustments ---
