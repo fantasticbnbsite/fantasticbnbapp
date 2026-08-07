@@ -3278,6 +3278,8 @@ function renderJobs() {
       if(job.status === 'pending') badgeClass = 'badge-warning';
       if(job.status === 'in_progress') badgeClass = 'badge-primary';
       if(job.status === 'cancelled') badgeClass = 'badge-danger';
+      if(job.status === 'assigned') badgeClass = 'badge-info';
+      if(job.status === 'accepted') badgeClass = 'badge-light-green';
       
       let timelineHtml = '';
       if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
