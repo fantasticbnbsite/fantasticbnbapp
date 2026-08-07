@@ -3300,12 +3300,12 @@ function renderJobs() {
             ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:0.85rem; font-weight:600; margin-top:4px;"><i data-lucide="key" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> ${escapeHtml(job.flatAccessCode)}</div>` : ''}
           </td>
-          <td class="td-meta" data-label="Data/Hora">
+          <td class="td-meta1" data-label="Data/Hora">
             <div><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> ${escapeHtml(job.requestedDate)}</div>
             ${job.durationHours ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             ${timelineHtml}
           </td>
-          <td class="td-meta" data-label="Profissional / Cliente">
+          <td class="td-meta2" data-label="Profissional / Cliente">
             <div style="font-weight:500;">
               <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
               ${escapeHtml(job.employeeName || 'Sem Profissional')}

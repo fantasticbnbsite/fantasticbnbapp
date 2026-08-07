@@ -868,8 +868,10 @@ textarea {
 }
 
 @media (max-width: 768px) {
-  body { background: var(--surface-alt); }
-  .shell { width: 100%; margin: 0; gap: 8px; padding: 0; }
+  body { background: var(--surface); }
+  .shell { width: 100%; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+  .view { display: flex; flex-direction: column; gap: 0; }
+  .side-nav, .stack-list { display: flex; flex-direction: column; gap: 0; }
 
   h1 { font-size: 26px; line-height: 1.1; }
   h2 { font-size: 20px; line-height: 1.2; }
@@ -880,25 +882,31 @@ textarea {
   .button { min-height: 44px; padding: 0 16px; font-size: 14px; border-radius: 10px; }
   .ghost-button { min-height: 44px; border-radius: 10px; }
 
-  /* Edge to Edge Layout */
-  .sidebar, .topbar, .panel, .toolbar, .holerites-hero, .login-card, .login-form, .modal-card, .drawer-card { 
-    border-radius: 0; 
-    border-left: none; 
-    border-right: none; 
+  /* Edge to Edge Layout for all containers */
+  .sidebar, .topbar, .panel, .toolbar, .holerites-hero, .login-card, .login-form, .modal-card, .drawer-card,
+  .glass-card, .stat-card, .stack-item, .selected-flats-card { 
+    border-radius: 0 !important; 
+    border-left: none !important; 
+    border-right: none !important;
+    border-top: none;
+    border-bottom: 1px solid var(--line);
     padding: 16px; 
-    margin: 0;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: var(--surface);
   }
-  .stat-card, .holerite-stat, .stack-item, .selected-flats-card { 
-    border-radius: 10px; 
-    padding: 12px; 
-  }
+  
+  /* Remove container paddings */
+  .inline-form { padding: 16px; border-bottom: 1px solid var(--line); }
 
   .brand-mark { width: 32px; height: 32px; border-radius: 8px; }
   
   .panel-header { align-items: flex-start; flex-direction: column; gap: 8px; }
   .panel-header > div { width: 100%; }
   
-  .stats-row, .holerites-stats, .overview-grid, .admin-grid, .admin-config-grid { grid-template-columns: 1fr; gap: 8px; }
+  .stats-row, .holerites-stats, .overview-grid, .admin-grid, .admin-config-grid { 
+    display: flex; flex-direction: column; gap: 0; margin: 0 !important; padding: 0 !important;
+  }
   
   .rate-grid { gap: 10px; }
   .check-option { min-height: 46px; justify-content: flex-start; }
@@ -929,13 +937,13 @@ textarea {
   .table-wrap { overflow: visible; background: transparent; box-shadow: none; border-radius: 0; border: none; }
   .data-table { display: flex; flex-direction: column; gap: 14px; min-width: 0 !important; }
   .data-table thead { display: none; }
-  /* Special Grid Layout for Jobs (Responsive Table) */
   .responsive-table tr {
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas: 
       "prop status"
-      "meta meta"
+      "meta1 meta1"
+      "meta2 meta2"
       "actions actions";
     gap: 8px;
     background: rgba(255, 255, 255, 0.95);
@@ -946,42 +954,45 @@ textarea {
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     box-shadow: none;
-    margin: 0 -16px; /* negative margin to pull it to the edges of the panel */
+    margin: 0; /* edge-to-edge natively */
   }
   .responsive-table td { display: block; padding: 0; border: none; font-size: 13px; }
   .responsive-table td::before { display: none; }
   
   .responsive-table .td-status { grid-area: status; justify-self: end; }
   .responsive-table .td-prop { grid-area: prop; margin-bottom: 0; padding-bottom: 0; border: none; font-size: 15px; font-weight: 800; }
-  .responsive-table .td-meta { grid-area: meta; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .responsive-table .td-meta1 { grid-area: meta1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .responsive-table .td-meta2 { grid-area: meta2; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .responsive-table .td-actions { grid-area: actions; border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 12px; }
   
-  /* Fallback for other data-tables (e.g. Payslips) */
-  .data-table:not(.responsive-table) tbody { display: flex; flex-direction: column; gap: 0; }
-  .data-table:not(.responsive-table) tr { 
+  /* Fallback for other data-tables (e.g. Payslips, Finance) */
+  .data-table:not(.responsive-table) thead, .fin-table thead { display: none; }
+  .data-table:not(.responsive-table) tbody, .fin-table tbody { display: flex; flex-direction: column; gap: 0; }
+  .data-table:not(.responsive-table) tr, .fin-table tr { 
     display: flex; flex-direction: column; 
-    background: rgba(255, 255, 255, 0.95); 
+    background: var(--surface); 
     border-radius: 0; 
     padding: 14px 16px; 
     border-left: none;
     border-right: none;
-    border-top: 1px solid var(--line); 
+    border-top: none; 
     border-bottom: 1px solid var(--line); 
     box-shadow: none; 
     gap: 8px; 
-    margin: 0 -16px; /* negative margin to pull it to the edges of the panel */
+    margin: 0 -16px; /* pull it to the edges of the panel */
   }
-  .data-table:not(.responsive-table) td { display: block; width: 100%; padding: 0; border: none; font-size: 13px; }
-  .data-table:not(.responsive-table) td::before { display: none; }
-  .data-table:not(.responsive-table) td:first-child { 
+  .data-table:not(.responsive-table) td, .fin-table td { display: block; width: 100%; padding: 0; border: none; font-size: 13px; }
+  .data-table:not(.responsive-table) td::before, .fin-table td::before { display: none; }
+  .data-table:not(.responsive-table) td:first-child, .fin-table td:first-child { 
     font-weight: 800; font-size: 15px; margin-bottom: 2px; 
     padding-bottom: 8px; border-bottom: 1px dashed var(--line); 
   }
-  .data-table:not(.responsive-table) td:last-child { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .data-table:not(.responsive-table) td:last-child, .fin-table td:last-child { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
   
-  .data-table td:last-child .table-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 8px; }
+  .data-table td:last-child .table-actions, .fin-table td:last-child .fin-td-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 8px; display: flex; }
   .data-table td:last-child .table-actions .ghost-button,
-  .data-table td:last-child .table-actions .button { width: auto; flex: 1; min-height: 40px; justify-content: center; }
+  .data-table td:last-child .table-actions .button,
+  .fin-table td:last-child .fin-td-actions .fin-action-btn { width: auto; flex: 1; min-height: 40px; justify-content: center; }
   /* Inputs larger for touch */
   input, select, textarea { font-size: 16px; min-height: 46px; }
   
