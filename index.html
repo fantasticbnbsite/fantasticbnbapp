@@ -69,6 +69,7 @@
           <h2 id="welcomeTitle">Central operacional</h2>
         </div>
         <div class="topbar-actions">
+          <button type="button" class="button" id="btnSmartVoice" style="background:#e8efe6; color:var(--primary); border:none; display:flex; align-items:center; gap:6px; font-weight:600;" onclick="startSmartVoiceAssistant()">🎤 Assistente</button>
           <div class="user-pill" id="userPill"></div>
           <button class="button button-secondary" id="openChangePasswordButton" onclick="openChangePasswordModal()" style="margin-right: 8px;">Trocar Senha</button>
           <button class="button button-secondary" id="logoutButton">Sair</button>
@@ -882,26 +883,27 @@
   <div class="toast" id="toast"></div>
 
   <!-- ── Job Photos Modal ─────────────────────────────────────────── -->
-  <div class="modal hidden" id="jobPhotosModal">
-    <div class="modal-card glass-card" style="max-width:680px; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="flex-shrink: 0;">
+  <div class="modal hidden" id="jobPhotosModal" style="padding-top: max(16px, env(safe-area-inset-top, 16px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));">
+    <div class="modal-card glass-card" style="max-width:680px; max-height: 88vh; max-height: calc(100dvh - 40px); display: flex; flex-direction: column;">
+      <div class="modal-header" style="flex-shrink: 0; align-items: center;">
         <div><p class="eyebrow">Fotos do Servico</p><h3 id="jobPhotosModalTitle">Fotos</h3></div>
-        <button class="icon-button" id="closeJobPhotosModal">x</button>
+        <button type="button" id="closeJobPhotosModal" style="width:44px; height:44px; border-radius:50%; background:#f0f4ef; border:none; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:bold; cursor:pointer; color:#333; flex-shrink:0;">✕</button>
       </div>
-      <div id="jobPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;padding:8px 0; overflow-y:auto; flex:1;"></div>
+      <div id="jobPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px;padding:8px 0; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch;"></div>
       <div style="padding-top:16px;text-align:right;flex-shrink:0;border-top:1px solid var(--line);">
-        <button class="button button-primary" onclick="document.getElementById('jobPhotosModal').classList.add('hidden')">Voltar para a tela inicial</button>
+        <button type="button" class="button button-primary" id="closeJobPhotosModalBottom" style="padding: 10px 20px; min-height: 44px;">Voltar para a tela inicial</button>
       </div>
     </div>
   </div>
 
   <!-- ── Lightbox (swipeable gallery) ────────────────────────────── -->
-  <div class="modal hidden" id="lightboxModal" style="background:rgba(0,0,0,0.92); user-select:none; display:flex; justify-content:center; align-items:center;">
-    <button class="icon-button" id="closeLightbox" style="position:fixed;top:20px;right:24px;color:#fff;font-size:24px;z-index:10;">x</button>
-    <button id="lightboxPrev" style="position:absolute; left:20px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:24px; width:48px; height:48px; border-radius:50%; cursor:pointer; z-index:10; display:none; place-items:center;">‹</button>
-    <img id="lightboxImg" src="" alt="Foto" style="max-width:90vw;max-height:85vh;border-radius:12px;object-fit:contain; transition:opacity 0.2s ease; cursor:grab;" />
-    <button id="lightboxNext" style="position:absolute; right:20px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:24px; width:48px; height:48px; border-radius:50%; cursor:pointer; z-index:10; display:none; place-items:center;">›</button>
-    <span id="lightboxCounter" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,0.8); font-size:14px; font-weight:bold; letter-spacing:1px; z-index:10;"></span>
+  <div class="modal hidden" id="lightboxModal" style="background:rgba(0,0,0,0.92); user-select:none; display:flex; justify-content:center; align-items:center; padding: 0;">
+    <button type="button" id="closeLightbox" aria-label="Fechar" style="position:fixed; top:max(20px, calc(14px + env(safe-area-inset-top, 0px))); right:max(20px, calc(14px + env(safe-area-inset-right, 0px))); width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.45); color:#fff; font-size:24px; font-weight:bold; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10000; box-shadow:0 4px 14px rgba(0,0,0,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);">✕</button>
+    <button type="button" id="lightboxPrev" aria-label="Foto anterior" style="position:fixed; left:max(14px, env(safe-area-inset-left, 14px)); top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:26px; width:52px; height:52px; border-radius:50%; cursor:pointer; z-index:9999; display:none; place-items:center; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 4px 12px rgba(0,0,0,0.5);">‹</button>
+    <img id="lightboxImg" src="" alt="Foto" style="max-width:min(94vw, 1000px); max-height:calc(85vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border-radius:12px; object-fit:contain; transition:opacity 0.2s ease; cursor:grab; pointer-events:auto;" />
+    <button type="button" id="lightboxNext" aria-label="Próxima foto" style="position:fixed; right:max(14px, env(safe-area-inset-right, 14px)); top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.35); color:#fff; font-size:26px; width:52px; height:52px; border-radius:50%; cursor:pointer; z-index:9999; display:none; place-items:center; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 4px 12px rgba(0,0,0,0.5);">›</button>
+    <button type="button" id="lightboxDownloadBtn" aria-label="Baixar foto" style="position:fixed; bottom:max(20px, calc(16px + env(safe-area-inset-bottom, 0px))); right:max(20px, calc(16px + env(safe-area-inset-right, 0px))); z-index:10000; background:rgba(255,255,255,0.25); color:#fff; border:1px solid rgba(255,255,255,0.45); padding:10px 18px; border-radius:28px; cursor:pointer; font-size:14px; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:flex; align-items:center; gap:6px; min-height:44px;">⬇️ Baixar / Salvar</button>
+    <span id="lightboxCounter" style="position:fixed; bottom:max(25px, calc(20px + env(safe-area-inset-bottom, 0px))); left:max(20px, calc(20px + env(safe-area-inset-left, 0px))); color:rgba(255,255,255,0.9); font-size:15px; font-weight:bold; letter-spacing:1px; z-index:10000; background:rgba(0,0,0,0.4); padding:4px 12px; border-radius:12px; backdrop-filter:blur(4px);"></span>
   </div>
 
   <!-- ── Admin Edit Job Modal ──────────────────────────────────────── -->
@@ -1090,7 +1092,10 @@
             <small style="color:var(--muted);display:block;margin-top:4px;">Se selecionar um funcionario, o servico ja nasce como "Designado".</small>
           </div>
           <div>
-            <label>Observacoes</label>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 6px;">
+              <label style="margin:0;">Observacoes</label>
+              <button type="button" id="btnDictateNotes" class="button" style="background:#f0f0f0; color:#333; padding: 4px 10px; border-radius:12px; border:none; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; font-weight:600;" onclick="startDictationForNotes()">🎤 Ditar</button>
+            </div>
             <textarea id="adminReqJobNotes" placeholder="Algum detalhe extra?"></textarea>
           </div>
           <button type="submit" class="button button-primary" style="margin-top:16px;" id="adminReqJobSubmitBtn">Criar Solicitacao</button>

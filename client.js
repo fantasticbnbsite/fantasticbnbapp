@@ -783,6 +783,55 @@ requestForm.addEventListener('submit', async (e) => {
 
 /* ─── Photos Modal ───────────────────────────────────────── */
 
+async function downloadPhoto(url, filename, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const btn = event && (event.currentTarget || event.target);
+  const oldText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '⏳ Saving...';
+    btn.disabled = true;
+  }
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const cleanName = filename || 'photo.jpg';
+    const file = new File([blob], cleanName, { type: blob.type || 'image/jpeg' });
+    
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: cleanName
+        });
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+          return;
+        }
+      }
+    }
+    
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = cleanName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch (e) {
+    window.open(url, '_blank');
+  } finally {
+    if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+  }
+}
+window.downloadPhoto = downloadPhoto;
+
 async function openPhotosModal(jobIdsStr, address) {
   photosModalTitle.textContent = `📸 Photos — ${address || 'Clean'}`;
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Loading…</div>`;
@@ -806,7 +855,7 @@ async function openPhotosModal(jobIdsStr, address) {
       `;
     } else {
       photoGrid.innerHTML = photos.map(p => `
-        <div style="display:flex; flex-direction:column; gap:4px;">
+        <div style="display:flex; flex-direction:column; gap:6px; background:#faf8f5; padding:8px; border-radius:12px; border:1px solid var(--line);">
           <div class="photo-thumb" data-src="/uploads/${escHtml(p.filename)}" title="${escHtml(p.originalName || p.filename)}">
             <img
               src="/uploads/${escHtml(p.filename)}"
@@ -814,7 +863,7 @@ async function openPhotosModal(jobIdsStr, address) {
               loading="lazy"
             />
           </div>
-          <a href="/uploads/${escHtml(p.filename)}" download="${escHtml(p.originalName || p.filename)}" class="btn btn-ghost btn-sm" style="padding: 4px; font-size: 0.8rem; background: #eee;">⬇️ Download</a>
+          <button type="button" onclick="downloadPhoto('/uploads/${escHtml(p.filename)}', '${escHtml(p.originalName || p.filename)}', event)" class="btn btn-ghost btn-sm" style="padding: 6px 10px; font-size: 0.85rem; background: rgba(22,117,107,0.1); color: var(--primary); border:none; border-radius:6px; cursor:pointer; font-weight:600; width: 100%; min-height: 38px;">⬇️ Download</button>
         </div>
       `).join('');
 
@@ -833,16 +882,18 @@ async function openPhotosModal(jobIdsStr, address) {
   }
 }
 
-function closePhotosModal() {
+function closePhotosModal(e) {
+  if (e && e.type === 'touchend') e.preventDefault();
   photosModal.classList.remove('open');
   document.body.style.overflow = '';
   photoGrid.innerHTML = '';
 }
 
 closePhotosModalBtn.addEventListener('click', closePhotosModal);
+closePhotosModalBtn.addEventListener('touchend', closePhotosModal);
 
 photosModal.addEventListener('click', (e) => {
-  if (e.target === photosModal) closePhotosModal();
+  if (e.target === photosModal) closePhotosModal(e);
 });
 
 /* ─── Lightbox (swipeable gallery) ──────────────────────── */
@@ -853,6 +904,7 @@ let lbIndex = 0;    // currently shown index
 const lightboxPrev    = document.getElementById('lightboxPrev');
 const lightboxNext    = document.getElementById('lightboxNext');
 const lightboxCounter = document.getElementById('lightboxCounter');
+const lightboxDownloadBtn = document.getElementById('lightboxDownloadBtn');
 
 function openLightbox(src, srcsArray) {
   lbSrcs  = srcsArray && srcsArray.length ? srcsArray : [src];
@@ -881,20 +933,43 @@ function _lbNavigate(delta) {
   }, 180);
 }
 
-lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigate(-1); });
-lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigate(+1); });
+const prevHandler = (e) => { if (e) { e.stopPropagation(); if (e.type === 'touchend') e.preventDefault(); } _lbNavigate(-1); };
+const nextHandler = (e) => { if (e) { e.stopPropagation(); if (e.type === 'touchend') e.preventDefault(); } _lbNavigate(+1); };
+
+if (lightboxPrev) {
+  lightboxPrev.addEventListener('click', prevHandler);
+  lightboxPrev.addEventListener('touchend', prevHandler);
+}
+if (lightboxNext) {
+  lightboxNext.addEventListener('click', nextHandler);
+  lightboxNext.addEventListener('touchend', nextHandler);
+}
+
+if (lightboxDownloadBtn) {
+  const dlHandler = (e) => {
+    if (e && e.type === 'touchend') e.preventDefault();
+    const currentUrl = lbSrcs[lbIndex];
+    if (currentUrl) {
+      const fname = currentUrl.split('/').pop() || 'photo.jpg';
+      downloadPhoto(currentUrl, decodeURIComponent(fname), e);
+    }
+  };
+  lightboxDownloadBtn.addEventListener('click', dlHandler);
+  lightboxDownloadBtn.addEventListener('touchend', dlHandler);
+}
 
 // Touch swipe support
 let _lbTouchX = null;
 lightbox.addEventListener('touchstart', (e) => { _lbTouchX = e.touches[0].clientX; }, { passive: true });
 lightbox.addEventListener('touchend', (e) => {
-  if (_lbTouchX === null) return;
+  if (_lbTouchX === null || e.target !== lightboxImg) return;
   const dx = e.changedTouches[0].clientX - _lbTouchX;
   _lbTouchX = null;
   if (Math.abs(dx) > 40) _lbNavigate(dx < 0 ? +1 : -1);
 }, { passive: true });
 
-function closeLightbox() {
+function closeLightbox(e) {
+  if (e && e.type === 'touchend') e.preventDefault();
   lightbox.classList.remove('open');
   lightboxImg.src = '';
   lbSrcs  = [];
@@ -905,8 +980,9 @@ function closeLightbox() {
 }
 
 lightboxClose.addEventListener('click', closeLightbox);
+lightboxClose.addEventListener('touchend', closeLightbox);
 lightbox.addEventListener('click', (e) => {
-  if (e.target === lightbox) closeLightbox();
+  if (e.target === lightbox) closeLightbox(e);
 });
 
 /* ─── Keyboard accessibility ─────────────────────────────── */

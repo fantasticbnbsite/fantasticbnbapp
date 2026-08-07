@@ -1036,21 +1036,24 @@
     }
 
     #lightboxClose {
-      position: absolute;
-      top: 24px;
-      right: 24px;
-      background: rgba(0, 0, 0, 0.5);
+      position: fixed;
+      top: max(20px, calc(14px + env(safe-area-inset-top, 0px)));
+      right: max(20px, calc(14px + env(safe-area-inset-right, 0px)));
+      background: rgba(255, 255, 255, 0.25);
       color: #fff;
-      border: none;
-      width: 44px;
-      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      width: 46px;
+      height: 46px;
       border-radius: 50%;
-      font-size: 1.5rem;
+      font-size: 1.6rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 10001;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
 
     /* ─── Utility ───────────────────────────────────────────────── */
@@ -1418,8 +1421,9 @@
 
   <!-- Image Lightbox -->
   <div id="lightbox" onclick="if(event.target === this) this.classList.remove('open')">
-    <button id="lightboxClose" aria-label="Close lightbox" onclick="document.getElementById('lightbox').classList.remove('open')">✕</button>
+    <button type="button" id="lightboxClose" aria-label="Close lightbox" onclick="document.getElementById('lightbox').classList.remove('open')">✕</button>
     <img id="lightboxImg" src="" alt="Foto do serviço" />
+    <button type="button" id="lightboxDownloadBtn" aria-label="Baixar foto" style="position:fixed; bottom:max(20px, calc(16px + env(safe-area-inset-bottom, 0px))); right:max(20px, calc(16px + env(safe-area-inset-right, 0px))); z-index:10001; background:rgba(255,255,255,0.25); color:#fff; border:1px solid rgba(255,255,255,0.45); padding:10px 18px; border-radius:28px; cursor:pointer; font-size:14px; font-weight:600; box-shadow:0 4px 14px rgba(0,0,0,0.6); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); display:flex; align-items:center; gap:6px; min-height:44px;">⬇️ Salvar / Baixar</button>
   </div>
 
   <!-- Toast container -->

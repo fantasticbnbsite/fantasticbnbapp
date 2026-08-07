@@ -1111,14 +1111,93 @@ const App = (() => {
     window.open(`/print/payslip/mine?month=${payslipMonth}`, '_blank');
   }
 
+  async function downloadPhoto(url, filename, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const btn = event && (event.currentTarget || event.target);
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = '⏳ Carregando...';
+      btn.disabled = true;
+    }
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const cleanName = filename || 'foto.jpg';
+      const file = new File([blob], cleanName, { type: blob.type || 'image/jpeg' });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: cleanName
+          });
+          if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+            return;
+          }
+        }
+      }
+      
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = cleanName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch (e) {
+      window.open(url, '_blank');
+    } finally {
+      if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+    }
+  }
+  window.downloadPhoto = downloadPhoto;
+
   /* ══════════════════════════════════════════════════════════════
      LIGHTBOX
   ══════════════════════════════════════════════════════════════ */
   function openLightbox(src) {
     const lb  = document.getElementById('lightbox');
     const img = document.getElementById('lightboxImg');
+    const closeBtn = document.getElementById('lightboxClose');
+    const downloadBtn = document.getElementById('lightboxDownloadBtn');
+    
     img.src = src;
     lb.classList.add('open');
+    
+    if (!lb._iosBound) {
+      lb._iosBound = true;
+      const closeHandler = (e) => {
+        if (e && e.type === 'touchend') e.preventDefault();
+        lb.classList.remove('open');
+      };
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closeHandler);
+        closeBtn.addEventListener('touchend', closeHandler);
+      }
+      if (downloadBtn) {
+        const dlHandler = (e) => {
+          if (e && e.type === 'touchend') e.preventDefault();
+          const currentUrl = img.src;
+          if (currentUrl) {
+            const fname = currentUrl.split('/').pop() || 'foto.jpg';
+            downloadPhoto(currentUrl, decodeURIComponent(fname), e);
+          }
+        };
+        downloadBtn.addEventListener('click', dlHandler);
+        downloadBtn.addEventListener('touchend', dlHandler);
+      }
+      lb.addEventListener('click', (e) => {
+        if (e.target === lb) closeHandler(e);
+      });
+    }
   }
 
   /* ══════════════════════════════════════════════════════════════

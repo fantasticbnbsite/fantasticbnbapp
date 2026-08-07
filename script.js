@@ -2508,6 +2508,55 @@ document.getElementById('adminHoleriteMonth')?.addEventListener('change', render
 document.getElementById('adminInvoiceClientSelect')?.addEventListener('change', renderAdminInvoice);
 document.getElementById('adminInvoiceMonth')?.addEventListener('change', renderAdminInvoice);
 
+async function downloadPhoto(url, filename, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const btn = event && (event.currentTarget || event.target);
+  const oldText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '⏳ Carregando...';
+    btn.disabled = true;
+  }
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const cleanName = filename || 'foto.jpg';
+    const file = new File([blob], cleanName, { type: blob.type || 'image/jpeg' });
+    
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: cleanName
+        });
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+          return;
+        }
+      }
+    }
+    
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = cleanName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch (e) {
+    window.open(url, '_blank');
+  } finally {
+    if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+  }
+}
+window.downloadPhoto = downloadPhoto;
+
 let lbSrcs  = [];   // all photo srcs for current job
 let lbIndex = 0;    // currently shown index
 
@@ -2564,19 +2613,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const lightboxClose = document.getElementById('closeLightbox');
   const lightboxPrev = document.getElementById('lightboxPrev');
   const lightboxNext = document.getElementById('lightboxNext');
+  const lightboxDownloadBtn = document.getElementById('lightboxDownloadBtn');
+  
+  const closeLb = (e) => {
+    if (e && e.type === 'touchend') e.preventDefault();
+    if (lightboxModal) lightboxModal.classList.add('hidden');
+  };
   
   if (lightboxClose) {
-    lightboxClose.addEventListener('click', () => {
-      lightboxModal.classList.add('hidden');
-    });
+    lightboxClose.addEventListener('click', closeLb);
+    lightboxClose.addEventListener('touchend', closeLb);
   }
   
+  if (lightboxDownloadBtn) {
+    const dlLb = (e) => {
+      if (e && e.type === 'touchend') e.preventDefault();
+      const currentUrl = lbSrcs[lbIndex];
+      if (currentUrl) {
+        const fname = currentUrl.split('/').pop() || 'foto.jpg';
+        downloadPhoto(currentUrl, decodeURIComponent(fname), e);
+      }
+    };
+    lightboxDownloadBtn.addEventListener('click', dlLb);
+    lightboxDownloadBtn.addEventListener('touchend', dlLb);
+  }
+  
+  const prevLb = (e) => { if (e) { e.stopPropagation(); if (e.type === 'touchend') e.preventDefault(); } _lbNavigateAdmin(-1); };
+  const nextLb = (e) => { if (e) { e.stopPropagation(); if (e.type === 'touchend') e.preventDefault(); } _lbNavigateAdmin(+1); };
+  
   if (lightboxPrev) {
-    lightboxPrev.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigateAdmin(-1); });
+    lightboxPrev.addEventListener('click', prevLb);
+    lightboxPrev.addEventListener('touchend', prevLb);
   }
   
   if (lightboxNext) {
-    lightboxNext.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigateAdmin(+1); });
+    lightboxNext.addEventListener('click', nextLb);
+    lightboxNext.addEventListener('touchend', nextLb);
   }
   
   if (lightboxModal) {
@@ -2588,7 +2660,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let _lbTouchX = null;
     lightboxModal.addEventListener('touchstart', (e) => { _lbTouchX = e.touches[0].clientX; }, { passive: true });
     lightboxModal.addEventListener('touchend', (e) => {
-      if (_lbTouchX === null) return;
+      if (_lbTouchX === null || e.target !== document.getElementById('lightboxImg')) return;
       const dx = e.changedTouches[0].clientX - _lbTouchX;
       _lbTouchX = null;
       if (Math.abs(dx) > 40) _lbNavigateAdmin(dx < 0 ? +1 : -1);
@@ -3371,9 +3443,20 @@ async function deleteJob(jobId) {
 const photosModal = document.getElementById('jobPhotosModal');
 const photoGrid = document.getElementById('jobPhotosGrid');
 const closePhotosModalBtn = document.getElementById('closeJobPhotosModal');
+const closePhotosModalBottom = document.getElementById('closeJobPhotosModalBottom');
+
+const closeJobPhotosHandler = (e) => {
+  if (e && e.type === 'touchend') e.preventDefault();
+  if (photosModal) photosModal.classList.add('hidden');
+};
 
 if (closePhotosModalBtn) {
-  closePhotosModalBtn.addEventListener('click', () => photosModal.classList.add('hidden'));
+  closePhotosModalBtn.addEventListener('click', closeJobPhotosHandler);
+  closePhotosModalBtn.addEventListener('touchend', closeJobPhotosHandler);
+}
+if (closePhotosModalBottom) {
+  closePhotosModalBottom.addEventListener('click', closeJobPhotosHandler);
+  closePhotosModalBottom.addEventListener('touchend', closeJobPhotosHandler);
 }
 
 async function openJobPhotos(jobId, address) {
@@ -3394,11 +3477,11 @@ async function openJobPhotos(jobId, address) {
       photoGrid.innerHTML = photos.map(p => {
         const src = `/uploads/${escapeHtml(p.filename)}`;
         return `
-        <div style="display:flex; flex-direction:column; gap:4px;">
+        <div style="display:flex; flex-direction:column; gap:8px; background:#fafafa; p:8px; border-radius:12px; border:1px solid #eee; padding:6px;">
           <div class="photo-thumb" style="aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f5f5f5; border:1px solid #ddd; position:relative;">
             <img src="${src}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openLightbox('${src}', ${allSrcsJson})" />
           </div>
-          <a href="${src}" download="${escapeHtml(p.originalName || p.filename)}" class="button" style="padding: 4px; font-size: 0.8rem; background: #eee; color: #333; text-align: center; border-radius: 4px; text-decoration: none;">⬇️ Baixar</a>
+          <button type="button" onclick="downloadPhoto('${src}', '${escapeHtml(p.originalName || p.filename)}', event)" class="button" style="padding: 6px 10px; font-size: 0.85rem; background: #e8efe6; color: var(--primary); text-align: center; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; width: 100%; min-height: 38px;">⬇️ Baixar</button>
         </div>
         `;
       }).join('');
@@ -4368,3 +4451,199 @@ function toggleAllPayrollClients(cb) {
   document.querySelectorAll('.payroll-client-cb').forEach(el => el.checked = cb.checked);
 }
 
+// ── VOICE ASSISTANT (WEB SPEECH API) ───────────────────────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// 1. Ditar observações
+let dictationRecognition = null;
+function startDictationForNotes() {
+  if (!SpeechRecognition) return toast('Seu navegador não suporta reconhecimento de voz.', 'error');
+  if (dictationRecognition) {
+    dictationRecognition.stop();
+    return;
+  }
+  const btn = document.getElementById('btnDictateNotes');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '🔴 Ouvindo...';
+  btn.style.color = 'red';
+  
+  dictationRecognition = new SpeechRecognition();
+  dictationRecognition.lang = 'pt-BR';
+  dictationRecognition.interimResults = false;
+  
+  dictationRecognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const notesEl = document.getElementById('adminReqJobNotes');
+    notesEl.value = notesEl.value ? notesEl.value + ' ' + transcript : transcript;
+    toast('Texto capturado com sucesso!', 'success');
+  };
+  
+  dictationRecognition.onerror = (e) => {
+    if (e.error !== 'aborted') toast('Erro na gravação: ' + e.error, 'error');
+  };
+  
+  dictationRecognition.onend = () => {
+    btn.innerHTML = originalText;
+    btn.style.color = '#333';
+    dictationRecognition = null;
+  };
+  
+  dictationRecognition.start();
+}
+window.startDictationForNotes = startDictationForNotes;
+
+// 2. Assistente Inteligente (Auto-Fill)
+let smartRecognition = null;
+function startSmartVoiceAssistant() {
+  if (!SpeechRecognition) return toast('Seu navegador não suporta reconhecimento de voz.', 'error');
+  if (smartRecognition) return;
+  
+  const modal = document.getElementById('voiceAssistantModal');
+  const statusEl = document.getElementById('voiceAssistantStatus');
+  const transcriptEl = document.getElementById('voiceAssistantTranscript');
+  const rippleEl = document.getElementById('voiceAssistantRipple');
+  
+  modal.classList.remove('hidden');
+  statusEl.textContent = 'Ouvindo... Pode falar!';
+  transcriptEl.innerHTML = 'Diga algo como:<br>"Nova limpeza amanhã no flat 102 para a Maria"';
+  rippleEl.style.animation = 'pulseVoice 1.5s infinite';
+  
+  smartRecognition = new SpeechRecognition();
+  smartRecognition.lang = 'pt-BR';
+  smartRecognition.interimResults = true;
+  
+  let finalTranscript = '';
+  
+  smartRecognition.onresult = (event) => {
+    let interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+    transcriptEl.innerHTML = `<strong>${finalTranscript || interimTranscript}</strong>`;
+  };
+  
+  smartRecognition.onerror = (e) => {
+    if (e.error !== 'aborted') {
+      statusEl.textContent = 'Erro: ' + e.error;
+      setTimeout(stopVoiceAssistant, 2000);
+    }
+  };
+  
+  smartRecognition.onend = () => {
+    rippleEl.style.animation = 'none';
+    if (!finalTranscript) {
+      statusEl.textContent = 'Não entendi. Cancelando...';
+      setTimeout(stopVoiceAssistant, 1500);
+      return;
+    }
+    statusEl.textContent = 'Processando...';
+    processSmartVoiceCommand(finalTranscript);
+  };
+  
+  smartRecognition.start();
+}
+window.startSmartVoiceAssistant = startSmartVoiceAssistant;
+
+function stopVoiceAssistant() {
+  if (smartRecognition) {
+    smartRecognition.stop();
+    smartRecognition = null;
+  }
+  const modal = document.getElementById('voiceAssistantModal');
+  if (modal) modal.classList.add('hidden');
+}
+window.stopVoiceAssistant = stopVoiceAssistant;
+
+function processSmartVoiceCommand(text) {
+  const lowerText = text.toLowerCase();
+  
+  let requestedDate = '';
+  const today = new Date();
+  if (lowerText.includes('hoje')) {
+    requestedDate = today.toISOString().split('T')[0];
+  } else if (lowerText.includes('amanhã') || lowerText.includes('amanha')) {
+    const tmr = new Date(today);
+    tmr.setDate(tmr.getDate() + 1);
+    requestedDate = tmr.toISOString().split('T')[0];
+  } else {
+    const matchDia = lowerText.match(/dia (\d{1,2})/);
+    if (matchDia) {
+      let d = parseInt(matchDia[1]);
+      let m = today.getMonth();
+      let y = today.getFullYear();
+      
+      const matchMes = lowerText.match(/dia \d{1,2} d[eo] (\w+)/);
+      if (matchMes) {
+        const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro', 'marco'];
+        let idx = meses.indexOf(matchMes[1]);
+        if (idx === 12) idx = 2;
+        if (idx !== -1) m = idx;
+      }
+      
+      const dObj = new Date(y, m, d);
+      if (dObj < today && m === today.getMonth()) dObj.setFullYear(y + 1);
+      requestedDate = dObj.toISOString().split('T')[0];
+    }
+  }
+  
+  let foundEmployeeId = '';
+  let foundEmployeeName = '';
+  const employees = state.users.filter(u => u.role === 'employee' && u.active);
+  for (const emp of employees) {
+    const first = emp.name.split(' ')[0].toLowerCase();
+    if (lowerText.includes(first) || lowerText.includes(emp.name.toLowerCase())) {
+      foundEmployeeId = emp.id;
+      foundEmployeeName = emp.name;
+      break;
+    }
+  }
+  
+  let foundFlatId = '';
+  let foundClientId = '';
+  let foundFlatName = '';
+  for (const flat of state.flats) {
+    if (!flat.active) continue;
+    const parts = flat.address.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ');
+    let matches = false;
+    const num = parts.find(p => !isNaN(parseInt(p)) && p.length > 0);
+    if (num && lowerText.includes(num)) matches = true;
+    else if (parts.some(p => p.length > 3 && lowerText.includes(p))) matches = true;
+    
+    if (matches) {
+      foundFlatId = flat.id;
+      foundClientId = flat.client_user_id;
+      foundFlatName = flat.address;
+      break;
+    }
+  }
+  
+  stopVoiceAssistant();
+  openAdminRequestJobModal();
+  
+  setTimeout(() => {
+    if (foundClientId) {
+      document.getElementById('adminReqJobClient').value = foundClientId;
+      updateAdminReqJobFlats();
+      setTimeout(() => {
+        if (foundFlatId) document.getElementById('adminReqJobFlat').value = foundFlatId;
+      }, 100);
+    }
+    
+    if (requestedDate) document.getElementById('adminReqJobDate').value = requestedDate;
+    if (foundEmployeeId) document.getElementById('adminReqJobEmployee').value = foundEmployeeId;
+    
+    const notesEl = document.getElementById('adminReqJobNotes');
+    notesEl.value = `[Voz] ${text}`;
+    
+    let msg = 'Comando interpretado!\n';
+    if (foundFlatName) msg += `📍 Flat: ${foundFlatName}\n`;
+    if (requestedDate) msg += `📅 Data: ${requestedDate}\n`;
+    if (foundEmployeeName) msg += `🧹 Func: ${foundEmployeeName}\n`;
+    msg += 'Verifique e crie!';
+    toast(msg, 'success');
+  }, 350);
+}
