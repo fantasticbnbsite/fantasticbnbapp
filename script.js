@@ -4677,8 +4677,26 @@ function stopVoiceAssistant() {
 }
 window.stopVoiceAssistant = stopVoiceAssistant;
 
+// Helper de distancia (Fuzzy Match) para erros fonéticos da API de Voz
+function levenshtein(a, b) {
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const m = [];
+  for (let i = 0; i <= b.length; i++) m[i] = [i];
+  for (let j = 0; j <= a.length; j++) m[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      m[i][j] = b.charAt(i-1) === a.charAt(j-1) 
+        ? m[i-1][j-1] 
+        : Math.min(m[i-1][j-1]+1, m[i][j-1]+1, m[i-1][j]+1);
+    }
+  }
+  return m[b.length][a.length];
+}
+
 function processSmartVoiceCommand(text) {
   const lowerText = text.toLowerCase();
+  const spokenWords = lowerText.replace(/[^a-z0-9\s]/g, '').split(' ').filter(p => p.length > 2);
   const today = new Date();
   let requestedDate = '';
   
@@ -4755,15 +4773,27 @@ function processSmartVoiceCommand(text) {
   const employees = state.users.filter(u => u.role === 'employee' && u.active);
   for (const emp of employees) {
     const first = emp.name.split(' ')[0].toLowerCase();
-    // Exige que o nome seja uma palavra inteira (não casa "mar" com "maria")
+    
     if (lowerText.match(new RegExp('\\b' + first + '\\b')) || lowerText.includes(emp.name.toLowerCase())) {
       foundEmployeeId = emp.id;
       foundEmployeeName = emp.name;
       break;
+    } else {
+      let bestDist = 99;
+      for (const sw of spokenWords) {
+          const d = levenshtein(first, sw);
+          if (d < bestDist) bestDist = d;
+      }
+      // Fuzzy match tolerance: 1 for short names, 2 for long names
+      if (bestDist <= (first.length > 5 ? 2 : 1)) {
+          foundEmployeeId = emp.id;
+          foundEmployeeName = emp.name;
+          break;
+      }
     }
   }
   
-  // 3. Flat & Client Parsing (Scoring System)
+  // 3. Flat & Client Parsing (Fuzzy Scoring System)
   let bestFlatMatch = null;
   let bestFlatScore = 0;
   
@@ -4782,7 +4812,18 @@ function processSmartVoiceCommand(text) {
     // Verifica palavras longas do endereço (rua, prédio)
     const words = addrLow.replace(/[^a-z0-9\s]/g, '').split(' ').filter(p => isNaN(parseInt(p)) && p.length > 3);
     for (const w of words) {
-      if (lowerText.includes(w)) score += 2;
+      if (lowerText.includes(w)) {
+        score += 2; // Exato match
+      } else {
+        let bestDist = 99;
+        for (const sw of spokenWords) {
+            const d = levenshtein(w, sw);
+            if (d < bestDist) bestDist = d;
+        }
+        if (bestDist <= (w.length > 5 ? 2 : 1)) {
+            score += 1.5; // Fuzzy match
+        }
+      }
     }
     
     // Verifica se falou o nome do cliente associado ao flat
@@ -4790,7 +4831,16 @@ function processSmartVoiceCommand(text) {
     if (client) {
         const clientFirst = client.name.toLowerCase().split(' ')[0];
         if (lowerText.match(new RegExp('\\b' + clientFirst + '\\b'))) {
-            score += 3;
+            score += 3; // Exato match
+        } else {
+            let bestDist = 99;
+            for (const sw of spokenWords) {
+                const d = levenshtein(clientFirst, sw);
+                if (d < bestDist) bestDist = d;
+            }
+            if (bestDist <= (clientFirst.length > 5 ? 2 : 1)) {
+                score += 2; // Fuzzy match
+            }
         }
     }
     
