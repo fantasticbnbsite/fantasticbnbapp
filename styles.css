@@ -143,6 +143,18 @@ label { display: block; font-weight: 500; font-size: 0.9rem; color: var(--text);
 .login-copy h1 { font-size: clamp(2.8rem, 5vw, 5rem); line-height: 0.95; margin: 18px 0; max-width: 10ch; }
 .login-form { border-radius: var(--radius-lg); display: grid; gap: 16px; align-self: center; }
 
+.chart-container {
+  position: relative;
+  height: 350px;
+  width: 100%;
+  margin-top: 24px;
+}
+@media (max-width: 640px) {
+  .chart-container {
+    height: 280px;
+  }
+}
+
 /* Utilities */
 .hidden { display: none !important; }
 .topbar, .panel-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
@@ -734,6 +746,10 @@ textarea {
     max-height: none;
   }
 
+  .topbar {
+    position: static;
+  }
+
   .cadastro-subnav {
     top: 92px;
   }
@@ -825,10 +841,17 @@ textarea {
     min-width: max-content;
   }
 
-  .toolbar-actions,
-  .table-actions {
+  .toolbar-actions {
     justify-content: stretch;
     flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .table-actions {
+    justify-content: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
     gap: 8px;
   }
@@ -837,7 +860,8 @@ textarea {
   .toolbar-actions .ghost-button,
   .table-actions .ghost-button,
   .table-actions .button {
-    width: 100%;
+    width: auto;
+    flex: 1;
     min-width: 0;
     justify-content: center;
   }
@@ -898,9 +922,9 @@ textarea {
     margin-top: 8px; padding-top: 12px; 
     border-top: 1px dashed rgba(201,116,63,0.15); justify-content: stretch; 
   }
-  .data-table td:last-child .table-actions { width: 100%; flex-wrap: wrap; flex-direction: column; align-items: stretch; gap: 8px; }
+  .data-table td:last-child .table-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 8px; }
   .data-table td:last-child .table-actions .ghost-button,
-  .data-table td:last-child .table-actions .button { width: 100%; min-height: 48px; justify-content: center; }
+  .data-table td:last-child .table-actions .button { width: auto; flex: 1; min-height: 48px; justify-content: center; }
 
   /* Inputs larger for touch */
   input, select, textarea { font-size: 16px; min-height: 52px; }
