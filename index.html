@@ -7,11 +7,13 @@
   <meta name="description" content="Plataforma multi-clientes com modulo de holerites e acesso individual por colaborador." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260621b" />
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#c9743f">
+  <meta name="theme-color" content="#ea580c">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <div class="app-bg"></div>
@@ -45,16 +47,16 @@
         </div>
       </div>
       <nav class="side-nav">
-        <button class="nav-link admin-nav" data-view="overview" style="display: none;">Visao geral</button>
-        <button class="nav-link active admin-nav" data-view="dashboard">Dashboard</button>
-        <button class="nav-link admin-nav" data-view="jobs">&#x1F9F9; Servicos</button>
-        <button class="nav-link admin-nav" data-view="cleaners">Cadastros</button>
-        <button class="nav-link admin-nav" data-view="finance">Financeiro</button>
-        <button class="nav-link admin-only admin-nav" data-view="flats">Flats</button>
-        <button class="nav-link admin-only admin-nav" data-view="config">Configuracoes</button>
-        <button class="nav-link admin-only admin-nav" data-view="admin">Administracao</button>
-        <a href="/employee.html" class="nav-link admin-only" style="margin-top:16px; color:var(--primary); font-weight:700; text-decoration:none;">
-          <span style="margin-right:6px;">🧹</span> Portal do Cleaner
+        <button class="nav-link admin-nav" data-view="overview" style="display: none;"><i data-lucide="layout-dashboard"></i> Visão Geral</button>
+        <button class="nav-link active admin-nav" data-view="dashboard"><i data-lucide="pie-chart"></i> Dashboard</button>
+        <button class="nav-link admin-nav" data-view="jobs"><i data-lucide="calendar-check"></i> Serviços</button>
+        <button class="nav-link admin-nav" data-view="cleaners"><i data-lucide="users"></i> Cadastros</button>
+        <button class="nav-link admin-nav" data-view="finance"><i data-lucide="dollar-sign"></i> Financeiro</button>
+        <button class="nav-link admin-only admin-nav" data-view="flats"><i data-lucide="building"></i> Propriedades</button>
+        <button class="nav-link admin-only admin-nav" data-view="config"><i data-lucide="settings"></i> Configurações</button>
+        <button class="nav-link admin-only admin-nav" data-view="admin"><i data-lucide="shield"></i> Administração</button>
+        <a href="/employee.html" class="nav-link admin-only" style="margin-top:16px; color:var(--primary); font-weight:600; text-decoration:none;">
+          <i data-lucide="external-link"></i> Portal do Cleaner
         </a>
       </nav>
       <div class="sidebar-foot">
@@ -66,13 +68,21 @@
       <header class="topbar glass-card">
         <div>
           <p class="eyebrow">Painel multi-clientes</p>
-          <h2 id="welcomeTitle">Central operacional</h2>
+          <h2 id="welcomeTitle">Central Operacional</h2>
         </div>
         <div class="topbar-actions">
-          <button type="button" class="button" id="btnSmartVoice" style="background:#e8efe6; color:var(--primary); border:none; display:flex; align-items:center; gap:6px; font-weight:600;" onclick="startSmartVoiceAssistant()">🎤 Assistente</button>
-          <div class="user-pill" id="userPill"></div>
-          <button class="button button-secondary" id="openChangePasswordButton" onclick="openChangePasswordModal()" style="margin-right: 8px;">Trocar Senha</button>
-          <button class="button button-secondary" id="logoutButton">Sair</button>
+          <button type="button" class="button button-secondary" id="btnSmartVoice" style="color:var(--primary); font-weight:600;" onclick="startSmartVoiceAssistant()">
+            <i data-lucide="mic"></i> Assistente
+          </button>
+          <div class="user-pill" id="userPill">
+            <i data-lucide="user"></i> <span>...</span>
+          </div>
+          <button class="icon-button" id="openChangePasswordButton" onclick="openChangePasswordModal()" title="Trocar Senha">
+            <i data-lucide="key"></i>
+          </button>
+          <button class="icon-button" id="logoutButton" title="Sair">
+            <i data-lucide="log-out"></i>
+          </button>
         </div>
       </header>
 
@@ -97,60 +107,56 @@
       </section>
 
       <section class="view" id="dashboardView">
-        <div class="holerites-hero glass-card dashboard-hero">
-          <div>
-            <p class="eyebrow">Visao executiva</p>
-            <h3>Dashboard financeiro da operacao</h3>
-            <p class="panel-kicker">Acompanhe faturamento, gastos, lucro e desempenho por cliente em uma visao geral ou filtrada.</p>
-          </div>
-        </div>
-
-        <article class="panel glass-card dashboard-panel">
+        <article class="panel glass-card">
           <div class="panel-header">
             <div>
-              <h3>Filtro do dashboard</h3>
-              <p class="panel-kicker">Escolha um cliente especifico ou mantenha a visao geral da operacao.</p>
+              <h3><i data-lucide="filter" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Filtro do dashboard</h3>
+              <p class="panel-kicker">Escolha um cliente especifico ou filtre por datas.</p>
             </div>
           </div>
-          <div class="rate-grid dashboard-filter-grid">
+          <div class="inline-form" style="margin-top: 16px;">
             <select id="dashboardClientFilter"></select>
             <input type="date" id="dashboardDateFrom" class="filter-select" placeholder="De" title="Data inicial" />
             <input type="date" id="dashboardDateTo" class="filter-select" placeholder="Até" title="Data final" />
-            <button class="button button-secondary" onclick="filterDashboardToday()">📅 Hoje</button>
-            <button class="button button-secondary" onclick="clearDashboardDateFilter()">✕ Limpar datas</button>
+            <button class="button button-secondary" onclick="filterDashboardToday()">
+              <i data-lucide="calendar"></i> Hoje
+            </button>
+            <button class="button button-secondary" onclick="clearDashboardDateFilter()">
+              <i data-lucide="x"></i> Limpar
+            </button>
           </div>
         </article>
 
-        <div class="holerites-stats dashboard-stats" id="dashboardStats"></div>
+        <div class="stats-row" id="dashboardStats" style="margin: 16px 0;"></div>
 
-        <article class="panel glass-card" style="margin-top: 18px; margin-bottom: 18px;">
-          <div class="panel-header compact">
+        <article class="panel glass-card">
+          <div class="panel-header">
             <div>
-              <h3>Evolução de Receita e Lucro</h3>
-              <p class="panel-kicker">Acompanhe o faturamento e a lucratividade mês a mês.</p>
+              <h3><i data-lucide="trending-up" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Evolução Financeira</h3>
+              <p class="panel-kicker">Faturamento e lucratividade mês a mês.</p>
             </div>
           </div>
-          <div style="position: relative; height: 350px; width: 100%;">
+          <div style="position: relative; height: 350px; width: 100%; margin-top: 24px;">
             <canvas id="dashboardTrendChart"></canvas>
           </div>
         </article>
 
-        <div class="dashboard-grid">
+        <div class="overview-grid" style="margin-top: 16px;">
           <article class="panel glass-card">
-            <div class="panel-header compact">
+            <div class="panel-header">
               <div>
-                <h3>Resumo por cliente</h3>
+                <h3><i data-lucide="users" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Resumo por cliente</h3>
                 <p class="panel-kicker">Receitas, gastos e lucro operacional.</p>
               </div>
             </div>
-            <div class="stack-list" id="dashboardClientBreakdown"></div>
+            <div class="stack-list" id="dashboardClientBreakdown" style="margin-top: 16px;"></div>
           </article>
 
           <article class="panel glass-card">
-            <div class="panel-header compact">
+            <div class="panel-header">
               <div>
-                <h3>Custos da equipe</h3>
-                <p class="panel-kicker">Quanto cada cleaner representa em gasto.</p>
+                <h3><i data-lucide="briefcase" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Custos da equipe</h3>
+                <p class="panel-kicker">Gasto individual por profissional.</p>
               </div>
             </div>
             <div class="stack-list" id="dashboardCleanerBreakdown"></div>
@@ -169,69 +175,87 @@
       </section>
 
       <section class="view hidden" id="cleanersView">
-        <div class="holerites-hero glass-card">
-          <div>
-            <p class="eyebrow">Cadastros operacionais</p>
-            <h3>Cleaners, clientes e regras de cobranca</h3>
-            <p class="panel-kicker">Configure equipe, invoice groups, flats e o modelo de cobranca antes de lancar as limpezas.</p>
+        <article class="panel glass-card">
+          <div class="panel-header">
+            <div>
+              <h3><i data-lucide="users" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Cadastros</h3>
+              <p class="panel-kicker">Gerencie clientes, cleaners e usuários do sistema.</p>
+            </div>
+            <button class="button button-primary" onclick="document.getElementById('userFormContainer').classList.toggle('hidden')">
+              <i data-lucide="plus"></i> Novo Usuário
+            </button>
           </div>
-        </div>
 
-        <div class="cadastro-panel" data-cadastro-panel="users">
-          <div class="admin-grid">
-            <article class="panel glass-card">
-              <div class="panel-header"><h3>Criar Login de Acesso</h3><span class="panel-kicker">Permissoes</span></div>
-              <form id="userForm" class="stack-form">
-                <input type="hidden" name="id" id="userEditId" />
+          <div id="userFormContainer" class="hidden" style="margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface-alt);">
+            <h4 style="margin-bottom:12px; font-size:1rem;">Criar/Editar Usuário</h4>
+            <form id="userForm" class="stack-form">
+              <input type="hidden" name="id" id="userEditId" />
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
                 <input name="name" type="text" placeholder="Nome do usuario" required />
                 <input name="email" type="email" placeholder="Email" required />
-                <input name="password" type="text" placeholder="Senha (deixe em branco para manter na edicao)" />
+                <input name="password" type="text" placeholder="Senha (vazio para manter)" />
                 <select name="role" id="userRoleSelect" required>
-                  <option value="" disabled selected>Selecione o papel do usuario...</option>
+                  <option value="" disabled selected>Papel do usuario...</option>
                   <option value="superadmin">Gerência</option>
                   <option value="client">Empresa / Cliente Principal</option>
                   <option value="client_user">Acesso / Login de Cliente</option>
                   <option value="employee">Colaborador</option>
                 </select>
-                <div id="userParentClientContainer" style="display:none; margin-top:10px;">
-                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Vincular a qual Empresa?</label>
-                  <select name="parentClientId" id="userParentClientSelect">
-                    <option value="">Selecione a empresa...</option>
-                  </select>
-                </div>
-                <div id="userHourlyRateContainer" style="display:none;">
-                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Valor por hora (Normal) (£)</label>
-                  <input name="hourlyRate" id="userHourlyRateInput" type="number" step="0.01" placeholder="Ex: 15.00" />
-                  
-                  <label style="font-size:0.85rem;margin-bottom:4px;margin-top:10px;display:block;">Valor por hora (Fim de Semana) (£)</label>
-                  <input name="weekendRate" id="userWeekendRateInput" type="number" step="0.01" placeholder="Ex: 18.00" />
-                  
-                  <label style="font-size:0.85rem;margin-bottom:4px;margin-top:10px;display:block;">Valor por hora (Feriado) (£)</label>
-                  <input name="holidayRate" id="userHolidayRateInput" type="number" step="0.01" placeholder="Ex: 20.00" />
-                </div>
-
-                <button class="button button-primary" type="submit" id="userSubmitButton">Criar usuario</button>
-                <button class="button button-secondary" type="button" id="userCancelEdit" style="display:none;margin-top:8px;">Cancelar edição</button>
-              </form>
-            </article>
-
-            <article class="panel glass-card wide">
-              <div class="panel-header" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
-                <div>
-                  <h3>Logins cadastrados</h3>
-                  <span class="panel-kicker">Quem pode acessar e o que pode fazer</span>
-                </div>
-                <select id="userRoleFilter" onchange="renderUsers()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; min-width:180px; background:#fff; cursor:pointer;">
-                  <option value="all">Todos os logins</option>
-                  <option value="employee">Somente Funcionarios</option>
-                  <option value="client">Somente Clientes</option>
-                  <option value="gerencia">Somente Gerência (Admin/Manager)</option>
+              </div>
+              <div id="userParentClientContainer" style="display:none; margin-top:10px;">
+                <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Vincular a qual Empresa?</label>
+                <select name="parentClientId" id="userParentClientSelect">
+                  <option value="">Selecione a empresa...</option>
                 </select>
               </div>
-              <div id="usersList" class="stack-list"></div>
+              <div id="userHourlyRateContainer" style="display:none; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:12px;">
+                <div>
+                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Normal (£/h)</label>
+                  <input name="hourlyRate" id="userHourlyRateInput" type="number" step="0.01" placeholder="15.00" />
+                </div>
+                <div>
+                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Fim de Semana (£/h)</label>
+                  <input name="weekendRate" id="userWeekendRateInput" type="number" step="0.01" placeholder="18.00" />
+                </div>
+                <div>
+                  <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Feriado (£/h)</label>
+                  <input name="holidayRate" id="userHolidayRateInput" type="number" step="0.01" placeholder="20.00" />
+                </div>
+              </div>
+              <div style="margin-top:16px; display:flex; gap:8px;">
+                <button class="button button-primary" type="submit" id="userSubmitButton">Salvar</button>
+                <button class="button button-secondary" type="button" id="userCancelEdit" style="display:none;">Cancelar</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="stats-row" id="cadastrosHub" style="margin-top: 24px; margin-bottom: 24px;">
+            <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='all'; renderUsers();">
+              <strong>...</strong><span>Todos os Logins</span>
+            </article>
+            <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='client'; renderUsers();">
+              <strong>...</strong><span>Clientes</span>
+            </article>
+            <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='employee'; renderUsers();">
+              <strong>...</strong><span>Cleaners</span>
+            </article>
+            <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='gerencia'; renderUsers();">
+              <strong>...</strong><span>Gerência</span>
             </article>
           </div>
-        </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h4 style="margin:0;">Lista de Usuários</h4>
+            <select id="userRoleFilter" onchange="renderUsers()" class="filter-select">
+              <option value="all">Todos os logins</option>
+              <option value="employee">Somente Funcionarios</option>
+              <option value="client">Somente Clientes</option>
+              <option value="gerencia">Somente Gerência</option>
+            </select>
+          </div>
+
+          <div id="usersList" class="overview-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
+        </article>
       </section>
 
       <section class="view hidden" id="cleaningLaunchesView">
@@ -303,17 +327,17 @@
       </section>
 
       <section class="view hidden" id="financeView">
-        <div class="holerites-hero glass-card">
-          <div>
-            <p class="eyebrow">Fechamento</p>
-            <h3>Financeiro da operacao</h3>
-            <p class="panel-kicker">Acompanhe invoices dos clientes, holerites da equipe e o resumo de receitas, gastos e lucros.</p>
+        <article class="panel glass-card" style="margin-bottom: 24px;">
+          <div class="panel-header">
+            <div>
+              <h3><i data-lucide="dollar-sign" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Financeiro da operacao</h3>
+              <p class="panel-kicker">Acompanhe faturas dos clientes, pagamentos da equipe e lucros operacionais.</p>
+            </div>
           </div>
-        </div>
+          <div class="stats-row" id="financeStats" style="margin-top:24px;"></div>
+        </article>
 
-        <div class="holerites-stats" id="financeStats"></div>
-
-        <div class="holerites-grid" style="margin-bottom: 24px;">
+        <div class="overview-grid" style="margin-bottom: 24px;">
           <!-- Card: Gerar Faturas (Clientes) -->
           <div class="panel glass-card">
             <div class="panel-header">

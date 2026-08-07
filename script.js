@@ -508,7 +508,8 @@ function syncClientCreateBillingVisibility() {
 
 function updateUserUi() {
   const collaborator = state.user.collaborator;
-  els.userPill.textContent = collaborator ? `${collaborator.full_name} · colaborador` : `${state.user.name} · ${state.user.role}`;
+  els.userPill.innerHTML = collaborator ? `<i data-lucide="user"></i> <span>${collaborator.full_name} · Colaborador</span>` : `<i data-lucide="user"></i> <span>${state.user.name} · ${state.user.role}</span>`;
+  if (window.lucide) window.lucide.createIcons({ root: els.userPill });
   els.welcomeTitle.textContent = collaborator
     ? `Ola, ${collaborator.full_name.split(' ')[0]}. Seu espaco de holerites esta pronto.`
     : `Ola, ${state.user.name.split(' ')[0]}. Sua central operacional esta pronta.`;
@@ -1520,34 +1521,72 @@ function renderUsers() {
     return user.role === filter;
   });
 
+  const hubEl = document.getElementById('cadastrosHub');
+  if (hubEl) {
+    const total = state.users.length;
+    const clients = state.users.filter(u => u.role === 'client' || u.role === 'client_user').length;
+    const cleaners = state.users.filter(u => u.role === 'employee').length;
+    const gerencia = state.users.filter(u => u.role === 'superadmin' || u.role === 'manager').length;
+    
+    hubEl.innerHTML = `
+      <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='all'; renderUsers();">
+        <strong>${total}</strong><span>Todos os Logins</span>
+      </article>
+      <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='client'; renderUsers();">
+        <strong>${clients}</strong><span>Clientes</span>
+      </article>
+      <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='employee'; renderUsers();">
+        <strong>${cleaners}</strong><span>Cleaners</span>
+      </article>
+      <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='gerencia'; renderUsers();">
+        <strong>${gerencia}</strong><span>Gerência</span>
+      </article>
+    `;
+  }
+
   els.usersList.innerHTML = filteredUsers.map((user) => {
     let roleLabel = user.role;
-    if (user.role === 'superadmin') roleLabel = 'Gerência';
-    if (user.role === 'client') roleLabel = 'Empresa / Cliente Principal';
-    if (user.role === 'client_user') roleLabel = 'Acesso / Login de Cliente';
-    if (user.role === 'employee') roleLabel = 'Colaborador';
+    let icon = 'user';
+    if (user.role === 'superadmin' || user.role === 'manager') { roleLabel = 'Gerência'; icon = 'shield'; }
+    if (user.role === 'client') { roleLabel = 'Cliente Principal'; icon = 'briefcase'; }
+    if (user.role === 'client_user') { roleLabel = 'Login de Cliente'; icon = 'briefcase'; }
+    if (user.role === 'employee') { roleLabel = 'Colaborador'; icon = 'users'; }
     
     let parentCompanyName = '';
     if (user.role === 'client_user' && user.parent_client_id) {
       const parent = state.users.find(u => u.id === user.parent_client_id);
-      if (parent) parentCompanyName = `<br><small style="color:var(--primary);">Empresa Vinculada: <strong>${escapeHtml(parent.name)}</strong></small>`;
+      if (parent) parentCompanyName = `<div style="margin-top:8px; font-size:0.85rem; color:var(--muted);"><i data-lucide="link" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> Vinculado a: <strong>${escapeHtml(parent.name)}</strong></div>`;
     }
 
     return `
-    <div class="stack-item">
-      <strong>${escapeHtml(user.name)} · ${roleLabel}</strong>
-      <span>${escapeHtml(user.email)}</span>
+    <div class="panel glass-card" style="display:flex; flex-direction:column; padding:16px;">
+      <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:16px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;">
+          <i data-lucide="${icon}"></i>
+        </div>
+        <div style="overflow:hidden;">
+          <strong style="display:block; font-size:1.05rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(user.name)}</strong>
+          <span class="badge badge-neutral" style="margin-top:4px; display:inline-block;">${roleLabel}</span>
+        </div>
+      </div>
+      <div style="font-size:0.85rem; color:var(--muted); margin-bottom:8px;">
+        <i data-lucide="mail" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> ${escapeHtml(user.email)}
+      </div>
       ${parentCompanyName}
       ${user.role === 'employee' ? `
-        <small style="color:var(--primary);">Taxas: Normal: £${Number(user.hourly_rate || 0).toFixed(2)} | Fim de Semana: £${Number(user.weekend_rate || 0).toFixed(2)} | Feriado: £${Number(user.holiday_rate || 0).toFixed(2)}</small>
+        <div style="margin-top:8px; padding:8px; background:var(--surface-alt); border-radius:8px; font-size:0.8rem; color:var(--muted);">
+          <strong>Taxas:</strong><br/>
+          Normal: £${Number(user.hourly_rate || 0).toFixed(2)} | FDS: £${Number(user.weekend_rate || 0).toFixed(2)} | Fer: £${Number(user.holiday_rate || 0).toFixed(2)}
+        </div>
       ` : ''}
-      <div class="table-actions">
-        <button class="ghost-button" type="button" onclick="startEditUser(${user.id})">Editar</button>
-        <button class="ghost-button" type="button" data-user-password="${user.id}">Redefinir Senha</button>
-        <button class="ghost-button" type="button" data-user-delete="${user.id}">Excluir</button>
+      <div style="margin-top:auto; padding-top:16px; display:flex; gap:8px;">
+        <button class="ghost-button" style="flex:1; justify-content:center;" type="button" onclick="startEditUser(${user.id})" title="Editar"><i data-lucide="edit-3"></i></button>
+        <button class="ghost-button" style="flex:1; justify-content:center; color:var(--primary);" type="button" data-user-password="${user.id}" title="Redefinir Senha"><i data-lucide="key"></i></button>
+        <button class="ghost-button" style="flex:1; justify-content:center; color:var(--danger);" type="button" data-user-delete="${user.id}" title="Excluir"><i data-lucide="trash-2"></i></button>
       </div>
     </div>
   `}).join('');
+  if (window.lucide) window.lucide.createIcons({ root: els.usersList });
   els.usersList.querySelectorAll('[data-user-delete]').forEach((button) => {
     button.addEventListener('click', () => onDeleteUser(Number(button.dataset.userDelete)));
   });
@@ -2607,8 +2646,16 @@ function _lbNavigateAdmin(delta) {
   }, 200);
 }
 
+// Lucide Icons Helper
+function updateIcons() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
 // Bind lightbox events once DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+  updateIcons();
   const lightboxModal = document.getElementById('lightboxModal');
   const lightboxClose = document.getElementById('closeLightbox');
   const lightboxPrev = document.getElementById('lightboxPrev');
@@ -3179,60 +3226,104 @@ function renderJobs() {
 
   const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
   
-  jobsList.innerHTML = filtered.map(job => {
-    let actions = '';
-    if (state.user.role === 'client' || state.user.role === 'client_user') {
-      if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
-        actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})">Editar Pedido</button>`;
-      }
-    } else {
-      actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})">Editar</button>`;
-    }
-    
-    if (state.user.role !== 'client' && state.user.role !== 'client_user') {
-      if (job.status === 'pending' || job.status === 'assigned') {
-        actions += `<button class="button button-primary" onclick="openAssignEmployeeModal(${job.id})">Designar Funcionario</button>`;
-      }
-      if (job.status !== 'completed' && job.status !== 'cancelled') {
-        actions += `<button class="ghost-button" onclick="markJobAs(${job.id}, 'completed')">Marcar Concluido</button>`;
-      }
-    }
-    if (job.status === 'in_progress' || job.status === 'completed') {
-      actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')">📸 Ver Fotos</button>`;
-    }
-    actions += `<button class="ghost-button" style="color: #d45555;" onclick="deleteJob(${job.id})">Excluir</button>`;
-    
-    let timelineHtml = '';
-    if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
-      if (job.startedAt) timelineHtml += `<small style="color:#16756b; font-weight:600; margin-right:8px;">🟢 Início: ${timeFmt.format(new Date(job.startedAt))} (UK)</small>`;
-      if (job.finishedAt) timelineHtml += `<small style="color:#d45555; font-weight:600;">🔴 Término: ${timeFmt.format(new Date(job.finishedAt))} (UK)</small>`;
-    }
-    
-    return `
-      <div class="stack-item" ${job.is_urgent ? 'style="border: 2px solid #d45555; background: #fffcfc;"' : ''}>
-        <strong>Flat: ${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
-        <span class="status-badge ${escapeHtml(job.status)}">${statusLabels[job.status] || job.status}</span>
-        ${job.is_urgent ? '<span style="display:inline-block; margin-bottom:8px; background:#d45555; color:#fff; padding:4px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">🚨 OBSERVAÇÃO URGENTE</span>' : ''}
-        <small>Data solicitada: ${escapeHtml(job.requestedDate)}</small>
-        <small>Funcionario: ${escapeHtml(job.employeeName || 'Nenhum')}</small>
-        ${job.flatFullAddress ? `<small>Endereço: ${escapeHtml(job.flatFullAddress)}</small>` : ''}
-        ${job.flatAccessCode ? `<small>Código de Acesso: ${escapeHtml(job.flatAccessCode)}</small>` : ''}
-        ${job.durationHours ? `<small>Duracao: ${formatHours(job.durationHours)}</small>` : ''}
-        ${job.employeeAmount != null ? `<small style="color:#2e9b6c; font-weight:500;">A Pagar (Funcionario): ${formatCurrencyGBP(job.employeeAmount)}</small>` : ''}
-        ${job.clientAmount != null ? `<small style="color:#16756b; font-weight:500;">A Cobrar (Cliente): ${formatCurrencyGBP(job.clientAmount)}</small>` : ''}
-        ${job.notes ? `<small>Notas: ${escapeHtml(job.notes)}</small>` : ''}
-        ${job.employeeNotes ? `<small style="color:${job.is_urgent ? '#d45555' : 'var(--primary)'}; font-weight:${job.is_urgent ? 'bold' : '500'};">Obs. Funcionário: ${escapeHtml(job.employeeNotes)}</small>` : ''}
-        ${timelineHtml ? `<div>${timelineHtml}</div>` : ''}
-        <div class="table-actions" style="margin-top:8px;">${actions}</div>
-      </div>
-    `;
-  }).join('') || `
-    <div class="empty-state glass-card" style="border-radius:24px; text-align:center; padding:40px 20px; margin-top:16px;">
-      <div class="empty-illustration" style="font-size:3rem; margin-bottom:1rem; opacity:0.8;">✨</div>
-      <h3 style="margin-bottom:0.5rem;">Nenhum serviço encontrado</h3>
-      <p style="color:var(--muted); font-size:0.9rem;">Não há serviços correspondentes aos filtros selecionados.</p>
-    </div>
+  let html = `
+    <div class="table-wrap">
+      <table class="data-table responsive-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Propriedade</th>
+            <th>Data/Hora</th>
+            <th>Profissional / Cliente</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
   `;
+  
+  if (filtered.length === 0) {
+    html += `<tr><td colspan="5">
+      <div class="empty-state glass-card" style="border-radius:24px; text-align:center; padding:40px 20px; margin-top:16px;">
+        <i data-lucide="inbox" style="width:48px;height:48px;color:var(--muted);margin-bottom:16px;"></i>
+        <h3 style="margin-bottom:0.5rem;">Nenhum serviço encontrado</h3>
+        <p style="color:var(--muted); font-size:0.9rem;">Não há serviços correspondentes aos filtros selecionados.</p>
+      </div>
+    </td></tr>`;
+  } else {
+    html += filtered.map(job => {
+      let actions = '';
+      if (state.user.role === 'client' || state.user.role === 'client_user') {
+        if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
+          actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
+        }
+      } else {
+        actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
+      }
+      
+      if (state.user.role !== 'client' && state.user.role !== 'client_user') {
+        if (job.status === 'pending' || job.status === 'assigned') {
+          actions += `<button class="ghost-button" style="color:var(--primary);" onclick="openAssignEmployeeModal(${job.id})" title="Designar"><i data-lucide="user-plus"></i></button>`;
+        }
+        if (job.status !== 'completed' && job.status !== 'cancelled') {
+          actions += `<button class="ghost-button" style="color:var(--success);" onclick="markJobAs(${job.id}, 'completed')" title="Marcar Concluído"><i data-lucide="check-circle"></i></button>`;
+        }
+      }
+      if (job.status === 'in_progress' || job.status === 'completed') {
+        actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
+      }
+      actions += `<button class="ghost-button" style="color: var(--danger);" onclick="deleteJob(${job.id})" title="Excluir"><i data-lucide="trash-2"></i></button>`;
+      
+      let badgeClass = 'badge-neutral';
+      if(job.status === 'completed') badgeClass = 'badge-success';
+      if(job.status === 'pending') badgeClass = 'badge-warning';
+      if(job.status === 'in_progress') badgeClass = 'badge-primary';
+      if(job.status === 'cancelled') badgeClass = 'badge-danger';
+      
+      let timelineHtml = '';
+      if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
+        if (job.startedAt) timelineHtml += `<div style="color:var(--success); font-weight:600; font-size:0.8rem; margin-top:4px;">Início: ${timeFmt.format(new Date(job.startedAt))}</div>`;
+        if (job.finishedAt) timelineHtml += `<div style="color:var(--danger); font-weight:600; font-size:0.8rem; margin-top:4px;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</div>`;
+      }
+      
+      const urgentFlag = job.is_urgent ? `<div style="margin-top:8px; display:inline-block; background:var(--danger); color:#fff; padding:4px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> URGENTE</div>` : '';
+
+      return `
+        <tr ${job.is_urgent ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
+          <td data-label="Status">
+            <span class="badge ${badgeClass}">${statusLabels[job.status] || job.status}</span>
+            ${urgentFlag}
+          </td>
+          <td data-label="Propriedade">
+            <strong>${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
+            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:0.85rem; font-weight:600; margin-top:4px;"><i data-lucide="key" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> ${escapeHtml(job.flatAccessCode)}</div>` : ''}
+          </td>
+          <td data-label="Data/Hora">
+            <div><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> ${escapeHtml(job.requestedDate)}</div>
+            ${job.durationHours ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
+            ${timelineHtml}
+          </td>
+          <td data-label="Profissional / Cliente">
+            <div style="font-weight:500;">
+              <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
+              ${escapeHtml(job.employeeName || 'Sem Profissional')}
+            </div>
+            ${job.clientName ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            <div style="margin-top:8px;">
+              ${job.employeeAmount != null ? `<span style="color:var(--success); font-weight:600; font-size:0.85rem; margin-right:8px;">+${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
+              ${job.clientAmount != null ? `<span style="color:var(--primary); font-weight:600; font-size:0.85rem;">C: ${formatCurrencyGBP(job.clientAmount)}</span>` : ''}
+            </div>
+          </td>
+          <td data-label="Ações">
+            <div class="table-actions" style="justify-content:flex-start;">${actions}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+  html += `</tbody></table></div>`;
+  jobsList.innerHTML = html;
+  if (window.lucide) window.lucide.createIcons({ root: jobsList });
 }
 
 window.filterJobsToday = function() {
@@ -3348,11 +3439,22 @@ function renderFinanceSummary() {
   const { invoices = [], payrolls = [], revenue = 0, staffCost = 0, profit = 0 } = state.finance;
   
   if (els.financeStats) {
-    els.financeStats.innerHTML = [
-      ['Receitas clientes', formatCurrencyGBP(revenue)],
-      ['Gastos operacionais', formatCurrencyGBP(staffCost)],
-      ['Lucro operacional', formatCurrencyGBP(profit)]
-    ].map(([label, value]) => `<article class="holerite-stat glass-card"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
+    els.financeStats.className = 'stats-row';
+    els.financeStats.style.marginBottom = '24px';
+    els.financeStats.innerHTML = `
+      <article class="stat-card glass-card">
+        <strong>${escapeHtml(formatCurrencyGBP(revenue))}</strong>
+        <span style="color:var(--muted);">Receitas clientes</span>
+      </article>
+      <article class="stat-card glass-card">
+        <strong style="color:var(--danger);">${escapeHtml(formatCurrencyGBP(staffCost))}</strong>
+        <span style="color:var(--muted);">Gastos operacionais</span>
+      </article>
+      <article class="stat-card glass-card">
+        <strong style="color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'};">${escapeHtml(formatCurrencyGBP(profit))}</strong>
+        <span style="color:var(--muted);">Lucro operacional</span>
+      </article>
+    `;
   }
   
   if (els.invoiceSummaryList) {
@@ -4156,7 +4258,7 @@ function renderDashboard() {
       ['Faturamento Bruto', formatCurrencyGBP(totalRevenue)],
       ['Gastos com Equipe', formatCurrencyGBP(totalCost)],
       ['Lucro Bruto', formatCurrencyGBP(totalProfit)]
-    ].map(([label, value]) => `<article class="holerite-stat glass-card"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
+    ].map(([label, value]) => `<article class="stat-card glass-card"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
   }
 
   const clientListEl = document.getElementById('dashboardClientBreakdown');
@@ -4164,15 +4266,20 @@ function renderDashboard() {
     const clientsArr = Object.values(clientData).sort((a,b) => b.revenue - a.revenue);
     clientListEl.innerHTML = clientsArr.map(c => `
       <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <strong>${escapeHtml(c.name)}</strong>
-          <small>Receita: ${formatCurrencyGBP(c.revenue)} | Custo: ${formatCurrencyGBP(c.cost)}</small>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--primary);"><i data-lucide="user"></i></div>
+          <div>
+            <strong style="display:block;">${escapeHtml(c.name)}</strong>
+            <small style="color:var(--muted);">Receita: ${formatCurrencyGBP(c.revenue)} • Custo: ${formatCurrencyGBP(c.cost)}</small>
+          </div>
         </div>
-        <div style="text-align:right; color: ${c.revenue - c.cost >= 0 ? 'var(--primary)' : 'var(--danger)'}; font-weight:600;">
-          Lucro: ${formatCurrencyGBP(c.revenue - c.cost)}
+        <div style="text-align:right; color: ${c.revenue - c.cost >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">
+          ${formatCurrencyGBP(c.revenue - c.cost)}
         </div>
       </div>
-    `).join('') || '<div class="stack-item">Sem dados de clientes no periodo.</div>';
+    `).join('');
+    if (window.lucide) window.lucide.createIcons({ root: clientListEl });
+    if (!clientListEl.innerHTML) clientListEl.innerHTML = '<div class="stack-item" style="text-align:center;">Sem dados de clientes no periodo.</div>';
   }
 
   const cleanerListEl = document.getElementById('dashboardCleanerBreakdown');
@@ -4180,10 +4287,15 @@ function renderDashboard() {
     const cleanersArr = Object.values(cleanerData).sort((a,b) => b.cost - a.cost);
     cleanerListEl.innerHTML = cleanersArr.map(c => `
       <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
-        <strong>${escapeHtml(c.name)}</strong>
-        <div style="font-weight:600;">Gasto: ${formatCurrencyGBP(c.cost)}</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--primary);"><i data-lucide="briefcase"></i></div>
+          <strong style="display:block;">${escapeHtml(c.name)}</strong>
+        </div>
+        <div style="font-weight:600;">${formatCurrencyGBP(c.cost)}</div>
       </div>
-    `).join('') || '<div class="stack-item">Sem dados de cleaners no periodo.</div>';
+    `).join('');
+    if (window.lucide) window.lucide.createIcons({ root: cleanerListEl });
+    if (!cleanerListEl.innerHTML) cleanerListEl.innerHTML = '<div class="stack-item" style="text-align:center;">Sem dados de cleaners no periodo.</div>';
   }
 
   const trendListEl = document.getElementById('dashboardTrendBreakdown');
@@ -4227,8 +4339,8 @@ function renderDashboard() {
             label: 'Lucro',
             data: profitData,
             type: 'line',
-            borderColor: '#16756b',
-            backgroundColor: '#16756b',
+            borderColor: '#059669', // Emerald
+            backgroundColor: '#059669',
             borderWidth: 3,
             tension: 0.3,
             yAxisID: 'y'
@@ -4236,8 +4348,8 @@ function renderDashboard() {
           {
             label: 'Faturamento',
             data: revenueData,
-            backgroundColor: 'rgba(201, 116, 63, 0.5)',
-            borderColor: 'rgba(201, 116, 63, 0.9)',
+            backgroundColor: 'rgba(234, 88, 12, 0.7)', // Orange
+            borderColor: '#ea580c',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y'
@@ -4245,8 +4357,8 @@ function renderDashboard() {
           {
             label: 'Despesas',
             data: costData,
-            backgroundColor: 'rgba(212, 85, 85, 0.5)',
-            borderColor: 'rgba(212, 85, 85, 0.9)',
+            backgroundColor: 'rgba(220, 38, 38, 0.7)', // Red
+            borderColor: '#dc2626',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y'
