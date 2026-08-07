@@ -4695,7 +4695,9 @@ function levenshtein(a, b) {
 }
 
 function processSmartVoiceCommand(text) {
-  const lowerText = text.toLowerCase();
+  const originalText = text;
+  // Remove acentos e joga pra minúsculo
+  const lowerText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const spokenWords = lowerText.replace(/[^a-z0-9\s]/g, '').split(' ').filter(p => p.length > 2);
   const today = new Date();
   let requestedDate = '';
@@ -4703,11 +4705,11 @@ function processSmartVoiceCommand(text) {
   // 1. Date Parsing
   if (lowerText.includes('hoje')) {
     requestedDate = today.toISOString().split('T')[0];
-  } else if (lowerText.includes('depois de amanhã') || lowerText.includes('depois de amanha')) {
+  } else if (lowerText.includes('depois de amanha')) {
     const dt = new Date(today);
     dt.setDate(dt.getDate() + 2);
     requestedDate = dt.toISOString().split('T')[0];
-  } else if (lowerText.includes('amanhã') || lowerText.includes('amanha')) {
+  } else if (lowerText.includes('amanha')) {
     const dt = new Date(today);
     dt.setDate(dt.getDate() + 1);
     requestedDate = dt.toISOString().split('T')[0];
@@ -4721,9 +4723,8 @@ function processSmartVoiceCommand(text) {
       
       const matchMes = lowerText.match(/dia \d{1,2} d[eo] (\w+)/);
       if (matchMes) {
-        const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro', 'marco'];
+        const meses = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
         let idx = meses.indexOf(matchMes[1]);
-        if (idx === 12) idx = 2; // marco -> março
         if (idx !== -1) m = idx;
       } else {
         // Se não falou o mês, mas o dia é menor que o atual, assume mês que vem
@@ -4734,31 +4735,28 @@ function processSmartVoiceCommand(text) {
       }
       
       const dObj = new Date(y, m, d);
-      // Se a data já passou (por ex, falou "dia 10 de janeiro" e estamos em fev), joga pro ano que vem
+      // Se a data já passou, joga pro ano que vem
       if (dObj < today && matchMes) {
         dObj.setFullYear(y + 1);
       }
       requestedDate = dObj.toISOString().split('T')[0];
     } else {
-      // Check for days of the week (próxima segunda, etc)
-      const weekDays = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'terca', 'sabado'];
+      // Check for days of the week (proxima segunda, etc)
+      const weekDays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
       let foundDay = -1;
       for (let i = 0; i < weekDays.length; i++) {
         if (lowerText.match(new RegExp('\\b' + weekDays[i] + '\\b'))) {
           foundDay = i;
-          if (foundDay === 7) foundDay = 2; // terca -> terça
-          if (foundDay === 8) foundDay = 6; // sabado -> sábado
           break;
         }
       }
       if (foundDay !== -1) {
         let dt = new Date(today);
-        dt.setDate(dt.getDate() + 1); // começa a procurar a partir de amanhã
+        dt.setDate(dt.getDate() + 1);
         while (dt.getDay() !== foundDay) {
           dt.setDate(dt.getDate() + 1);
         }
-        // Se tem "próxima" ou "proxima", adiciona mais 7 dias (ex: hoje é seg, e pede "proxima sexta", se já for a mesma semana, talvez jogue pra outra. Melhor manter simples: acha o proximo dia igual, se tiver 'proxima' joga mais 7 se a distancia for curta)
-        if (lowerText.includes('próxima') || lowerText.includes('proxima')) {
+        if (lowerText.includes('proxima')) {
            const diff = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
            if (diff < 7) dt.setDate(dt.getDate() + 7);
         }
@@ -4772,9 +4770,10 @@ function processSmartVoiceCommand(text) {
   let foundEmployeeName = '';
   const employees = state.users.filter(u => u.role === 'employee' && u.active);
   for (const emp of employees) {
-    const first = emp.name.split(' ')[0].toLowerCase();
+    const empNameNorm = emp.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const first = empNameNorm.split(' ')[0];
     
-    if (lowerText.match(new RegExp('\\b' + first + '\\b')) || lowerText.includes(emp.name.toLowerCase())) {
+    if (lowerText.match(new RegExp('\\b' + first + '\\b')) || lowerText.includes(empNameNorm)) {
       foundEmployeeId = emp.id;
       foundEmployeeName = emp.name;
       break;
@@ -4784,7 +4783,7 @@ function processSmartVoiceCommand(text) {
           const d = levenshtein(first, sw);
           if (d < bestDist) bestDist = d;
       }
-      // Fuzzy match tolerance: 1 for short names, 2 for long names
+      // Fuzzy match tolerance
       if (bestDist <= (first.length > 5 ? 2 : 1)) {
           foundEmployeeId = emp.id;
           foundEmployeeName = emp.name;
@@ -4801,7 +4800,7 @@ function processSmartVoiceCommand(text) {
     if (!flat.active) continue;
     
     let score = 0;
-    const addrLow = flat.address.toLowerCase();
+    const addrLow = flat.address.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     
     // Verifica número do flat exato
     const matchNum = addrLow.match(/\b(\d+)\b/);
@@ -4829,7 +4828,7 @@ function processSmartVoiceCommand(text) {
     // Verifica se falou o nome do cliente associado ao flat
     const client = state.users.find(u => u.id === flat.client_user_id);
     if (client) {
-        const clientFirst = client.name.toLowerCase().split(' ')[0];
+        const clientFirst = client.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(' ')[0];
         if (lowerText.match(new RegExp('\\b' + clientFirst + '\\b'))) {
             score += 3; // Exato match
         } else {
@@ -4854,7 +4853,7 @@ function processSmartVoiceCommand(text) {
   let foundClientId = '';
   let foundFlatName = '';
   
-  // Exige um score mínimo de 2 para não dar falso positivo aleatório
+  // Exige um score mínimo de 2 para não dar falso positivo
   if (bestFlatMatch && bestFlatScore >= 2) {
       foundFlatId = bestFlatMatch.id;
       foundClientId = bestFlatMatch.client_user_id;
@@ -4895,7 +4894,7 @@ function processSmartVoiceCommand(text) {
     // Notes
     const notesEl = document.getElementById('adminReqJobNotes');
     if (notesEl) {
-        notesEl.value = `[Voz] ${text}`;
+        notesEl.value = `[Voz] ${originalText}`;
     }
     
     // Feedback
@@ -4903,7 +4902,7 @@ function processSmartVoiceCommand(text) {
     if (foundFlatName) msg += `📍 Flat: ${foundFlatName}\n`;
     if (requestedDate) msg += `📅 Data: ${requestedDate}\n`;
     if (foundEmployeeName) msg += `🧹 Func: ${foundEmployeeName}\n`;
-    msg += 'Verifique e crie a solicitação!';
+    msg += `(Ouvido: "${originalText}")`;
     toast(msg, 'success');
   }, 350);
 }
