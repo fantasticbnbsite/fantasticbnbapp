@@ -892,13 +892,57 @@ textarea {
     border-bottom: 1px solid var(--line);
     padding: 16px; 
     margin: 0 !important;
-    box-shadow: none !important;
-    background: var(--surface);
-  }
+  /* Premium Mobile Topbar */
+  .topbar { flex-direction: column; align-items: stretch; gap: 16px; border-bottom: 1px solid var(--line); padding: 20px 16px !important; }
+  .topbar-actions { flex-direction: row; flex-wrap: nowrap; justify-content: space-between; gap: 8px; align-items: center; }
   
-  /* Remove container paddings */
-  .inline-form { padding: 16px; border-bottom: 1px solid var(--line); }
+  /* Hide text in topbar buttons to save space on mobile */
+  #btnSmartVoice span, #btnSmartVoice text { display: none; }
+  #btnSmartVoice { font-size: 0; width: 46px; flex: 0 0 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #btnSmartVoice i { font-size: 20px; }
+  
+  #userPill span { display: none; }
+  #userPill { width: 46px; flex: 0 0 46px; padding: 0; justify-content: center; }
+  
+  .topbar-actions .icon-button { flex: 0 0 46px; width: 46px; height: 46px; }
+  .mobile-only { display: flex !important; }
 
+  /* Off-canvas Mobile Menu (Sidebar) */
+  .sidebar { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    bottom: 0; 
+    width: 280px; 
+    max-width: 85vw;
+    z-index: 2000; 
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--line) !important;
+    padding: 24px 16px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.1) !important;
+  }
+  .sidebar.active { transform: translateX(0); }
+  
+  .side-nav { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+  .nav-link { 
+    padding: 14px 16px; 
+    font-size: 16px; 
+    border-radius: 12px !important; 
+    width: 100%; 
+    background: transparent;
+  }
+  .brand-block { display: flex !important; margin-bottom: 8px; }
+  .sidebar-foot { display: block !important; margin-top: auto; }
+
+  /* Remove side-nav grid/scroll resets from 920px */
+  .side-nav::-webkit-scrollbar { display: none; }
+  
   .brand-mark { width: 32px; height: 32px; border-radius: 8px; }
   
   .panel-header { align-items: flex-start; flex-direction: column; gap: 8px; }

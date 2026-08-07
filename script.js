@@ -3515,6 +3515,10 @@ document.getElementById('generateInvoicesButton')?.addEventListener('click', asy
 
 // Override switchView
 function switchView(view) {
+  // Close mobile sidebar if open
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) sidebar.classList.remove('active');
+
   Object.entries(els.views).forEach(([key, node]) => {
     if (node) node.classList.toggle('hidden', key !== view);
   });
