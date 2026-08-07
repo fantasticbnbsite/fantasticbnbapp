@@ -388,24 +388,58 @@
           </div>
         </div>
 
-        <div class="holerites-grid">
-          <article class="panel glass-card">
-            <div class="panel-header">
-              <h3>Invoices Gerados</h3>
-              <span class="panel-kicker">Faturas oficias para os clientes</span>
-            </div>
-            <div class="stack-list" id="invoiceSummaryList"></div>
-          </article>
 
-          <article class="panel glass-card">
-            <div class="panel-header">
-              <h3>Holerites Gerados</h3>
-              <span class="panel-kicker">Custos e pagamentos oficiais</span>
+        <article class="panel glass-card" id="financeDocsPanel">
+          <!-- Abas -->
+          <div class="fin-tabs-header">
+            <div class="fin-tabs">
+              <button type="button" class="fin-tab active" id="finTabInvoices" onclick="switchFinTab('invoices')">
+                📄 Faturas <span class="fin-tab-badge" id="finBadgeInvoices">0</span>
+              </button>
+              <button type="button" class="fin-tab" id="finTabPayrolls" onclick="switchFinTab('payrolls')">
+                🧹 Holerites <span class="fin-tab-badge" id="finBadgePayrolls">0</span>
+              </button>
             </div>
-            <div class="stack-list" id="financePayrollList"></div>
-          </article>
-        </div>
+            <span class="panel-kicker" id="finDocsSubtitle">Documentos financeiros gerados</span>
+          </div>
+
+          <!-- Filtros -->
+          <div class="fin-filters">
+            <input type="search" id="finSearch" placeholder="🔍 Buscar por nome..." oninput="applyFinFilters()" style="flex:1; min-width:160px;" />
+            <select id="finMonthFilter" onchange="applyFinFilters()" style="min-width:140px;">
+              <option value="">Todos os meses</option>
+            </select>
+            <button type="button" class="button button-secondary" onclick="clearFinFilters()" style="white-space:nowrap;">✕ Limpar</button>
+          </div>
+
+          <!-- Tabela -->
+          <div class="fin-table-wrap">
+            <table class="fin-table" id="finTable">
+              <thead>
+                <tr>
+                  <th class="fin-th sortable" data-col="num" onclick="sortFinTable('num')"># <span class="sort-icon">↕</span></th>
+                  <th class="fin-th sortable" data-col="name" onclick="sortFinTable('name')">Nome <span class="sort-icon">↕</span></th>
+                  <th class="fin-th sortable" data-col="period" onclick="sortFinTable('period')">Período <span class="sort-icon">↕</span></th>
+                  <th class="fin-th sortable" data-col="jobs" onclick="sortFinTable('jobs')">Serviços <span class="sort-icon">↕</span></th>
+                  <th class="fin-th sortable" data-col="amount" onclick="sortFinTable('amount')">Valor <span class="sort-icon">↕</span></th>
+                  <th class="fin-th">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="finTableBody">
+                <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:32px;">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginação -->
+          <div class="fin-pagination" id="finPagination">
+            <button type="button" class="button button-secondary fin-page-btn" id="finPagePrev" onclick="finChangePage(-1)">‹ Anterior</button>
+            <span id="finPageInfo" style="font-size:0.9rem; color:var(--muted);">Página 1</span>
+            <button type="button" class="button button-secondary fin-page-btn" id="finPageNext" onclick="finChangePage(1)">Próxima ›</button>
+          </div>
+        </article>
       </section>
+
 
       <section class="view hidden" id="holeritesView">
         <div class="holerites-hero glass-card">

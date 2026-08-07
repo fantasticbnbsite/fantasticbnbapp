@@ -2749,26 +2749,30 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+// ── FINANCE DOCUMENTS TABLE (Abas + Filtros + Tabela + Paginação) ────────────
+const finState = {
+  tab: 'invoices',       // 'invoices' | 'payrolls'
+  invoices: [],
+  payrolls: [],
+  filtered: [],
+  sortCol: 'num',
+  sortDir: 'desc',
+  page: 1,
+  perPage: 10,
+};
+
 window.renderFinanceSummary = async function() {
-  const invList = document.getElementById('invoiceSummaryList');
-  const payList = document.getElementById('financePayrollList');
-  if (!invList || !payList) return;
-  
-  // Populate selectors
+  // Populate generation selectors (unchanged logic)
   try {
     const data = await api('/api/users');
     const users = data.users || [];
     const clients = users.filter(u => u.role === 'client');
     const emps = users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
     const selClient = document.getElementById('genInvoiceClient');
-    if (selClient) {
-      selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-    }
+    if (selClient) selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     const selEmp = document.getElementById('genPayrollEmployee');
     const selPayClientList = document.getElementById('genPayrollClientList');
-    if (selEmp) {
-      selEmp.innerHTML = '<option value="all">Todos os Funcionários</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
-    }
+    if (selEmp) selEmp.innerHTML = '<option value="all">Todos os Funcionários</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
     if (selPayClientList) {
       selPayClientList.innerHTML = clients.map(c => `
         <label style="display:flex; align-items:center; gap:12px; font-size:1rem; cursor:pointer;">
@@ -2777,69 +2781,182 @@ window.renderFinanceSummary = async function() {
         </label>
       `).join('');
     }
-  } catch (err) {
-    console.error('Erro populando seletores:', err);
-  }
+  } catch (err) { console.error('Erro populando seletores:', err); }
 
+  // Load documents
   try {
     const data = await api('/api/finance/summary');
-    const { invoices = [], payrolls = [] } = data;
-    
-    // Invoices
-    if (invoices.length === 0) {
-      invList.innerHTML = '<div class="empty-state">Nenhuma fatura gerada.</div>';
-    } else {
-      invList.innerHTML = invoices.map(i => {
-        return `
-          <div class="card stack-card" style="flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; width: 100%;">
-              <div>
-                <strong>Fatura #${i.invoice_number || i.id}</strong> - ${escapeHtml(i.client_name)}
-                <div class="subtitle">Período: ${i.period_from} a ${i.period_to}</div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-weight: 500;">£${Number(i.total_amount).toFixed(2)}</div>
-                <span class="badge status-completed">${i.jobs ? i.jobs.length : 0} servicos</span>
-              </div>
-            </div>
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-              <button class="button button-secondary" onclick="openEditInvoiceModal(${i.id})">✏️ Editar Lancamentos</button>
-              <button class="button button-danger" onclick="deleteInvoice(${i.id})" style="background:var(--danger);color:white;border:none;">🗑️ Excluir</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-    
-    // Payrolls
-    if (payrolls.length === 0) {
-      payList.innerHTML = '<div class="empty-state">Nenhum holerite gerado.</div>';
-    } else {
-      payList.innerHTML = payrolls.map(p => {
-        return `
-          <div class="card stack-card" style="flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; width: 100%;">
-              <div>
-                <strong>Holerite #${p.id}</strong> - ${escapeHtml(p.employee_name)}
-                <div class="subtitle">Período: ${p.period_from} a ${p.period_to}</div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-weight: 500;">£${Number(p.total_amount).toFixed(2)}</div>
-                <span class="badge status-completed">${p.jobs ? p.jobs.length : 0} servicos</span>
-              </div>
-            </div>
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-              <button class="button button-secondary" onclick="openEditPayrollModal(${p.id})">✏️ Editar Lancamentos</button>
-              <button class="button button-danger" onclick="deletePayroll(${p.id})" style="background:var(--danger);color:white;border:none;">🗑️ Excluir</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
+    finState.invoices = data.invoices || [];
+    finState.payrolls = data.payrolls || [];
+
+    // Update badges
+    const bi = document.getElementById('finBadgeInvoices');
+    const bp = document.getElementById('finBadgePayrolls');
+    if (bi) bi.textContent = finState.invoices.length;
+    if (bp) bp.textContent = finState.payrolls.length;
+
+    // Populate month filter
+    _finBuildMonthFilter();
+
+    // Render current tab
+    applyFinFilters();
   } catch (err) {
+    const tbody = document.getElementById('finTableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:32px;">Erro ao carregar documentos.</td></tr>`;
     console.error(err);
   }
 };
+
+function _finBuildMonthFilter() {
+  const sel = document.getElementById('finMonthFilter');
+  if (!sel) return;
+  const docs = finState.tab === 'invoices' ? finState.invoices : finState.payrolls;
+  const months = new Set();
+  docs.forEach(d => {
+    const from = d.period_from || '';
+    if (from) {
+      const parts = from.split('-');
+      if (parts.length >= 2) months.add(`${parts[0]}-${parts[1]}`);
+    }
+  });
+  const sorted = [...months].sort().reverse();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos os meses</option>' + sorted.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return `<option value="${m}"${current === m ? ' selected' : ''}>${label.charAt(0).toUpperCase() + label.slice(1)}</option>`;
+  }).join('');
+}
+
+window.switchFinTab = function(tab) {
+  finState.tab = tab;
+  finState.page = 1;
+  document.getElementById('finTabInvoices').classList.toggle('active', tab === 'invoices');
+  document.getElementById('finTabPayrolls').classList.toggle('active', tab === 'payrolls');
+  document.getElementById('finDocsSubtitle').textContent = tab === 'invoices' ? 'Faturas oficiais para os clientes' : 'Custos e pagamentos para a equipe';
+  // Rebuild month filter for new tab
+  document.getElementById('finMonthFilter').value = '';
+  _finBuildMonthFilter();
+  applyFinFilters();
+};
+
+window.applyFinFilters = function() {
+  const search = (document.getElementById('finSearch')?.value || '').toLowerCase().trim();
+  const monthVal = document.getElementById('finMonthFilter')?.value || '';
+  const docs = finState.tab === 'invoices' ? finState.invoices : finState.payrolls;
+
+  finState.filtered = docs.filter(d => {
+    const name = finState.tab === 'invoices' ? (d.client_name || '') : (d.employee_name || '');
+    const matchSearch = !search || name.toLowerCase().includes(search);
+    const from = d.period_from || '';
+    const matchMonth = !monthVal || from.startsWith(monthVal);
+    return matchSearch && matchMonth;
+  });
+
+  finState.page = 1;
+  _finSort();
+  _finRender();
+};
+
+window.clearFinFilters = function() {
+  const s = document.getElementById('finSearch');
+  const m = document.getElementById('finMonthFilter');
+  if (s) s.value = '';
+  if (m) m.value = '';
+  applyFinFilters();
+};
+
+window.sortFinTable = function(col) {
+  if (finState.sortCol === col) {
+    finState.sortDir = finState.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    finState.sortCol = col;
+    finState.sortDir = col === 'num' || col === 'amount' || col === 'jobs' ? 'desc' : 'asc';
+  }
+  // Update header icons
+  document.querySelectorAll('.fin-th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === col) th.classList.add(finState.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+  _finSort();
+  _finRender();
+};
+
+function _finSort() {
+  const col = finState.sortCol;
+  const dir = finState.sortDir === 'asc' ? 1 : -1;
+  finState.filtered.sort((a, b) => {
+    let av, bv;
+    if (col === 'num') { av = Number(a.invoice_number || a.id || 0); bv = Number(b.invoice_number || b.id || 0); }
+    else if (col === 'name') { av = (a.client_name || a.employee_name || '').toLowerCase(); bv = (b.client_name || b.employee_name || '').toLowerCase(); }
+    else if (col === 'period') { av = a.period_from || ''; bv = b.period_from || ''; }
+    else if (col === 'jobs') { av = (a.jobs || []).length; bv = (b.jobs || []).length; }
+    else if (col === 'amount') { av = Number(a.total_amount || 0); bv = Number(b.total_amount || 0); }
+    else { av = 0; bv = 0; }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+}
+
+window.finChangePage = function(delta) {
+  const totalPages = Math.ceil(finState.filtered.length / finState.perPage) || 1;
+  finState.page = Math.max(1, Math.min(totalPages, finState.page + delta));
+  _finRender();
+};
+
+function _finRender() {
+  const tbody = document.getElementById('finTableBody');
+  const pageInfo = document.getElementById('finPageInfo');
+  const prevBtn = document.getElementById('finPagePrev');
+  const nextBtn = document.getElementById('finPageNext');
+  if (!tbody) return;
+
+  const total = finState.filtered.length;
+  const totalPages = Math.ceil(total / finState.perPage) || 1;
+  finState.page = Math.max(1, Math.min(totalPages, finState.page));
+
+  const start = (finState.page - 1) * finState.perPage;
+  const page = finState.filtered.slice(start, start + finState.perPage);
+
+  if (pageInfo) pageInfo.textContent = `Página ${finState.page} de ${totalPages} · ${total} documento${total !== 1 ? 's' : ''}`;
+  if (prevBtn) prevBtn.disabled = finState.page <= 1;
+  if (nextBtn) nextBtn.disabled = finState.page >= totalPages;
+
+  if (page.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:40px;">Nenhum documento encontrado.</td></tr>`;
+    return;
+  }
+
+  const isInv = finState.tab === 'invoices';
+  tbody.innerHTML = page.map(d => {
+    const num = isInv ? (d.invoice_number || d.id) : d.id;
+    const name = escapeHtml(isInv ? (d.client_name || '—') : (d.employee_name || '—'));
+    const from = d.period_from || '—';
+    const to = d.period_to || '—';
+    const period = from === to ? from : `${from} → ${to}`;
+    const jobs = (d.jobs || []).length;
+    const amount = `£${Number(d.total_amount || 0).toFixed(2)}`;
+    const editFn = isInv ? `openEditInvoiceModal(${d.id})` : `openEditPayrollModal(${d.id})`;
+    const delFn = isInv ? `deleteInvoice(${d.id})` : `deletePayroll(${d.id})`;
+
+    return `
+      <tr>
+        <td class="fin-td fin-td-num">#${num}</td>
+        <td class="fin-td fin-td-name">${name}</td>
+        <td class="fin-td fin-td-period">${period}</td>
+        <td class="fin-td fin-td-jobs"><span class="fin-jobs-badge">${jobs}</span></td>
+        <td class="fin-td fin-td-amount">${amount}</td>
+        <td class="fin-td">
+          <div class="fin-td-actions">
+            <button type="button" class="fin-action-btn" onclick="${editFn}" title="Editar Lançamentos">✏️</button>
+            <button type="button" class="fin-action-btn danger" onclick="${delFn}" title="Excluir">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
 
 window.deleteInvoice = async function(id) {
   if (!confirm('Tem certeza que deseja excluir esta Fatura? Os serviços vinculados a ela voltarão a ficar disponíveis para cobrança.')) return;
