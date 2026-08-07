@@ -4619,12 +4619,14 @@ function startSmartVoiceAssistant() {
   const statusEl = document.getElementById('voiceAssistantStatus');
   const transcriptEl = document.getElementById('voiceAssistantTranscript');
   const rippleEl = document.getElementById('voiceAssistantRipple');
-  
+
+  if (!modal) return toast('Modal de voz não encontrado. Recarregue a página.', 'error');
+
   modal.classList.remove('hidden');
-  statusEl.textContent = 'Ouvindo... Pode falar!';
-  transcriptEl.innerHTML = 'Diga algo como:<br>"Nova limpeza amanhã no flat 102 para a Maria"';
-  rippleEl.style.animation = 'pulseVoice 1.5s infinite';
-  
+  if (statusEl) statusEl.textContent = 'Ouvindo... Pode falar!';
+  if (transcriptEl) transcriptEl.innerHTML = 'Diga algo como:<br><em style="color:var(--primary)">"Nova limpeza amanhã no flat 102 para a Maria"</em>';
+  if (rippleEl) rippleEl.style.animation = 'pulseVoice 1.5s infinite';
+
   smartRecognition = new SpeechRecognition();
   smartRecognition.lang = 'pt-BR';
   smartRecognition.interimResults = true;
