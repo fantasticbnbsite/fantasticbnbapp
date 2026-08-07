@@ -4679,16 +4679,22 @@ window.stopVoiceAssistant = stopVoiceAssistant;
 
 function processSmartVoiceCommand(text) {
   const lowerText = text.toLowerCase();
-  
-  let requestedDate = '';
   const today = new Date();
+  let requestedDate = '';
+  
+  // 1. Date Parsing
   if (lowerText.includes('hoje')) {
     requestedDate = today.toISOString().split('T')[0];
+  } else if (lowerText.includes('depois de amanhã') || lowerText.includes('depois de amanha')) {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() + 2);
+    requestedDate = dt.toISOString().split('T')[0];
   } else if (lowerText.includes('amanhã') || lowerText.includes('amanha')) {
-    const tmr = new Date(today);
-    tmr.setDate(tmr.getDate() + 1);
-    requestedDate = tmr.toISOString().split('T')[0];
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() + 1);
+    requestedDate = dt.toISOString().split('T')[0];
   } else {
+    // Check for "dia X"
     const matchDia = lowerText.match(/dia (\d{1,2})/);
     if (matchDia) {
       let d = parseInt(matchDia[1]);
@@ -4699,70 +4705,155 @@ function processSmartVoiceCommand(text) {
       if (matchMes) {
         const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro', 'marco'];
         let idx = meses.indexOf(matchMes[1]);
-        if (idx === 12) idx = 2;
+        if (idx === 12) idx = 2; // marco -> março
         if (idx !== -1) m = idx;
+      } else {
+        // Se não falou o mês, mas o dia é menor que o atual, assume mês que vem
+        if (d < today.getDate()) {
+          m++;
+          if (m > 11) { m = 0; y++; }
+        }
       }
       
       const dObj = new Date(y, m, d);
-      if (dObj < today && m === today.getMonth()) dObj.setFullYear(y + 1);
+      // Se a data já passou (por ex, falou "dia 10 de janeiro" e estamos em fev), joga pro ano que vem
+      if (dObj < today && matchMes) {
+        dObj.setFullYear(y + 1);
+      }
       requestedDate = dObj.toISOString().split('T')[0];
+    } else {
+      // Check for days of the week (próxima segunda, etc)
+      const weekDays = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'terca', 'sabado'];
+      let foundDay = -1;
+      for (let i = 0; i < weekDays.length; i++) {
+        if (lowerText.match(new RegExp('\\b' + weekDays[i] + '\\b'))) {
+          foundDay = i;
+          if (foundDay === 7) foundDay = 2; // terca -> terça
+          if (foundDay === 8) foundDay = 6; // sabado -> sábado
+          break;
+        }
+      }
+      if (foundDay !== -1) {
+        let dt = new Date(today);
+        dt.setDate(dt.getDate() + 1); // começa a procurar a partir de amanhã
+        while (dt.getDay() !== foundDay) {
+          dt.setDate(dt.getDate() + 1);
+        }
+        // Se tem "próxima" ou "proxima", adiciona mais 7 dias (ex: hoje é seg, e pede "proxima sexta", se já for a mesma semana, talvez jogue pra outra. Melhor manter simples: acha o proximo dia igual, se tiver 'proxima' joga mais 7 se a distancia for curta)
+        if (lowerText.includes('próxima') || lowerText.includes('proxima')) {
+           const diff = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
+           if (diff < 7) dt.setDate(dt.getDate() + 7);
+        }
+        requestedDate = dt.toISOString().split('T')[0];
+      }
     }
   }
   
+  // 2. Employee Parsing
   let foundEmployeeId = '';
   let foundEmployeeName = '';
   const employees = state.users.filter(u => u.role === 'employee' && u.active);
   for (const emp of employees) {
     const first = emp.name.split(' ')[0].toLowerCase();
-    if (lowerText.includes(first) || lowerText.includes(emp.name.toLowerCase())) {
+    // Exige que o nome seja uma palavra inteira (não casa "mar" com "maria")
+    if (lowerText.match(new RegExp('\\b' + first + '\\b')) || lowerText.includes(emp.name.toLowerCase())) {
       foundEmployeeId = emp.id;
       foundEmployeeName = emp.name;
       break;
     }
   }
   
+  // 3. Flat & Client Parsing (Scoring System)
+  let bestFlatMatch = null;
+  let bestFlatScore = 0;
+  
+  for (const flat of state.flats) {
+    if (!flat.active) continue;
+    
+    let score = 0;
+    const addrLow = flat.address.toLowerCase();
+    
+    // Verifica número do flat exato
+    const matchNum = addrLow.match(/\b(\d+)\b/);
+    if (matchNum && lowerText.match(new RegExp('\\b' + matchNum[1] + '\\b'))) {
+      score += 5;
+    }
+    
+    // Verifica palavras longas do endereço (rua, prédio)
+    const words = addrLow.replace(/[^a-z0-9\s]/g, '').split(' ').filter(p => isNaN(parseInt(p)) && p.length > 3);
+    for (const w of words) {
+      if (lowerText.includes(w)) score += 2;
+    }
+    
+    // Verifica se falou o nome do cliente associado ao flat
+    const client = state.users.find(u => u.id === flat.client_user_id);
+    if (client) {
+        const clientFirst = client.name.toLowerCase().split(' ')[0];
+        if (lowerText.match(new RegExp('\\b' + clientFirst + '\\b'))) {
+            score += 3;
+        }
+    }
+    
+    if (score > bestFlatScore) {
+      bestFlatScore = score;
+      bestFlatMatch = flat;
+    }
+  }
+  
   let foundFlatId = '';
   let foundClientId = '';
   let foundFlatName = '';
-  for (const flat of state.flats) {
-    if (!flat.active) continue;
-    const parts = flat.address.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ');
-    let matches = false;
-    const num = parts.find(p => !isNaN(parseInt(p)) && p.length > 0);
-    if (num && lowerText.includes(num)) matches = true;
-    else if (parts.some(p => p.length > 3 && lowerText.includes(p))) matches = true;
-    
-    if (matches) {
-      foundFlatId = flat.id;
-      foundClientId = flat.client_user_id;
-      foundFlatName = flat.address;
-      break;
-    }
+  
+  // Exige um score mínimo de 2 para não dar falso positivo aleatório
+  if (bestFlatMatch && bestFlatScore >= 2) {
+      foundFlatId = bestFlatMatch.id;
+      foundClientId = bestFlatMatch.client_user_id;
+      foundFlatName = bestFlatMatch.address;
   }
   
   stopVoiceAssistant();
   openAdminRequestJobModal();
   
   setTimeout(() => {
+    // Client & Flat
     if (foundClientId) {
-      document.getElementById('adminReqJobClient').value = foundClientId;
-      updateAdminReqJobFlats();
-      setTimeout(() => {
-        if (foundFlatId) document.getElementById('adminReqJobFlat').value = foundFlatId;
-      }, 100);
+      const clientEl = document.getElementById('adminReqJobClient');
+      if (clientEl) {
+          clientEl.value = foundClientId;
+          updateAdminReqJobFlats();
+          setTimeout(() => {
+            const flatEl = document.getElementById('adminReqJobFlat');
+            if (foundFlatId && flatEl) {
+                flatEl.value = foundFlatId;
+            }
+          }, 150);
+      }
     }
     
-    if (requestedDate) document.getElementById('adminReqJobDate').value = requestedDate;
-    if (foundEmployeeId) document.getElementById('adminReqJobEmployee').value = foundEmployeeId;
+    // Date
+    if (requestedDate) {
+        const dateEl = document.getElementById('adminReqJobDate');
+        if (dateEl) dateEl.value = requestedDate;
+    }
     
+    // Employee
+    if (foundEmployeeId) {
+        const empEl = document.getElementById('adminReqJobEmployee');
+        if (empEl) empEl.value = foundEmployeeId;
+    }
+    
+    // Notes
     const notesEl = document.getElementById('adminReqJobNotes');
-    notesEl.value = `[Voz] ${text}`;
+    if (notesEl) {
+        notesEl.value = `[Voz] ${text}`;
+    }
     
+    // Feedback
     let msg = 'Comando interpretado!\n';
     if (foundFlatName) msg += `📍 Flat: ${foundFlatName}\n`;
     if (requestedDate) msg += `📅 Data: ${requestedDate}\n`;
     if (foundEmployeeName) msg += `🧹 Func: ${foundEmployeeName}\n`;
-    msg += 'Verifique e crie!';
+    msg += 'Verifique e crie a solicitação!';
     toast(msg, 'success');
   }, 350);
 }
