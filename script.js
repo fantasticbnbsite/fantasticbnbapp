@@ -4411,7 +4411,7 @@ function renderDashboard() {
   if (statsEl) {
     const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0';
     statsEl.innerHTML = `
-      <div class="dash-stat-card">
+      <div class="dash-stat-card card-bg-blue">
         <div class="dash-stat-header">
           <div class="dash-stat-icon"><i data-lucide="bar-chart-3"></i></div>
           <div>
@@ -4421,7 +4421,7 @@ function renderDashboard() {
         </div>
         <div class="trend-up"><i data-lucide="trending-up"></i> +12.4%</div>
       </div>
-      <div class="dash-stat-card">
+      <div class="dash-stat-card card-bg-orange">
         <div class="dash-stat-header">
           <div class="dash-stat-icon"><i data-lucide="users"></i></div>
           <div>
@@ -4431,7 +4431,7 @@ function renderDashboard() {
         </div>
         <div class="trend-up"><i data-lucide="trending-up"></i> +8.2%</div>
       </div>
-      <div class="dash-stat-card">
+      <div class="dash-stat-card ${totalProfit >= 0 ? 'card-bg-green' : 'card-bg-red'}">
         <div class="dash-stat-header">
           <div class="dash-stat-icon"><i data-lucide="wallet"></i></div>
           <div>
@@ -4441,7 +4441,7 @@ function renderDashboard() {
         </div>
         <div class="trend-up"><i data-lucide="trending-up"></i> +18.7%</div>
       </div>
-      <div class="dash-stat-card">
+      <div class="dash-stat-card ${totalProfit >= 0 ? 'card-bg-green' : 'card-bg-red'}">
         <div class="dash-stat-header">
           <div class="dash-stat-icon"><i data-lucide="pie-chart"></i></div>
           <div>

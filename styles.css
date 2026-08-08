@@ -1705,6 +1705,29 @@ textarea {
   gap: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.02);
 }
+.card-bg-blue { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+.card-bg-blue .dash-stat-title { color: rgba(255,255,255,0.8) !important; }
+.card-bg-blue .dash-stat-value { color: #fff !important; }
+.card-bg-blue .dash-stat-icon { background: rgba(255,255,255,0.2) !important; color: #fff !important; }
+.card-bg-blue .trend-up, .card-bg-blue .trend-down { color: #fff !important; }
+
+.card-bg-orange { background: #ea580c !important; color: #fff !important; border-color: #ea580c !important; }
+.card-bg-orange .dash-stat-title { color: rgba(255,255,255,0.8) !important; }
+.card-bg-orange .dash-stat-value { color: #fff !important; }
+.card-bg-orange .dash-stat-icon { background: rgba(255,255,255,0.2) !important; color: #fff !important; }
+.card-bg-orange .trend-up, .card-bg-orange .trend-down { color: #fff !important; }
+
+.card-bg-green { background: var(--success) !important; color: #fff !important; border-color: var(--success) !important; }
+.card-bg-green .dash-stat-title { color: rgba(255,255,255,0.8) !important; }
+.card-bg-green .dash-stat-value { color: #fff !important; }
+.card-bg-green .dash-stat-icon { background: rgba(255,255,255,0.2) !important; color: #fff !important; }
+.card-bg-green .trend-up, .card-bg-green .trend-down { color: #fff !important; }
+
+.card-bg-red { background: var(--danger) !important; color: #fff !important; border-color: var(--danger) !important; }
+.card-bg-red .dash-stat-title { color: rgba(255,255,255,0.8) !important; }
+.card-bg-red .dash-stat-value { color: #fff !important; }
+.card-bg-red .dash-stat-icon { background: rgba(255,255,255,0.2) !important; color: #fff !important; }
+.card-bg-red .trend-up, .card-bg-red .trend-down { color: #fff !important; }
 .dash-stat-header {
   display: flex;
   align-items: flex-start;
