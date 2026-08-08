@@ -683,82 +683,164 @@
 
       <!-- ── Flats View ─────────────────────────────────────────────── -->
       <section class="view hidden" id="flatsView">
-        <article class="panel glass-card">
-          <div class="panel-header">
+        
+        <!-- MOBILE CUSTOM HEADER -->
+        <div class="flats-mobile-header mobile-only">
+          <i data-lucide="building" style="position: absolute; right: -20px; top: -10px; width: 140px; height: 140px; opacity: 0.15; transform: rotate(-10deg);"></i>
+          <div style="position: relative; z-index: 1;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+              <i data-lucide="chevron-left" style="width:24px; height:24px; cursor:pointer;" onclick="switchView('dashboard')"></i>
+              <h1 style="font-size:24px; font-weight:800; margin:0;">Gestão de Flats</h1>
+            </div>
+            <p style="font-size:14px; opacity:0.9; margin:0 0 20px 0; line-height:1.4;">Cadastre e gerencie os apartamentos por cliente, definindo o modelo de cobrança.</p>
+            <button class="button admin-only" id="newFlatButtonMobile" onclick="document.getElementById('newFlatButton').click()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 12px; padding: 8px 16px; font-weight: 600; font-size: 14px; display:flex; align-items:center; gap:8px;">
+              <i data-lucide="plus" style="width:16px;height:16px;"></i> Novo flat
+            </button>
+          </div>
+        </div>
+
+        <!-- MAIN CONTAINER -->
+        <div class="flats-main-container">
+          
+          <!-- Desktop Header -->
+          <div class="panel-header desktop-only">
             <div>
-              <h3>Gestao de Flats</h3>
-              <p class="panel-kicker">Cadastre e gerencie os apartamentos por cliente, definindo o modelo de cobranca.</p>
+              <h3>Gestão de Flats</h3>
+              <p class="panel-kicker">Cadastre e gerencie os apartamentos por cliente, definindo o modelo de cobrança.</p>
             </div>
             <button class="button button-primary admin-only" id="newFlatButton">+ Novo flat</button>
           </div>
 
-          <!-- Flat form -->
-          <form class="stack-form hidden admin-only" id="flatForm" style="margin-bottom:24px;">
+          <!-- Flat Form -->
+          <form class="flats-form hidden admin-only" id="flatForm">
             <input type="hidden" id="flatEditId" />
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <div>
+            
+            <div class="flats-form-grid">
+              <!-- Nome/Apelido -->
+              <div class="flats-input-group full-width" style="grid-column: span 1;">
                 <label for="flatAddress">Nome/Apelido do flat</label>
-                <input type="text" id="flatAddress" placeholder="Ex: Flat 19, Simply Accommodation" required />
+                <div class="flats-input-wrapper">
+                  <i data-lucide="building-2"></i>
+                  <input type="text" id="flatAddress" placeholder="Ex: Flat 19, Simply..." required />
+                </div>
               </div>
-              <div>
-                <label for="flatClientUser">Cliente (usuario)</label>
-                <select id="flatClientUser"><option value="">Sem cliente</option></select>
+
+              <!-- Cliente -->
+              <div class="flats-input-group full-width" style="grid-column: span 1;">
+                <label for="flatClientUser">Cliente (usuário)</label>
+                <div class="flats-input-wrapper">
+                  <i data-lucide="user"></i>
+                  <select id="flatClientUser"><option value="">Sem cliente</option></select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
               </div>
-              <div style="grid-column: 1 / -1;">
+
+              <!-- Endereço -->
+              <div class="flats-input-group full-width">
                 <label for="flatFullAddress">Endereço Completo</label>
-                <input type="text" id="flatFullAddress" placeholder="Ex: 123 Main St, London, UK" />
+                <div class="flats-input-wrapper">
+                  <i data-lucide="map-pin"></i>
+                  <input type="text" id="flatFullAddress" placeholder="Ex: 123 Main St, London, UK" />
+                </div>
               </div>
-              <div style="grid-column: 1 / -1;">
+
+              <!-- Código de Acesso -->
+              <div class="flats-input-group full-width">
                 <label for="flatAccessCode">Código de Acesso</label>
-                <input type="text" id="flatAccessCode" placeholder="Ex: Gate 1234, Door 5678" />
+                <div class="flats-input-wrapper">
+                  <i data-lucide="key"></i>
+                  <input type="text" id="flatAccessCode" placeholder="Ex: Gate 1234, Door 5678" />
+                </div>
               </div>
-              <div>
-                <label for="flatBillingType">Tipo de cobranca</label>
-                <select id="flatBillingType">
-                  <option value="hourly">Por hora</option>
-                  <option value="project">Projeto fixo</option>
-                </select>
+
+              <!-- Tipo de cobrança -->
+              <div class="flats-input-group full-width" style="grid-column: span 1;">
+                <label for="flatBillingType">Tipo de cobrança</label>
+                <div class="flats-input-wrapper">
+                  <i data-lucide="clock"></i>
+                  <select id="flatBillingType">
+                    <option value="hourly">Por hora</option>
+                    <option value="project">Projeto fixo</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="select-arrow"></i>
+                </div>
               </div>
-              <div>
+
+              <!-- Cidade -->
+              <div class="flats-input-group full-width" style="grid-column: span 1;">
                 <label for="flatCity">Cidade (para agrupar faturas)</label>
-                <input type="text" id="flatCity" placeholder="Opcional. Ex: London" />
-              </div>
-              <div id="flatHourlyRateField" style="display:flex; flex-direction:column; gap:8px;">
-                <div>
-                  <label for="flatHourlyRate" style="font-size:0.85rem;">Valor Hora (Semana) (£)</label>
-                  <input type="number" id="flatHourlyRate" min="0" step="0.01" placeholder="17.00" style="width:100%;" />
-                </div>
-                <div>
-                  <label for="flatHourlyWeekendRate" style="font-size:0.85rem;">Valor Hora (Final de Semana) (£)</label>
-                  <input type="number" id="flatHourlyWeekendRate" min="0" step="0.01" placeholder="19.00" style="width:100%;" />
-                </div>
-                <div>
-                  <label for="flatHourlyHolidayRate" style="font-size:0.85rem;">Valor Hora (Feriado) (£)</label>
-                  <input type="number" id="flatHourlyHolidayRate" min="0" step="0.01" placeholder="20.00" style="width:100%;" />
-                </div>
-              </div>
-              <div id="flatProjectRateField" class="hidden" style="flex-direction:column; gap:8px;">
-                <div>
-                  <label for="flatProjectRate" style="font-size:0.85rem;">Valor do Projeto (Semana) (£)</label>
-                  <input type="number" id="flatProjectRate" min="0" step="0.01" placeholder="65.00" style="width:100%;" />
-                </div>
-                <div>
-                  <label for="flatProjectWeekendRate" style="font-size:0.85rem;">Valor do Projeto (Final de Semana) (£)</label>
-                  <input type="number" id="flatProjectWeekendRate" min="0" step="0.01" placeholder="85.00" style="width:100%;" />
-                </div>
-                <div>
-                  <label for="flatProjectHolidayRate" style="font-size:0.85rem;">Valor do Projeto (Feriado) (£)</label>
-                  <input type="number" id="flatProjectHolidayRate" min="0" step="0.01" placeholder="100.00" style="width:100%;" />
-                </div>
-                <div style="display:flex; align-items:center; gap:8px; margin-top: 4px;">
-                  <input type="checkbox" id="flatShowProjectHours" />
-                  <label for="flatShowProjectHours" style="font-size:0.85rem; margin:0;">Mostrar horas no Invoice?</label>
+                <div class="flats-input-wrapper">
+                  <i data-lucide="building"></i>
+                  <input type="text" id="flatCity" placeholder="Opcional. Ex..." />
                 </div>
               </div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button type="submit" class="button button-primary" id="flatSubmitButton">Salvar flat</button>
-              <button type="button" class="button button-secondary" id="flatCancelEdit">Cancelar</button>
+
+            <!-- Preços Hora -->
+            <div id="flatHourlyRateField" class="flats-pricing-section">
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor Hora<br/><span>(Semana) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatHourlyRate" min="0" step="0.01" placeholder="17.00" />
+                  <span>£</span>
+                </div>
+              </div>
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor Hora<br/><span>(Final de Semana) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatHourlyWeekendRate" min="0" step="0.01" placeholder="19.00" />
+                  <span>£</span>
+                </div>
+              </div>
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor Hora<br/><span>(Feriado) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatHourlyHolidayRate" min="0" step="0.01" placeholder="20.00" />
+                  <span>£</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preços Projeto -->
+            <div id="flatProjectRateField" class="flats-pricing-section hidden">
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor do Projeto<br/><span>(Semana) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatProjectRate" min="0" step="0.01" placeholder="65.00" />
+                  <span>£</span>
+                </div>
+              </div>
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor do Projeto<br/><span>(Final de Semana) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatProjectWeekendRate" min="0" step="0.01" placeholder="85.00" />
+                  <span>£</span>
+                </div>
+              </div>
+              <div class="flats-price-row">
+                <div class="flats-price-icon">£</div>
+                <div class="flats-price-label">Valor do Projeto<br/><span>(Feriado) (£)</span></div>
+                <div class="flats-price-input">
+                  <input type="number" id="flatProjectHolidayRate" min="0" step="0.01" placeholder="100.00" />
+                  <span>£</span>
+                </div>
+              </div>
+              <div class="flats-checkbox-row">
+                <input type="checkbox" id="flatShowProjectHours" />
+                <label for="flatShowProjectHours">Mostrar horas no Invoice?</label>
+              </div>
+            </div>
+
+            <div class="flats-form-actions">
+              <button type="submit" class="button button-primary" id="flatSubmitButton">
+                <i data-lucide="save"></i> Salvar flat
+              </button>
+              <button type="button" class="button button-secondary outline" id="flatCancelEdit">Cancelar</button>
             </div>
           </form>
 
@@ -770,7 +852,7 @@
             </div>
             <div class="stack-list" id="flatsList"></div>
           </div>
-        </article>
+        </div>
       </section>
 
       <!-- ── Config View ────────────────────────────────────────────── -->

@@ -3579,6 +3579,17 @@ function switchView(view) {
   const mobileTitle = document.getElementById('mobileTopbarTitle');
   if (mobileTitle) mobileTitle.textContent = viewTitles[view] || 'Fantastic BNB';
 
+  const mobileBar = document.querySelector('.mobile-app-bar');
+  if (mobileBar) {
+    if (view === 'flats') {
+      mobileBar.style.display = 'none';
+      document.querySelector('.content').style.paddingTop = '0';
+    } else {
+      mobileBar.style.display = 'flex';
+      document.querySelector('.content').style.paddingTop = ''; // reset to default CSS
+    }
+  }
+
   Object.entries(els.views).forEach(([key, node]) => {
     if (node) node.classList.toggle('hidden', key !== view);
   });
