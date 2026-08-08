@@ -1359,6 +1359,10 @@
         <span class="bn-icon">💷</span>
         <span>Holerite</span>
       </button>
+      <button class="bottom-nav-item" onclick="openChangePasswordModal()">
+        <span class="bn-icon">🔑</span>
+        <span>Senha</span>
+      </button>
       <a id="btnAdminReturnMobile" href="/" class="bottom-nav-item hidden" style="color:var(--primary); text-decoration:none;">
         <span class="bn-icon">👑</span>
         <span>Gerência</span>
@@ -1401,14 +1405,17 @@
         </div>
 
         <!-- Date Filter Bar -->
-        <div class="date-filter-bar">
-          <label>De</label>
-          <input type="date" id="filterDateFrom" onchange="App.applyDateFilter()" />
-          <span class="date-filter-sep">—</span>
-          <label>Até</label>
-          <input type="date" id="filterDateTo" onchange="App.applyDateFilter()" />
-          <button class="btn-filter-today" onclick="App.filterToday()">📅 Hoje</button>
-          <button class="btn-filter-clear" onclick="App.clearDateFilter()">✕ Limpar</button>
+        <div class="date-filter-bar" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:end; padding:16px;">
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">De</label>
+            <input type="date" id="filterDateFrom" onchange="App.applyDateFilter()" style="width:100%; box-sizing:border-box; margin:0; min-width:0;" />
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Até</label>
+            <input type="date" id="filterDateTo" onchange="App.applyDateFilter()" style="width:100%; box-sizing:border-box; margin:0; min-width:0;" />
+          </div>
+          <button class="btn-filter-today" onclick="App.filterToday()" style="margin:0; width:100%;">📅 Hoje</button>
+          <button class="btn-filter-clear" onclick="App.clearDateFilter()" style="margin:0; width:100%;">✕ Limpar</button>
         </div>
         <p class="filter-results-hint" id="filterResultsHint"></p>
 
