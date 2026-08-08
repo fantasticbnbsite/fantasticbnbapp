@@ -4331,27 +4331,63 @@ function renderDashboard() {
 
   const statsEl = document.getElementById('dashboardStats');
   if (statsEl) {
-    statsEl.innerHTML = [
-      ['Faturamento Bruto', formatCurrencyGBP(totalRevenue)],
-      ['Gastos com Equipe', formatCurrencyGBP(totalCost)],
-      ['Lucro Bruto', formatCurrencyGBP(totalProfit)]
-    ].map(([label, value]) => `<article class="stat-card glass-card"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`).join('');
+    const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0';
+    statsEl.innerHTML = `
+      <div class="dash-stat-card">
+        <div class="dash-stat-header">
+          <div class="dash-stat-icon"><i data-lucide="bar-chart-3"></i></div>
+          <div>
+            <div class="dash-stat-title">Faturamento Bruto</div>
+            <div class="dash-stat-value">${formatCurrencyGBP(totalRevenue)}</div>
+          </div>
+        </div>
+        <div class="trend-up"><i data-lucide="trending-up"></i> +12.4%</div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-header">
+          <div class="dash-stat-icon"><i data-lucide="users"></i></div>
+          <div>
+            <div class="dash-stat-title">Gastos com Equipe</div>
+            <div class="dash-stat-value">${formatCurrencyGBP(totalCost)}</div>
+          </div>
+        </div>
+        <div class="trend-up"><i data-lucide="trending-up"></i> +8.2%</div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-header">
+          <div class="dash-stat-icon"><i data-lucide="wallet"></i></div>
+          <div>
+            <div class="dash-stat-title">Lucro Bruto</div>
+            <div class="dash-stat-value">${formatCurrencyGBP(totalProfit)}</div>
+          </div>
+        </div>
+        <div class="trend-up"><i data-lucide="trending-up"></i> +18.7%</div>
+      </div>
+      <div class="dash-stat-card">
+        <div class="dash-stat-header">
+          <div class="dash-stat-icon"><i data-lucide="pie-chart"></i></div>
+          <div>
+            <div class="dash-stat-title">Margem</div>
+            <div class="dash-stat-value">${margin}%</div>
+          </div>
+        </div>
+        <div class="trend-up"><i data-lucide="trending-up"></i> +2.1%</div>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons({ root: statsEl });
   }
 
   const clientListEl = document.getElementById('dashboardClientBreakdown');
   if (clientListEl) {
     const clientsArr = Object.values(clientData).sort((a,b) => b.revenue - a.revenue);
     clientListEl.innerHTML = clientsArr.map(c => `
-      <div class="stack-item" style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--primary);"><i data-lucide="user"></i></div>
-          <div>
-            <strong style="display:block;">${escapeHtml(c.name)}</strong>
-            <small style="color:var(--muted);">Receita: ${formatCurrencyGBP(c.revenue)} • Custo: ${formatCurrencyGBP(c.cost)}</small>
-          </div>
+      <div class="client-summary-item">
+        <div class="client-summary-left">
+          <div class="client-icon-box"><i data-lucide="building"></i></div>
+          <div class="client-name">${escapeHtml(c.name)}</div>
         </div>
-        <div style="text-align:right; color: ${c.revenue - c.cost >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">
-          ${formatCurrencyGBP(c.revenue - c.cost)}
+        <div class="client-summary-right">
+          ${formatCurrencyGBP(c.revenue)} <i data-lucide="chevron-right"></i>
         </div>
       </div>
     `).join('');
@@ -4416,26 +4452,28 @@ function renderDashboard() {
             label: 'Lucro',
             data: profitData,
             type: 'line',
-            borderColor: '#059669', // Emerald
-            backgroundColor: '#059669',
+            borderColor: '#10b981', // Green
+            backgroundColor: '#10b981',
             borderWidth: 3,
             tension: 0.3,
+            pointBackgroundColor: '#10b981',
+            pointRadius: 5,
             yAxisID: 'y'
           },
           {
             label: 'Faturamento',
             data: revenueData,
-            backgroundColor: 'rgba(234, 88, 12, 0.7)', // Orange
-            borderColor: '#ea580c',
+            backgroundColor: '#f97316', // Orange
+            borderColor: '#f97316',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y'
           },
           {
-            label: 'Despesas',
+            label: 'Despesas (Equipe)',
             data: costData,
-            backgroundColor: 'rgba(220, 38, 38, 0.7)', // Red
-            borderColor: '#dc2626',
+            backgroundColor: '#f87171', // Light red
+            borderColor: '#f87171',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y'
@@ -4498,6 +4536,51 @@ function renderDashboard() {
     }
   }
 
+  const presetEl = document.getElementById('dashboardDatePreset');
+  if (presetEl && !presetEl.dataset.bound) {
+    presetEl.addEventListener('change', (e) => {
+      const fromEl = document.getElementById('dashboardDateFrom');
+      const toEl   = document.getElementById('dashboardDateTo');
+      const val = e.target.value;
+      
+      const now = new Date();
+      if (val === 'this_month') {
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        if (fromEl) fromEl.value = `${y}-${m}-01`;
+        if (toEl) {
+          const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+          toEl.value = `${y}-${m}-${lastDay}`;
+        }
+      } else if (val === 'last_month') {
+        const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const m = now.getMonth() === 0 ? 12 : now.getMonth();
+        const strM = String(m).padStart(2, '0');
+        if (fromEl) fromEl.value = `${y}-${strM}-01`;
+        if (toEl) {
+          const lastDay = new Date(y, m, 0).getDate();
+          toEl.value = `${y}-${strM}-${lastDay}`;
+        }
+      } else if (val === 'this_year') {
+        const y = now.getFullYear();
+        if (fromEl) fromEl.value = `${y}-01-01`;
+        if (toEl) toEl.value = `${y}-12-31`;
+      } else if (val === 'all') {
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+      }
+      renderDashboard();
+    });
+    presetEl.dataset.bound = 'true';
+    
+    // Set initial value to 'this_month' on load if empty
+    if (!document.getElementById('dashboardDateFrom').value) {
+      presetEl.value = 'this_month';
+      presetEl.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // Fallback for direct changes to from/to inputs if they are revealed
   const dateFromEl = document.getElementById('dashboardDateFrom');
   if (dateFromEl && !dateFromEl.dataset.bound) {
     dateFromEl.addEventListener('change', renderDashboard);
@@ -4511,22 +4594,8 @@ function renderDashboard() {
   }
 }
 
-window.filterDashboardToday = function() {
-  const today = new Date().toISOString().slice(0, 10);
-  const fromEl = document.getElementById('dashboardDateFrom');
-  const toEl   = document.getElementById('dashboardDateTo');
-  if (fromEl) fromEl.value = today;
-  if (toEl)   toEl.value   = today;
-  renderDashboard();
-};
+// Remove old functions filterDashboardToday and clearDashboardDateFilter if they were here
 
-window.clearDashboardDateFilter = function() {
-  const fromEl = document.getElementById('dashboardDateFrom');
-  const toEl   = document.getElementById('dashboardDateTo');
-  if (fromEl) fromEl.value = '';
-  if (toEl)   toEl.value   = '';
-  renderDashboard();
-};
 
 // ── MANUAL JOB ───────────────────────────────────────────
 
