@@ -2932,6 +2932,12 @@ window.sortFinTable = function(col) {
 function _finSort() {
   const col = finState.sortCol;
   const dir = finState.sortDir === 'asc' ? 1 : -1;
+  finState.filtered.sort((a, b) => {
+    let av, bv;
+    if (col === 'num') { av = Number(a.invoice_number || a.id || 0); bv = Number(b.invoice_number || b.id || 0); }
+    else if (col === 'name') { av = (a.client_name || a.employee_name || '').toLowerCase(); bv = (b.client_name || b.employee_name || '').toLowerCase(); }
+    else if (col === 'period') { av = a.period_from || ''; bv = b.period_from || ''; }
+    else if (col === 'jobs') { av = (a.jobs || []).length; bv = (b.jobs || []).length; }
     else if (col === 'amount') { av = Number(a.total_amount || 0); bv = Number(b.total_amount || 0); }
     else { av = 0; bv = 0; }
     if (av < bv) return -dir;
