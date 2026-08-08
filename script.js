@@ -3413,33 +3413,33 @@ function renderJobs() {
             ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div style="display:flex; align-items:center; flex-wrap:wrap; font-size:15px; color:var(--muted); margin-bottom:8px;">
+            <div style="display:flex; align-items:center; flex-wrap:wrap; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
               <div style="display:flex; align-items:center; gap:6px; padding-right:12px;">
                 <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
               </div>
               <!-- Mobile cleaner copy -->
-              <div class="mobile-only" style="align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px;">
+              <div class="mobile-only" style="align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px; white-space: nowrap;">
                 <i data-lucide="user" style="width:18px;height:18px;"></i> 
                 ${escapeHtml(job.employeeName || 'Sem Profissional')}
               </div>
-              ${job.durationHours ? `<div style="margin-left:auto; font-size:14px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
+              ${job.durationHours ? `<div style="margin-left:auto; font-size:14px; white-space:nowrap;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             </div>
             ${timelineHtml}
           </td>
           <td class="td-meta2" data-label="Profissional / Cliente">
             <!-- Desktop cleaner copy -->
-            <div class="desktop-only" style="font-weight:500; font-size:14px; margin-bottom:4px;">
+            <div class="desktop-only" style="font-weight:500; font-size:14px; margin-bottom:4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">
               <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
-              ${escapeHtml(job.employeeName || 'Sem Profissional')}
+              <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
             </div>
-            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
-            <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px;">
+            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
               ${job.employeeAmount != null ? `<strong style="color:var(--success); font-size:15px;">+${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
               ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">C: ${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
             </div>
           </td>
           <td class="td-actions" data-label="Ações">
-            <div class="table-actions" style="justify-content:space-between; display:flex; gap:12px;">${actions}</div>
+            <div class="table-actions" style="justify-content:flex-end; display:flex; gap:12px; flex-wrap:nowrap;">${actions}</div>
           </td>
         </tr>
       `;
