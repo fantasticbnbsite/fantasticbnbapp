@@ -4683,6 +4683,7 @@ function renderDashboard() {
     presetEl.addEventListener('change', (e) => {
       const fromEl = document.getElementById('dashboardDateFrom');
       const toEl   = document.getElementById('dashboardDateTo');
+      const customDatesDiv = document.getElementById('dashboardCustomDates');
       const val = e.target.value;
       
       const now = new Date();
@@ -4711,11 +4712,16 @@ function renderDashboard() {
         if (fromEl) fromEl.value = '';
         if (toEl) toEl.value = '';
       }
+      
+      if (customDatesDiv) {
+        customDatesDiv.style.display = val === 'custom' ? 'flex' : 'none';
+      }
+      
       renderDashboard();
     });
     presetEl.dataset.bound = 'true';
     
-    // Set initial value to 'this_month' on load if empty
+    // Set initial value to 'this_month' on load if empty and hide custom dates
     if (!document.getElementById('dashboardDateFrom').value) {
       presetEl.value = 'this_month';
       presetEl.dispatchEvent(new Event('change'));

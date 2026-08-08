@@ -1649,7 +1649,7 @@ textarea {
   display: flex;
   gap: 12px;
   align-items: center;
-  overflow-x: auto;
+  flex-wrap: wrap;
   padding-bottom: 4px;
 }
 .dash-filter-input {

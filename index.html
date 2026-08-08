@@ -133,6 +133,7 @@
                 <option value="last_month">Mês passado</option>
                 <option value="this_year">Este ano</option>
                 <option value="all">Todo o período</option>
+                <option value="custom">Data personalizada</option>
               </select>
             </div>
             
@@ -143,8 +144,15 @@
               </select>
             </div>
             
-            <input type="date" id="dashboardDateFrom" style="display:none;" />
-            <input type="date" id="dashboardDateTo" style="display:none;" />
+            <div id="dashboardCustomDates" style="display:none; gap:12px; flex-wrap:wrap; align-items:center;">
+              <div class="dash-filter-input">
+                <input type="date" id="dashboardDateFrom" style="border:none;background:transparent;outline:none;font-size:14px;color:var(--text);" />
+              </div>
+              <span style="color:var(--muted); font-size:14px;">até</span>
+              <div class="dash-filter-input">
+                <input type="date" id="dashboardDateTo" style="border:none;background:transparent;outline:none;font-size:14px;color:var(--text);" />
+              </div>
+            </div>
           </div>
         </div>
 
