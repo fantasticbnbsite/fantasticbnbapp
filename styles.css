@@ -882,30 +882,134 @@ textarea {
   .button { min-height: 44px; padding: 0 16px; font-size: 14px; border-radius: 10px; }
   .ghost-button { min-height: 44px; border-radius: 10px; }
 
-  /* Edge to Edge Layout for all containers */
-  .sidebar, .topbar, .panel, .toolbar, .holerites-hero, .login-card, .login-form, .modal-card, .drawer-card,
-  .glass-card, .stat-card, .stack-item, .selected-flats-card { 
-    border-radius: 0 !important; 
-    border-left: none !important; 
-    border-right: none !important;
-    border-top: none;
-    border-bottom: 1px solid var(--line);
-    padding: 16px; 
-    margin: 0 !important;
-  /* Premium Mobile Topbar */
-  .topbar { flex-direction: column; align-items: stretch; gap: 16px; border-bottom: 1px solid var(--line); padding: 20px 16px !important; }
-  .topbar-actions { flex-direction: row; flex-wrap: nowrap; justify-content: space-between; gap: 8px; align-items: center; }
+  /* Reset container paddings for mobile */
+  .panel, .glass-card, .stat-card, .login-card, .modal-card, .drawer-card, .selected-flats-card { 
+    border-radius: 16px !important; 
+    border: 1px solid var(--line) !important;
+    padding: 20px; 
+    margin-bottom: 16px !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+  }
   
-  /* Hide text in topbar buttons to save space on mobile */
-  #btnSmartVoice span, #btnSmartVoice text { display: none; }
-  #btnSmartVoice { font-size: 0; width: 46px; flex: 0 0 46px; padding: 0; display: flex; align-items: center; justify-content: center; }
-  #btnSmartVoice i { font-size: 20px; }
+  .toolbar {
+    border-radius: 16px !important;
+    border: 1px solid var(--line) !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    margin-bottom: 16px !important;
+  }
   
-  #userPill span { display: none; }
-  #userPill { width: 46px; flex: 0 0 46px; padding: 0; justify-content: center; }
-  
-  .topbar-actions .icon-button { flex: 0 0 46px; width: 46px; height: 46px; }
+  /* Remove container paddings */
+  .inline-form { padding: 16px; border-bottom: 1px solid var(--line); }
+
+  .desktop-only { display: none !important; }
   .mobile-only { display: flex !important; }
+
+  /* Premium Mobile Native App Layout */
+  body {
+    background: var(--primary) !important;
+  }
+  
+  .shell {
+    padding-bottom: 80px !important; /* Space for bottom nav */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-top: 0 !important;
+  }
+
+  .mobile-app-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    height: 70px;
+    flex-shrink: 0;
+  }
+  .mobile-app-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    color: white;
+  }
+  .mobile-app-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* The Content Surface overlaps the primary background */
+  .view {
+    background: #f8f9fa !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding: 24px 16px !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+    margin-top: 0;
+    overflow-y: visible;
+  }
+
+  /* Bottom Navigation Bar */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 76px;
+    background: white;
+    border-top: 1px solid var(--line);
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 8px 16px; /* extra bottom padding for iOS home indicator */
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
+  }
+  
+  .mobile-bottom-nav .nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    padding: 8px;
+    flex: 1;
+  }
+  .mobile-bottom-nav .nav-link i {
+    width: 24px;
+    height: 24px;
+  }
+  .mobile-bottom-nav .nav-link.active {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  
+  .mobile-bottom-nav .nav-link.fab {
+    background: var(--primary);
+    color: white;
+    width: 56px;
+    height: 56px;
+    flex: 0 0 56px;
+    border-radius: 50%;
+    margin-top: -30px; /* pull it up */
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+  }
+  .mobile-bottom-nav .nav-link.fab i {
+    width: 28px;
+    height: 28px;
+  }
+  .mobile-bottom-nav .nav-link.fab span { display: none; }
 
   /* Off-canvas Mobile Menu (Sidebar) */
   .sidebar { 
@@ -928,6 +1032,19 @@ textarea {
     box-shadow: 4px 0 24px rgba(0,0,0,0.1) !important;
   }
   .sidebar.active { transform: translateX(0); }
+  
+  .stack-list { display: flex; flex-direction: column; gap: 8px; }
+  .stack-item {
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    margin-bottom: 0 !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.02) !important;
+  }
+  .stack-item:last-child {
+    border-bottom: 1px solid var(--line) !important;
+  }
   
   .side-nav { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
   .nav-link { 
@@ -989,16 +1106,26 @@ textarea {
       "meta1 meta1"
       "meta2 meta2"
       "actions actions";
+    gap: 12px;
+    background: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid var(--line) !important;
+    padding: 16px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.02) !important;
+    margin-bottom: 0 !important;
+  }
+  .table-actions {
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+    display: flex;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 0; 
-    border-left: none;
-    border-right: none;
-    padding: 14px 16px;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    box-shadow: none;
-    margin: 0; /* edge-to-edge natively */
+  }
+  .table-actions .ghost-button, .table-actions .button {
+    flex: 1;
+    border: 1px solid var(--line) !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
   }
   .responsive-table td { display: block; padding: 0; border: none; font-size: 13px; }
   .responsive-table td::before { display: none; }

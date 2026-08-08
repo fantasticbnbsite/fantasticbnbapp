@@ -65,7 +65,20 @@
     </aside>
 
     <main class="content">
-      <header class="topbar glass-card">
+      <!-- Mobile Native App Bar -->
+      <header class="mobile-app-bar mobile-only">
+        <button class="icon-button" onclick="document.querySelector('.sidebar').classList.toggle('active')">
+          <i data-lucide="menu" style="color: white;"></i>
+        </button>
+        <h1 id="mobileTopbarTitle" class="mobile-app-title">Fantastic BNB</h1>
+        <div class="mobile-app-actions">
+          <button class="icon-button" onclick="startSmartVoiceAssistant()">
+            <i data-lucide="mic" style="color: white;"></i>
+          </button>
+        </div>
+      </header>
+
+      <header class="topbar glass-card desktop-only">
         <div>
           <p class="eyebrow">Painel multi-clientes</p>
           <h2 id="welcomeTitle">Central Operacional</h2>
@@ -872,6 +885,27 @@
         </div>
       </section>
 
+      <nav class="mobile-bottom-nav mobile-only">
+        <button class="nav-link active" data-view="dashboard" onclick="switchView('dashboard')">
+          <i data-lucide="home"></i>
+          <span>Resumo</span>
+        </button>
+        <button class="nav-link" data-view="flats" onclick="switchView('flats')">
+          <i data-lucide="building"></i>
+          <span>Apartamentos</span>
+        </button>
+        <button class="nav-link fab" data-view="jobs" onclick="switchView('jobs')">
+          <i data-lucide="plus"></i>
+        </button>
+        <button class="nav-link" data-view="finance" onclick="switchView('finance')">
+          <i data-lucide="file-text"></i>
+          <span>Cobranças</span>
+        </button>
+        <button class="nav-link" id="mobileNavMenuBtn" onclick="document.querySelector('.sidebar').classList.toggle('active')">
+          <i data-lucide="user"></i>
+          <span>Mais</span>
+        </button>
+      </nav>
     </main>
   </div>
 

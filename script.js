@@ -3519,6 +3519,19 @@ function switchView(view) {
   const sidebar = document.querySelector('.sidebar');
   if (sidebar) sidebar.classList.remove('active');
 
+  const viewTitles = {
+    dashboard: 'Fantastic BNB',
+    jobs: 'Trabalhos',
+    cleaners: 'Cadastros',
+    finance: 'Financeiro',
+    flats: 'Gestão de Flats',
+    config: 'Configurações',
+    admin: 'Administração',
+    overview: 'Visão Geral'
+  };
+  const mobileTitle = document.getElementById('mobileTopbarTitle');
+  if (mobileTitle) mobileTitle.textContent = viewTitles[view] || 'Fantastic BNB';
+
   Object.entries(els.views).forEach(([key, node]) => {
     if (node) node.classList.toggle('hidden', key !== view);
   });
