@@ -919,6 +919,14 @@ textarea {
     padding-top: 0 !important;
   }
 
+  .content {
+    padding: 0 !important;
+    gap: 0 !important;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
   .mobile-app-bar {
     display: flex;
     flex-direction: row;
