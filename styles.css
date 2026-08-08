@@ -1138,11 +1138,11 @@ textarea {
   .responsive-table td { display: block; padding: 0; border: none; font-size: 13px; }
   .responsive-table td::before { display: none; }
   
-  .responsive-table .td-status { grid-area: status; justify-self: end; }
-  .responsive-table .td-prop { grid-area: prop; margin-bottom: 0; padding-bottom: 0; border: none; font-size: 15px; font-weight: 800; }
-  .responsive-table .td-meta1 { grid-area: meta1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .responsive-table .td-meta2 { grid-area: meta2; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .responsive-table .td-actions { grid-area: actions; border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 12px; }
+  .responsive-table .td-status { grid-area: status; justify-self: end; align-self: center; }
+  .responsive-table .td-prop { grid-area: prop; margin-bottom: 0; padding-bottom: 0; border: none; align-self: center; }
+  .responsive-table .td-meta1 { grid-area: meta1; display: block; margin-top: 12px; }
+  .responsive-table .td-meta2 { grid-area: meta2; display: block; margin-top: 12px; }
+  .responsive-table .td-actions { grid-area: actions; border: none; padding: 0; margin: 0; }
   
   /* Fallback for other data-tables (e.g. Payslips, Finance) */
   .data-table:not(.responsive-table) thead, .fin-table thead { display: none; }

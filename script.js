@@ -3283,8 +3283,12 @@ function renderJobs() {
       
       let timelineHtml = '';
       if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
-        if (job.startedAt) timelineHtml += `<div style="color:var(--success); font-weight:600; font-size:0.8rem; margin-top:4px;">Início: ${timeFmt.format(new Date(job.startedAt))}</div>`;
-        if (job.finishedAt) timelineHtml += `<div style="color:var(--danger); font-weight:600; font-size:0.8rem; margin-top:4px;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</div>`;
+        let items = [];
+        if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; margin-right:8px;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
+        if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
+        if (items.length > 0) {
+          timelineHtml = `<div style="font-size:14px; margin-bottom:8px;">${items.join('')}</div>`;
+        }
       }
       
       const urgentFlag = job.is_urgent ? `<div style="margin-top:8px; display:inline-block; background:var(--danger); color:#fff; padding:4px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> URGENTE</div>` : '';
@@ -3297,21 +3301,21 @@ function renderJobs() {
           </td>
           <td class="td-prop" data-label="Propriedade">
             <strong style="display:block; font-size:18px; margin-bottom:4px; color:var(--text);">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
-            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:0.85rem; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
-            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:12px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
+            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:14px; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:12px; font-size:14px; color:var(--muted); margin-bottom:8px;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <i data-lucide="calendar" style="width:16px;height:16px;"></i> ${escapeHtml(job.requestedDate)}
+            <div style="display:flex; align-items:center; flex-wrap:wrap; font-size:15px; color:var(--muted); margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:6px; padding-right:12px;">
+                <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
               </div>
               <!-- Mobile cleaner copy -->
               <div class="mobile-only" style="display:flex; align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px;">
-                <i data-lucide="user" style="width:16px;height:16px;"></i> 
+                <i data-lucide="user" style="width:18px;height:18px;"></i> 
                 ${escapeHtml(job.employeeName || 'Sem Profissional')}
               </div>
+              ${job.durationHours ? `<div style="margin-left:auto; font-size:14px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             </div>
-            ${job.durationHours ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             ${timelineHtml}
           </td>
           <td class="td-meta2" data-label="Profissional / Cliente">
@@ -3320,14 +3324,14 @@ function renderJobs() {
               <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
               ${escapeHtml(job.employeeName || 'Sem Profissional')}
             </div>
-            ${job.clientName ? `<div style="color:var(--muted); font-size:14px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
-            <div style="margin-top:8px;">
-              ${job.employeeAmount != null ? `<span style="color:var(--success); font-weight:600; font-size:0.85rem; margin-right:8px;">+${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
-              ${job.clientAmount != null ? `<span style="color:var(--primary); font-weight:600; font-size:0.85rem;">C: ${formatCurrencyGBP(job.clientAmount)}</span>` : ''}
+            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px;">
+              ${job.employeeAmount != null ? `<strong style="color:var(--success); font-size:15px;">+${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
+              ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">C: ${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
             </div>
           </td>
           <td class="td-actions" data-label="Ações">
-            <div class="table-actions" style="justify-content:space-between; display:flex; gap:8px;">${actions}</div>
+            <div class="table-actions" style="justify-content:space-between; display:flex; gap:12px;">${actions}</div>
           </td>
         </tr>
       `;
