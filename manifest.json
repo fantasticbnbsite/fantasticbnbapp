@@ -4,7 +4,7 @@
   "description": "Aplicativo de gestão de serviços de limpeza",
   "display": "standalone",
   "background_color": "#f8f4ee",
-  "theme_color": "#1e3a8a",
+  "theme_color": "#080058",
   "icons": [
     {
       "src": "/icon-192.png",
