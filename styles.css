@@ -1487,24 +1487,26 @@ textarea {
   display: flex;
   align-items: center;
 }
-.flats-input-wrapper i {
+.flats-input-wrapper i, .flats-input-wrapper svg {
   position: absolute;
-  left: 12px;
+  left: 10px;
   color: var(--muted);
   width: 18px;
   height: 18px;
   pointer-events: none;
 }
-.flats-input-wrapper i.select-arrow {
+.flats-input-wrapper i.select-arrow, .flats-input-wrapper svg.select-arrow {
   left: auto;
-  right: 12px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
 }
 .flats-input-wrapper input, .flats-input-wrapper select {
   width: 100%;
   height: 48px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding-left: 38px;
+  padding-left: 34px;
   padding-right: 12px;
   font-size: 14px;
   background: transparent;
@@ -1513,7 +1515,7 @@ textarea {
 }
 .flats-input-wrapper select {
   appearance: none;
-  padding-right: 36px;
+  padding-right: 28px;
 }
 .flats-pricing-section {
   display: flex;
@@ -1572,6 +1574,7 @@ textarea {
   color: var(--text);
   background: transparent;
   outline: none;
+  padding: 0 !important;
 }
 .flats-price-input span {
   color: var(--muted);
