@@ -442,8 +442,15 @@
             <button type="button" class="button button-secondary" onclick="clearFinFilters()" style="white-space:nowrap;">✕ Limpar</button>
           </div>
 
-          <!-- Tabela -->
-          <div class="fin-table-wrap">
+          <!-- Tabela e Agrupamento -->
+          <div id="finDetailHeader" class="hidden" style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+            <button type="button" class="button button-secondary" onclick="clearFinTarget()">‹ Voltar</button>
+            <h3 id="finTargetTitle" style="margin:0; font-size:1.1rem;">Faturas de ...</h3>
+          </div>
+
+          <div id="finGroupContainer" class="fin-group-grid" style="margin-bottom: 24px;"></div>
+
+          <div class="fin-table-wrap" id="finTableWrap" style="display:none;">
             <table class="fin-table" id="finTable">
               <thead>
                 <tr>

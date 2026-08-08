@@ -2806,6 +2806,7 @@ const finState = {
   sortDir: 'desc',
   page: 1,
   perPage: 10,
+  target: null, // null for grouped cards view, or string (client/employee name) for detail view
 };
 
 window.renderFinanceSummary = async function() {
@@ -2828,15 +2829,13 @@ window.renderFinanceSummary = async function() {
         </label>
       `).join('');
     }
-  } catch (err) { console.error('Erro populando seletores:', err); }
+    
+    // Fetch docs
+    const res = await api('/api/finance/summary');
+    finState.invoices = res.invoices || [];
+    finState.payrolls = res.payrolls || [];
 
-  // Load documents
-  try {
-    const data = await api('/api/finance/summary');
-    finState.invoices = data.invoices || [];
-    finState.payrolls = data.payrolls || [];
-
-    // Update badges
+    // Badges
     const bi = document.getElementById('finBadgeInvoices');
     const bp = document.getElementById('finBadgePayrolls');
     if (bi) bi.textContent = finState.invoices.length;
@@ -2878,6 +2877,7 @@ function _finBuildMonthFilter() {
 window.switchFinTab = function(tab) {
   finState.tab = tab;
   finState.page = 1;
+  finState.target = null;
   document.getElementById('finTabInvoices').classList.toggle('active', tab === 'invoices');
   document.getElementById('finTabPayrolls').classList.toggle('active', tab === 'payrolls');
   document.getElementById('finDocsSubtitle').textContent = tab === 'invoices' ? 'Faturas oficiais para os clientes' : 'Custos e pagamentos para a equipe';
@@ -2932,12 +2932,6 @@ window.sortFinTable = function(col) {
 function _finSort() {
   const col = finState.sortCol;
   const dir = finState.sortDir === 'asc' ? 1 : -1;
-  finState.filtered.sort((a, b) => {
-    let av, bv;
-    if (col === 'num') { av = Number(a.invoice_number || a.id || 0); bv = Number(b.invoice_number || b.id || 0); }
-    else if (col === 'name') { av = (a.client_name || a.employee_name || '').toLowerCase(); bv = (b.client_name || b.employee_name || '').toLowerCase(); }
-    else if (col === 'period') { av = a.period_from || ''; bv = b.period_from || ''; }
-    else if (col === 'jobs') { av = (a.jobs || []).length; bv = (b.jobs || []).length; }
     else if (col === 'amount') { av = Number(a.total_amount || 0); bv = Number(b.total_amount || 0); }
     else { av = 0; bv = 0; }
     if (av < bv) return -dir;
@@ -2946,9 +2940,15 @@ function _finSort() {
   });
 }
 
-window.finChangePage = function(delta) {
-  const totalPages = Math.ceil(finState.filtered.length / finState.perPage) || 1;
-  finState.page = Math.max(1, Math.min(totalPages, finState.page + delta));
+window.openFinTarget = function(encodedName) {
+  finState.target = decodeURIComponent(encodedName);
+  finState.page = 1;
+  _finRender();
+};
+
+window.clearFinTarget = function() {
+  finState.target = null;
+  finState.page = 1;
   _finRender();
 };
 
@@ -2957,14 +2957,83 @@ function _finRender() {
   const pageInfo = document.getElementById('finPageInfo');
   const prevBtn = document.getElementById('finPagePrev');
   const nextBtn = document.getElementById('finPageNext');
+  
+  const groupContainer = document.getElementById('finGroupContainer');
+  const tableWrap = document.getElementById('finTableWrap');
+  const pagination = document.getElementById('finPagination');
+  const detailHeader = document.getElementById('finDetailHeader');
+  const targetTitle = document.getElementById('finTargetTitle');
+  
+  const isInv = finState.tab === 'invoices';
+
+  if (!finState.target) {
+    // ---- GROUPED VIEW (Level 1) ----
+    if (detailHeader) detailHeader.classList.add('hidden');
+    if (tableWrap) tableWrap.style.display = 'none';
+    if (pagination) pagination.style.display = 'none';
+    if (groupContainer) {
+      groupContainer.style.display = 'grid';
+      
+      // Group data by name
+      const groups = {};
+      finState.filtered.forEach(d => {
+        const name = isInv ? (d.client_name || 'Desconhecido') : (d.employee_name || 'Desconhecido');
+        if (!groups[name]) groups[name] = { count: 0, amount: 0 };
+        groups[name].count++;
+        groups[name].amount += Number(d.total_amount || 0);
+      });
+      
+      const groupArr = Object.keys(groups).map(name => ({ name, ...groups[name] })).sort((a,b) => b.amount - a.amount);
+      
+      if (groupArr.length === 0) {
+        groupContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color: var(--muted);">Nenhum ${isInv ? 'cliente' : 'funcionário'} encontrado.</div>`;
+      } else {
+        groupContainer.innerHTML = groupArr.map(g => `
+          <div class="fin-group-card" onclick="openFinTarget('${encodeURIComponent(g.name)}')">
+            <div class="fin-group-left">
+              <div class="fin-group-icon">
+                <i data-lucide="${isInv ? 'building' : 'user'}"></i>
+              </div>
+              <div>
+                <div class="fin-group-name">${escapeHtml(g.name)}</div>
+                <div class="fin-group-meta">${g.count} documento${g.count > 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            <div class="fin-group-right">
+              <div class="fin-group-value">${formatCurrencyGBP(g.amount)}</div>
+              <div class="fin-group-arrow"><i data-lucide="chevron-right"></i></div>
+            </div>
+          </div>
+        `).join('');
+        if (window.lucide) window.lucide.createIcons({ root: groupContainer });
+      }
+    }
+    return;
+  }
+
+  // ---- DETAIL VIEW (Level 2) ----
+  if (groupContainer) groupContainer.style.display = 'none';
+  if (detailHeader) {
+    detailHeader.classList.remove('hidden');
+    if (targetTitle) targetTitle.textContent = `${isInv ? 'Faturas de' : 'Holerites de'} ${finState.target}`;
+  }
+  if (tableWrap) tableWrap.style.display = 'block';
+  if (pagination) pagination.style.display = 'flex';
+  
   if (!tbody) return;
 
-  const total = finState.filtered.length;
+  // Filter specific to the target
+  const detailDocs = finState.filtered.filter(d => {
+    const name = isInv ? (d.client_name || 'Desconhecido') : (d.employee_name || 'Desconhecido');
+    return name === finState.target;
+  });
+
+  const total = detailDocs.length;
   const totalPages = Math.ceil(total / finState.perPage) || 1;
   finState.page = Math.max(1, Math.min(totalPages, finState.page));
 
   const start = (finState.page - 1) * finState.perPage;
-  const page = finState.filtered.slice(start, start + finState.perPage);
+  const page = detailDocs.slice(start, start + finState.perPage);
 
   if (pageInfo) pageInfo.textContent = `Página ${finState.page} de ${totalPages} · ${total} documento${total !== 1 ? 's' : ''}`;
   if (prevBtn) prevBtn.disabled = finState.page <= 1;
@@ -2975,7 +3044,6 @@ function _finRender() {
     return;
   }
 
-  const isInv = finState.tab === 'invoices';
   tbody.innerHTML = page.map(d => {
     const num = isInv ? (d.invoice_number || d.id) : d.id;
     const name = escapeHtml(isInv ? (d.client_name || '—') : (d.employee_name || '—'));
@@ -2991,7 +3059,6 @@ function _finRender() {
       <tr style="position:relative; margin: 0 0 16px 0 !important; border-radius:16px; box-shadow:0 2px 4px rgba(0,0,0,0.02); padding:16px !important;">
         <!-- Mobile Layout -->
         <td class="mobile-only" style="display:flex !important; flex-direction:column; padding:0 !important; border:none !important; width:100%; gap:0; margin:0 !important;">
-          <!-- Top row -->
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
             <div style="font-weight:800; font-size:18px; color:var(--text);">#${num}</div>
             <div style="display:flex; flex-direction:column; align-items:center;">
@@ -2999,7 +3066,6 @@ function _finRender() {
                <span style="font-size:12px; color:var(--muted); margin-top:4px;">Itens</span>
             </div>
           </div>
-          <!-- Middle row -->
           <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px; color:var(--text); margin-bottom:12px;">
             <i data-lucide="${isInv ? 'building-2' : 'user'}" style="width:18px;height:18px;color:var(--primary);"></i>
             ${name}
@@ -3010,7 +3076,6 @@ function _finRender() {
              </div>
              <div style="font-weight:800; font-size:18px; color:var(--text);">${amount}</div>
           </div>
-          <!-- Actions -->
           <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px;">
             <button type="button" class="ghost-button" onclick="${editFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid var(--line); color:var(--muted); background:transparent;">
               <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Editar
@@ -3028,9 +3093,9 @@ function _finRender() {
         <td class="fin-td fin-td-jobs desktop-only"><span class="fin-jobs-badge">${jobs}</span></td>
         <td class="fin-td fin-td-amount desktop-only">${amount}</td>
         <td class="fin-td desktop-only">
-          <div class="fin-td-actions">
-            <button type="button" class="fin-action-btn" onclick="${editFn}" title="Editar Lançamentos">✏️</button>
-            <button type="button" class="fin-action-btn danger" onclick="${delFn}" title="Excluir">🗑️</button>
+          <div class="fin-actions">
+            <button type="button" class="fin-action-btn edit" onclick="${editFn}" title="Editar"><i data-lucide="edit-3"></i></button>
+            <button type="button" class="fin-action-btn delete" onclick="${delFn}" title="Excluir"><i data-lucide="trash-2"></i></button>
           </div>
         </td>
       </tr>`;

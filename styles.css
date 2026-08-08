@@ -1823,3 +1823,68 @@ textarea {
   width: 16px;
   height: 16px;
 }
+
+/* Finance Drill-down Redesign */
+.fin-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.fin-group-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+.fin-group-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  border-color: var(--primary);
+}
+.fin-group-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fin-group-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--surface-alt);
+  color: var(--primary);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fin-group-name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.fin-group-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+.fin-group-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.fin-group-value {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text);
+}
+.fin-group-arrow {
+  color: var(--primary);
+  opacity: 0.7;
+}
