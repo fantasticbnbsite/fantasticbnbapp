@@ -3292,32 +3292,42 @@ function renderJobs() {
       return `
         <tr ${job.is_urgent ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
-            <span class="badge ${badgeClass}">${statusLabels[job.status] || job.status}</span>
+            <span class="badge ${badgeClass}" style="border-radius:24px; padding:6px 12px; font-weight:600;">${statusLabels[job.status] || job.status}</span>
             ${urgentFlag}
           </td>
           <td class="td-prop" data-label="Propriedade">
-            <strong>${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
-            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
-            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:0.85rem; font-weight:600; margin-top:4px;"><i data-lucide="key" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> ${escapeHtml(job.flatAccessCode)}</div>` : ''}
+            <strong style="display:block; font-size:18px; margin-bottom:4px; color:var(--text);">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
+            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:0.85rem; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:12px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> ${escapeHtml(job.requestedDate)}</div>
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:12px; font-size:14px; color:var(--muted); margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <i data-lucide="calendar" style="width:16px;height:16px;"></i> ${escapeHtml(job.requestedDate)}
+              </div>
+              <!-- Mobile cleaner copy -->
+              <div class="mobile-only" style="display:flex; align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px;">
+                <i data-lucide="user" style="width:16px;height:16px;"></i> 
+                ${escapeHtml(job.employeeName || 'Sem Profissional')}
+              </div>
+            </div>
             ${job.durationHours ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             ${timelineHtml}
           </td>
           <td class="td-meta2" data-label="Profissional / Cliente">
-            <div style="font-weight:500;">
+            <!-- Desktop cleaner copy -->
+            <div class="desktop-only" style="font-weight:500; font-size:14px; margin-bottom:4px;">
               <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
               ${escapeHtml(job.employeeName || 'Sem Profissional')}
             </div>
-            ${job.clientName ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:4px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            ${job.clientName ? `<div style="color:var(--muted); font-size:14px;">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
             <div style="margin-top:8px;">
               ${job.employeeAmount != null ? `<span style="color:var(--success); font-weight:600; font-size:0.85rem; margin-right:8px;">+${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
               ${job.clientAmount != null ? `<span style="color:var(--primary); font-weight:600; font-size:0.85rem;">C: ${formatCurrencyGBP(job.clientAmount)}</span>` : ''}
             </div>
           </td>
           <td class="td-actions" data-label="Ações">
-            <div class="table-actions" style="justify-content:flex-start;">${actions}</div>
+            <div class="table-actions" style="justify-content:space-between; display:flex; gap:8px;">${actions}</div>
           </td>
         </tr>
       `;
