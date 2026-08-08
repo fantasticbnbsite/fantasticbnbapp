@@ -2445,7 +2445,7 @@ async function renderAdminHolerite() {
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.date)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.flatAddress)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${formatHours(e.durationHours)}</td>
-                <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£${e.employeeAmount.toFixed(2)}</td>
+                <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">${formatCurrencyGBP(e.employeeAmount)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2453,7 +2453,7 @@ async function renderAdminHolerite() {
             <tr style="font-weight:bold;background:#f9f9f9;">
               <td colspan="2" style="padding:12px;text-align:right;">TOTAL:</td>
               <td style="padding:12px;text-align:center;">${payslip.totalHours}h</td>
-              <td style="padding:12px;text-align:right;color:var(--primary);">£${payslip.totalAmount.toFixed(2)}</td>
+              <td style="padding:12px;text-align:right;color:var(--primary);">${formatCurrencyGBP(payslip.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -2523,14 +2523,14 @@ async function renderAdminInvoice() {
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.date)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;">${escapeHtml(e.flatAddress)}</td>
                 <td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">${formatHours(e.durationHours)}</td>
-                <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£${e.clientAmount.toFixed(2)}</td>
+                <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">${formatCurrencyGBP(e.clientAmount)}</td>
               </tr>
             `).join('')}
           </tbody>
           <tfoot>
             <tr style="font-weight:bold;background:#f9f9f9;">
               <td colspan="3" style="padding:12px;text-align:right;">TOTAL A COBRAR:</td>
-              <td style="padding:12px;text-align:right;color:var(--primary);">£${invoice.totalAmount.toFixed(2)}</td>
+              <td style="padding:12px;text-align:right;color:var(--primary);">${formatCurrencyGBP(invoice.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -4413,10 +4413,11 @@ function renderDashboard() {
   let hasPeriod = dateFrom && dateTo;
 
   if (hasPeriod) {
-    const prevFrom = new Date(dateFrom);
+    // Append T12:00:00 to prevent UTC timezone shift backwards (e.g., in GMT-3)
+    const prevFrom = new Date(dateFrom + 'T12:00:00');
     prevFrom.setMonth(prevFrom.getMonth() - 1);
     
-    const prevTo = new Date(dateTo);
+    const prevTo = new Date(dateTo + 'T12:00:00');
     prevTo.setMonth(prevTo.getMonth() - 1);
     
     const sPrevFrom = prevFrom.toISOString().slice(0, 10);
