@@ -1059,6 +1059,31 @@
     /* ─── Utility ───────────────────────────────────────────────── */
     .hidden { display: none !important; }
 
+    /* ─── Modals ────────────────────────────────────────────────── */
+    .modal {
+      position: fixed; inset: 0; padding: 24px;
+      background: rgba(17, 24, 39, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 5000;
+      display: grid; place-items: center;
+    }
+    .modal-card {
+      background: #ffffff;
+      width: min(600px, 100%);
+      padding: 24px;
+      border-radius: 24px;
+      display: flex; flex-direction: column; gap: 24px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.25rem; }
+    .btn-close {
+      background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);
+    }
+
     .loading-overlay {
       display: flex;
       align-items: center;
@@ -1429,7 +1454,7 @@
   <!-- Toast container -->
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <div class="modal" id="changePasswordModal">
+  <div class="modal hidden" id="changePasswordModal">
     <div class="modal-card">
       <div class="modal-header">
         <h3>Trocar Senha</h3>
