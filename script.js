@@ -3435,7 +3435,7 @@ function renderJobs() {
             ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
             <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
               ${job.employeeAmount != null ? `<strong style="color:var(--success); font-size:15px;">+${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
-              ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">C: ${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
+              ${job.clientAmount != null ? `<strong style="color:#ea580c; font-size:15px;">C: ${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
             </div>
           </td>
           <td class="td-actions" data-label="Ações">
