@@ -2988,13 +2988,46 @@ function _finRender() {
     const delFn = isInv ? `deleteInvoice(${d.id})` : `deletePayroll(${d.id})`;
 
     return `
-      <tr>
-        <td class="fin-td fin-td-num">#${num}</td>
-        <td class="fin-td fin-td-name">${name}</td>
-        <td class="fin-td fin-td-period">${period}</td>
-        <td class="fin-td fin-td-jobs"><span class="fin-jobs-badge">${jobs}</span></td>
-        <td class="fin-td fin-td-amount">${amount}</td>
-        <td class="fin-td">
+      <tr style="position:relative; margin: 0 0 16px 0 !important; border-radius:16px; box-shadow:0 2px 4px rgba(0,0,0,0.02); padding:16px !important;">
+        <!-- Mobile Layout -->
+        <td class="mobile-only" style="display:flex !important; flex-direction:column; padding:0 !important; border:none !important; width:100%; gap:0; margin:0 !important;">
+          <!-- Top row -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+            <div style="font-weight:800; font-size:18px; color:var(--text);">#${num}</div>
+            <div style="display:flex; flex-direction:column; align-items:center;">
+               <div style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-weight:800; padding:4px 12px; border-radius:16px; font-size:14px;">${jobs}</div>
+               <span style="font-size:12px; color:var(--muted); margin-top:4px;">Itens</span>
+            </div>
+          </div>
+          <!-- Middle row -->
+          <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px; color:var(--text); margin-bottom:12px;">
+            <i data-lucide="${isInv ? 'building-2' : 'user'}" style="width:18px;height:18px;color:var(--primary);"></i>
+            ${name}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+             <div style="display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px;">
+               <i data-lucide="calendar" style="width:16px;height:16px;"></i> ${period}
+             </div>
+             <div style="font-weight:800; font-size:18px; color:var(--text);">${amount}</div>
+          </div>
+          <!-- Actions -->
+          <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px;">
+            <button type="button" class="ghost-button" onclick="${editFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid var(--line); color:var(--muted); background:transparent;">
+              <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Editar
+            </button>
+            <button type="button" class="ghost-button" onclick="${delFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid rgba(239,68,68,0.3); color:var(--danger); background:transparent;">
+              <i data-lucide="trash-2" style="width:16px;height:16px;"></i> Excluir
+            </button>
+          </div>
+        </td>
+
+        <!-- Desktop Layout -->
+        <td class="fin-td fin-td-num desktop-only">#${num}</td>
+        <td class="fin-td fin-td-name desktop-only">${name}</td>
+        <td class="fin-td fin-td-period desktop-only">${period}</td>
+        <td class="fin-td fin-td-jobs desktop-only"><span class="fin-jobs-badge">${jobs}</span></td>
+        <td class="fin-td fin-td-amount desktop-only">${amount}</td>
+        <td class="fin-td desktop-only">
           <div class="fin-td-actions">
             <button type="button" class="fin-action-btn" onclick="${editFn}" title="Editar Lançamentos">✏️</button>
             <button type="button" class="fin-action-btn danger" onclick="${delFn}" title="Excluir">🗑️</button>
@@ -3545,17 +3578,6 @@ function switchView(view) {
   };
   const mobileTitle = document.getElementById('mobileTopbarTitle');
   if (mobileTitle) mobileTitle.textContent = viewTitles[view] || 'Fantastic BNB';
-
-  const mobileBar = document.querySelector('.mobile-app-bar');
-  if (mobileBar) {
-    if (view === 'finance') {
-      mobileBar.style.display = 'none';
-      document.querySelector('.content').style.paddingTop = '16px';
-    } else {
-      mobileBar.style.display = 'flex';
-      document.querySelector('.content').style.paddingTop = '0';
-    }
-  }
 
   Object.entries(els.views).forEach(([key, node]) => {
     if (node) node.classList.toggle('hidden', key !== view);

@@ -343,54 +343,120 @@
       </section>
 
       <section class="view hidden" id="financeView">
-        <div class="finance-custom-header" style="margin: -16px -16px 16px -16px; padding: 24px 16px 16px 16px; background: white; border-bottom: 1px solid var(--line);">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div style="display:flex; gap:16px;">
-              <div style="width:48px; height:48px; border-radius:12px; border:2px solid var(--primary); color:var(--primary); display:flex; align-items:center; justify-content:center;">
-                <i data-lucide="file-text" style="width:24px; height:24px;"></i>
-              </div>
-              <div>
-                <h1 style="font-size:24px; font-weight:800; margin:0; line-height:1.2; color:var(--text);">Cobranças</h1>
-                <p style="color:var(--muted); font-size:14px; margin:4px 0 0 0;">Gerencie faturas e lançamentos</p>
-              </div>
+        <article class="panel glass-card" style="margin-bottom: 24px;">
+          <div class="panel-header">
+            <div>
+              <h3><i data-lucide="dollar-sign" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;"></i>Financeiro da operacao</h3>
+              <p class="panel-kicker">Acompanhe faturas dos clientes, pagamentos da equipe e lucros operacionais.</p>
             </div>
-            <div style="position:relative; margin-top:4px;">
-              <i data-lucide="bell" style="width:24px; height:24px; color:var(--primary);"></i>
-              <span style="position:absolute; top:-2px; right:-2px; width:10px; height:10px; background:var(--primary); border-radius:50%; border:2px solid #fff;"></span>
+          </div>
+          <div class="stats-row" id="financeStats" style="margin-top:24px;"></div>
+        </article>
+
+        <div class="overview-grid" style="margin-bottom: 24px;">
+          <!-- Card: Gerar Faturas (Clientes) -->
+          <div class="panel glass-card">
+            <div class="panel-header">
+              <h3>Gerar Faturas (Clientes)</h3>
+              <span class="panel-kicker">Fechamento do faturamento</span>
+            </div>
+            <div class="stack-form">
+              <div class="form-group">
+                <label class="form-label">Período</label>
+                <div class="rate-grid">
+                  <input type="date" id="genInvoiceFrom" />
+                  <input type="date" id="genInvoiceTo" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Cliente</label>
+                <select id="genInvoiceClient">
+                  <option value="all">Todos os Clientes</option>
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="toolbar-actions" style="margin-top:16px;">
+                <button class="button button-primary" type="button" id="btnGenInvoices">Gerar Faturas</button>
+              </div>
             </div>
           </div>
 
-          <!-- Filtros -->
-          <div style="margin-top:24px; display:flex; gap:12px;">
-            <div style="flex:1; position:relative;">
-              <i data-lucide="search" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); width:20px; height:20px; color:var(--muted);"></i>
-              <input type="search" id="finSearch" placeholder="Buscar cobranças..." oninput="applyFinFilters()" style="width:100%; padding:12px 16px 12px 44px; border:1px solid var(--line); border-radius:12px; font-size:16px; outline:none;" />
+          <!-- Card: Gerar Holerites (Funcionários) -->
+          <div class="panel glass-card">
+            <div class="panel-header">
+              <h3>Gerar Holerites (Cleaners)</h3>
+              <span class="panel-kicker">Fechamento dos pagamentos</span>
             </div>
-            <button class="button" style="width:48px; height:48px; padding:0; border:1px solid var(--line); border-radius:12px; background:transparent; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <i data-lucide="sliders" style="width:20px; height:20px; color:var(--muted);"></i>
-            </button>
-          </div>
-
-          <!-- Pills -->
-          <div style="margin-top:16px; display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none;">
-            <button class="fin-pill active" onclick="switchFinTab('invoices')" style="display:flex; align-items:center; gap:8px; padding:8px 16px; border:1px solid var(--primary); border-radius:24px; color:var(--primary); background:transparent; font-weight:600; font-size:14px; white-space:nowrap;">
-              <i data-lucide="layout-grid" style="width:16px; height:16px;"></i> Todos
-            </button>
-            <button class="fin-pill" onclick="switchFinTab('payrolls')" style="display:flex; align-items:center; gap:8px; padding:8px 16px; border:1px solid var(--line); border-radius:24px; color:var(--muted); background:transparent; font-weight:500; font-size:14px; white-space:nowrap;">
-              <i data-lucide="clock" style="width:16px; height:16px;"></i> Pendentes
-            </button>
-            <button class="fin-pill" style="display:flex; align-items:center; gap:8px; padding:8px 16px; border:1px solid var(--line); border-radius:24px; color:var(--muted); background:transparent; font-weight:500; font-size:14px; white-space:nowrap;">
-              <i data-lucide="check-circle" style="width:16px; height:16px;"></i> Pagas
-            </button>
+            <div class="stack-form">
+              <div class="form-group">
+                <label class="form-label">Período</label>
+                <div class="rate-grid">
+                  <input type="date" id="genPayrollFrom" />
+                  <input type="date" id="genPayrollTo" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Funcionário</label>
+                <select id="genPayrollEmployee">
+                  <option value="all">Todos os Funcionários</option>
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Cliente(s)</label>
+                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; background: var(--surface);">
+                  <label style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid var(--line); font-size:1rem; cursor:pointer;">
+                    <input type="checkbox" value="all" id="genPayrollClientAll" checked onchange="toggleAllPayrollClients(this)" style="min-height:auto; width:22px; height:22px; margin:0; padding:0; accent-color:var(--primary);" />
+                    <strong>Todos os Clientes</strong>
+                  </label>
+                  <div id="genPayrollClientList" style="display:flex; flex-direction:column; gap:10px;">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Agrupamento</label>
+                <select id="genPayrollGroupByClient">
+                  <option value="false">Geral (Juntar tudo no mesmo holerite)</option>
+                  <option value="true">Separado (Criar um holerite por cliente)</option>
+                </select>
+              </div>
+              <div class="toolbar-actions" style="margin-top:16px;">
+                <button class="button button-primary" type="button" id="btnGenPayrolls">Gerar Holerites</button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <article id="financeDocsPanel" style="background:transparent; padding:0; box-shadow:none;">
+
+        <article class="panel glass-card" id="financeDocsPanel">
+          <!-- Abas -->
+          <div class="fin-tabs-header">
+            <div class="fin-tabs">
+              <button type="button" class="fin-tab active" id="finTabInvoices" onclick="switchFinTab('invoices')">
+                📄 Faturas <span class="fin-tab-badge" id="finBadgeInvoices">0</span>
+              </button>
+              <button type="button" class="fin-tab" id="finTabPayrolls" onclick="switchFinTab('payrolls')">
+                🧹 Holerites <span class="fin-tab-badge" id="finBadgePayrolls">0</span>
+              </button>
+            </div>
+            <span class="panel-kicker" id="finDocsSubtitle">Documentos financeiros gerados</span>
+          </div>
+
+          <!-- Filtros -->
+          <div class="fin-filters">
+            <input type="search" id="finSearch" placeholder="🔍 Buscar por nome..." oninput="applyFinFilters()" style="flex:1; min-width:160px;" />
+            <select id="finMonthFilter" onchange="applyFinFilters()" style="min-width:140px;">
+              <option value="">Todos os meses</option>
+            </select>
+            <button type="button" class="button button-secondary" onclick="clearFinFilters()" style="white-space:nowrap;">✕ Limpar</button>
+          </div>
+
           <!-- Tabela -->
-          <div class="fin-table-wrap" style="background:transparent; padding:0;">
+          <div class="fin-table-wrap">
             <table class="fin-table" id="finTable">
               <thead>
-                <tr style="display:none;">
+                <tr>
                   <th class="fin-th sortable" data-col="num" onclick="sortFinTable('num')"># <span class="sort-icon">↕</span></th>
                   <th class="fin-th sortable" data-col="name" onclick="sortFinTable('name')">Nome <span class="sort-icon">↕</span></th>
                   <th class="fin-th sortable" data-col="period" onclick="sortFinTable('period')">Período <span class="sort-icon">↕</span></th>
@@ -399,98 +465,19 @@
                   <th class="fin-th">Ações</th>
                 </tr>
               </thead>
-              <tbody id="finTableBody" style="background:transparent; gap:16px;">
+              <tbody id="finTableBody">
                 <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:32px;">Carregando...</td></tr>
               </tbody>
             </table>
           </div>
 
           <!-- Paginação -->
-          <div class="fin-pagination" id="finPagination" style="margin-top:16px;">
+          <div class="fin-pagination" id="finPagination">
             <button type="button" class="button button-secondary fin-page-btn" id="finPagePrev" onclick="finChangePage(-1)">‹ Anterior</button>
             <span id="finPageInfo" style="font-size:0.9rem; color:var(--muted);">Página 1</span>
             <button type="button" class="button button-secondary fin-page-btn" id="finPageNext" onclick="finChangePage(1)">Próxima ›</button>
           </div>
         </article>
-
-        <!-- Stats and Generation forms moved below -->
-        <details style="margin-top:24px; background:white; border-radius:16px; border:1px solid var(--line); padding:16px;">
-          <summary style="font-weight:700; font-size:16px; color:var(--text); cursor:pointer; outline:none; display:flex; align-items:center; gap:8px;">
-            <i data-lucide="plus-circle" style="width:20px; height:20px; color:var(--primary);"></i> Gerar Faturas e Holerites
-          </summary>
-          <div style="margin-top:16px;">
-            <div class="stats-row" id="financeStats" style="margin-bottom:24px;"></div>
-            <div class="overview-grid">
-              <!-- Card: Gerar Faturas (Clientes) -->
-              <div class="panel glass-card">
-                <div class="panel-header">
-                  <h3>Gerar Faturas (Clientes)</h3>
-                </div>
-                <div class="stack-form">
-                  <div class="form-group">
-                    <label class="form-label">Período</label>
-                    <div class="rate-grid">
-                      <input type="date" id="genInvoiceFrom" />
-                      <input type="date" id="genInvoiceTo" />
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Cliente</label>
-                    <select id="genInvoiceClient">
-                      <option value="all">Todos os Clientes</option>
-                    </select>
-                  </div>
-                  <div class="toolbar-actions" style="margin-top:16px;">
-                    <button class="button button-primary" type="button" id="btnGenInvoices">Gerar Faturas</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Card: Gerar Holerites (Funcionários) -->
-              <div class="panel glass-card">
-                <div class="panel-header">
-                  <h3>Gerar Holerites (Cleaners)</h3>
-                </div>
-                <div class="stack-form">
-                  <div class="form-group">
-                    <label class="form-label">Período</label>
-                    <div class="rate-grid">
-                      <input type="date" id="genPayrollFrom" />
-                      <input type="date" id="genPayrollTo" />
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Funcionário</label>
-                    <select id="genPayrollEmployee">
-                      <option value="all">Todos os Funcionários</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Cliente(s)</label>
-                    <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; background: var(--surface);">
-                      <label style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid var(--line); font-size:1rem; cursor:pointer;">
-                        <input type="checkbox" value="all" id="genPayrollClientAll" checked onchange="toggleAllPayrollClients(this)" style="min-height:auto; width:22px; height:22px; margin:0; padding:0; accent-color:var(--primary);" />
-                        <strong>Todos os Clientes</strong>
-                      </label>
-                      <div id="genPayrollClientList" style="display:flex; flex-direction:column; gap:10px;"></div>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Agrupamento</label>
-                    <select id="genPayrollGroupByClient">
-                      <option value="false">Geral (Juntar tudo no mesmo holerite)</option>
-                      <option value="true">Separado (Criar um holerite por cliente)</option>
-                    </select>
-                  </div>
-                  <div class="toolbar-actions" style="margin-top:16px;">
-                    <button class="button button-primary" type="button" id="btnGenPayrolls">Gerar Holerites</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </details>
-      </section>
       </section>
 
 
