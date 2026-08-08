@@ -2149,14 +2149,14 @@ async function sendInvoiceEmail(job, durationHours, clientAmount) {
 
   const invoiceHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #eee;border-radius:8px;">
-      <h2 style="color:#c9743f;">Fantastic BnB — Invoice de Servico</h2>
+      <h2 style="color:#1e3a8a;">Fantastic BnB — Invoice de Servico</h2>
       <p>Ol&aacute;, <strong>${escapeHtml(job.client_name || 'Cliente')}</strong>!</p>
       <p>O servico no flat <strong>${escapeHtml(job.flat_address || '')}</strong> foi conclu&iacute;do.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Data</td><td style="padding:8px;border-bottom:1px solid #eee;">${job.finished_at ? job.finished_at.slice(0, 10) : ''}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Flat</td><td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(job.flat_address || '')}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Dura&ccedil;&atilde;o</td><td style="padding:8px;border-bottom:1px solid #eee;">${formatHours(durationHours)}</td></tr>
-        <tr><td style="padding:8px;font-weight:bold;color:#c9743f;">Total</td><td style="padding:8px;font-weight:bold;color:#c9743f;">${formatCurrencyGBP(clientAmount)}</td></tr>
+        <tr><td style="padding:8px;font-weight:bold;color:#1e3a8a;">Total</td><td style="padding:8px;font-weight:bold;color:#1e3a8a;">${formatCurrencyGBP(clientAmount)}</td></tr>
       </table>
       <p style="color:#666;font-size:0.9em;">Obrigado por usar os servi&ccedil;os Fantastic BnB!</p>
     </div>
@@ -2257,7 +2257,7 @@ function renderPayslipPrintHtml(payslip, month) {
     table { width: 100%; border-collapse: collapse; margin-top: 24px; }
     th { text-align: left; padding: 12px; background: #f8f8f8; border-bottom: 2px solid #ddd; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-    .logo { font-size: 24px; font-weight: bold; color: #c9743f; }
+    .logo { font-size: 24px; font-weight: bold; color: #1e3a8a; }
     @media print { body { padding: 0; } }
   </style>
 </head>

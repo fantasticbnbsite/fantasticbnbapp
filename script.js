@@ -2149,7 +2149,7 @@ function renderPayrollStatus(status) {
   const map = {
     enviado: '#2e9b6c',
     confirmado: '#16756b',
-    pendente: '#c9743f',
+    pendente: '#1e3a8a',
     revisao: '#d45555',
   };
   const color = map[status] || '#5B8DEF';

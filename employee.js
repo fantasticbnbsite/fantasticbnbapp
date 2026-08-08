@@ -169,7 +169,7 @@ const OfflineModule = (() => {
     const ta = document.getElementById('obs-' + jobId);
     if (ta && !ta.value) {
       ta.value = draft;
-      ta.style.borderColor = '#c9743f';
+      ta.style.borderColor = '#1e3a8a';
       ta.title = 'Rascunho guardado automaticamente';
     }
   }
@@ -763,7 +763,7 @@ const App = (() => {
         </div>
         ${job.status === 'in_progress' ? `<div style="margin-left:auto;text-align:right;">
           <div style="font-size:0.72rem;color:#706356;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Tempo decorrido</div>
-          <div class="elapsed-timer" data-started="${job.startedAt}" style="font-size:1.1rem;font-weight:800;color:#c9743f;font-family:'Space Grotesk',sans-serif;">--:--</div>
+          <div class="elapsed-timer" data-started="${job.startedAt}" style="font-size:1.1rem;font-weight:800;color:#1e3a8a;font-family:'Space Grotesk',sans-serif;">--:--</div>
         </div>` : ''}
       </div>`;
     }
