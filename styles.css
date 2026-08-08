@@ -1689,49 +1689,53 @@ textarea {
 
 .dash-grid-2x2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
 }
 .dash-stat-card {
   background: white;
   border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.02);
 }
 .dash-stat-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 .dash-stat-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: rgba(217, 119, 6, 0.1);
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--primary);
 }
+.dash-stat-icon i {
+  width: 18px;
+  height: 18px;
+}
 .dash-stat-title {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 600;
   margin-bottom: 2px;
   line-height: 1.2;
 }
 .dash-stat-value {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text);
 }
 .trend-up {
   color: var(--success);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;

@@ -4362,10 +4362,9 @@ function renderDashboard() {
       if (d > maxDate) maxDate = d;
     }
   });
-  let useDaily = false;
-  if (dateFrom || dateTo) {
-    useDaily = true;
-  }
+  let trendType = 'monthly';
+  const trendSelect = document.getElementById('dashboardTrendType');
+  if (trendSelect) trendType = trendSelect.value;
 
   filteredJobs.forEach(j => {
     const revenue = j.client_amount || 0;
@@ -4391,7 +4390,11 @@ function renderDashboard() {
     // Trend
     const d = j.finished_at || j.requested_date;
     if (d) {
-      const periodKey = useDaily ? d.substring(0, 10) : d.substring(0, 7);
+      let periodKey;
+      if (trendType === 'daily') periodKey = d.substring(0, 10);
+      else if (trendType === 'yearly') periodKey = d.substring(0, 4);
+      else periodKey = d.substring(0, 7); // monthly (default)
+      
       if (!trendData[periodKey]) trendData[periodKey] = { revenue: 0, cost: 0 };
       trendData[periodKey].revenue += revenue;
       trendData[periodKey].cost += cost;
@@ -4509,7 +4512,11 @@ function renderDashboard() {
     }
     
     const monthsArrAsc = Object.keys(trendData).sort(); // chronological for chart
-    const labels = monthsArrAsc.map(d => d.length === 10 ? d.split('-').reverse().join('/') : d);
+    const labels = monthsArrAsc.map(d => {
+      if (d.length === 10) return d.split('-').reverse().join('/'); // daily: DD/MM/YYYY
+      if (d.length === 7) return d.split('-').reverse().join('/');  // monthly: MM/YYYY
+      return d; // yearly: YYYY
+    });
     const revenueData = monthsArrAsc.map(m => trendData[m].revenue);
     const costData = monthsArrAsc.map(m => trendData[m].cost);
     const profitData = monthsArrAsc.map(m => trendData[m].revenue - trendData[m].cost);

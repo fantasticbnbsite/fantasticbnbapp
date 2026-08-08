@@ -125,7 +125,7 @@
       <section class="view" id="dashboardView">
         <div class="dash-header-section">
           <h2 class="dash-title">Visão geral da operação</h2>
-          <div class="dash-filters">
+          <div class="dash-filters" style="display:flex; gap:12px; align-items:center;">
             <div class="dash-filter-input">
               <i data-lucide="calendar"></i>
               <select id="dashboardDatePreset">
@@ -142,10 +142,6 @@
                 <option value="">Todos os clientes</option>
               </select>
             </div>
-
-            <button class="button ghost-button dash-filter-btn" id="openDashboardFiltersBtn">
-              <i data-lucide="filter"></i> Filtros
-            </button>
             
             <input type="date" id="dashboardDateFrom" style="display:none;" />
             <input type="date" id="dashboardDateTo" style="display:none;" />
@@ -158,10 +154,12 @@
           <div class="panel-header borderless">
             <div>
               <h3><i data-lucide="bar-chart-2" class="dash-icon"></i>Evolução Financeira</h3>
-              <p class="panel-kicker indent">Faturamento e lucratividade mês a mês.</p>
+              <p class="panel-kicker indent">Faturamento e lucratividade.</p>
             </div>
-            <select id="dashboardTrendType" class="dash-minimal-select">
-              <option value="monthly">Mensal</option>
+            <select id="dashboardTrendType" class="dash-minimal-select" onchange="renderDashboard()">
+              <option value="daily">Diário</option>
+              <option value="monthly" selected>Mensal</option>
+              <option value="yearly">Anual</option>
             </select>
           </div>
           <div class="chart-container" style="height: 240px; position: relative;">
