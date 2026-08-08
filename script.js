@@ -4406,10 +4406,74 @@ function renderDashboard() {
   });
 
   const totalProfit = totalRevenue - totalCost;
+  
+  // Calculate Previous Period Trend
+  let prevTotalRevenue = 0;
+  let prevTotalCost = 0;
+  let hasPeriod = dateFrom && dateTo;
+
+  if (hasPeriod) {
+    const dFrom = new Date(dateFrom);
+    const dTo = new Date(dateTo);
+    const diffTime = Math.abs(dTo - dFrom);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    const prevTo = new Date(dFrom);
+    prevTo.setDate(prevTo.getDate() - 1);
+    
+    const prevFrom = new Date(prevTo);
+    prevFrom.setDate(prevFrom.getDate() - (diffDays - 1));
+    
+    const sPrevFrom = prevFrom.toISOString().slice(0, 10);
+    const sPrevTo = prevTo.toISOString().slice(0, 10);
+
+    const prevJobs = jobs.filter(j => {
+      if (clientFilter !== 'all' && j.client_user_id != clientFilter) return false;
+      const d = (j.finished_at || j.requested_date || '').slice(0, 10);
+      return d >= sPrevFrom && d <= sPrevTo;
+    });
+
+    prevJobs.forEach(j => {
+      prevTotalRevenue += (j.client_amount || 0);
+      prevTotalCost += (j.employee_amount || 0);
+    });
+  }
+
+  function getTrendHtml(curr, prev) {
+    if (!hasPeriod) return '';
+    if (prev === 0 && curr === 0) return `<div class="trend-up" style="color:rgba(255,255,255,0.7);"><i data-lucide="minus"></i> 0%</div>`;
+    if (prev === 0) return `<div class="trend-up" style="color:#fff;"><i data-lucide="trending-up"></i> +100%</div>`;
+    
+    const pct = ((curr - prev) / Math.abs(prev)) * 100;
+    if (pct > 0) return `<div class="trend-up" style="color:#fff;"><i data-lucide="trending-up"></i> +${pct.toFixed(1)}%</div>`;
+    if (pct < 0) return `<div class="trend-up" style="color:#fff;"><i data-lucide="trending-down"></i> ${pct.toFixed(1)}%</div>`;
+    return `<div class="trend-up" style="color:rgba(255,255,255,0.7);"><i data-lucide="minus"></i> 0%</div>`;
+  }
+
+  const revTrendHtml = getTrendHtml(totalRevenue, prevTotalRevenue);
+  const costTrendHtml = getTrendHtml(totalCost, prevTotalCost);
+  
+  const prevTotalProfit = prevTotalRevenue - prevTotalCost;
+  const profitTrendHtml = getTrendHtml(totalProfit, prevTotalProfit);
+  
+  const marginNum = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  const prevMarginNum = prevTotalRevenue > 0 ? (prevTotalProfit / prevTotalRevenue) * 100 : 0;
+  
+  // Margin trend compares percentage points directly, or we can use relative growth. 
+  // Standard financial metric for margin change is usually basis points or absolute % change. 
+  // Let's just use absolute difference for margin (e.g. 33% vs 30% = +3.0%).
+  function getMarginTrendHtml(curr, prev) {
+    if (!hasPeriod) return '';
+    const diff = curr - prev;
+    if (diff === 0) return `<div class="trend-up" style="color:rgba(255,255,255,0.7);"><i data-lucide="minus"></i> 0%</div>`;
+    if (diff > 0) return `<div class="trend-up" style="color:#fff;"><i data-lucide="trending-up"></i> +${diff.toFixed(1)}%</div>`;
+    if (diff < 0) return `<div class="trend-up" style="color:#fff;"><i data-lucide="trending-down"></i> ${diff.toFixed(1)}%</div>`;
+  }
+  const marginTrendHtml = getMarginTrendHtml(marginNum, prevMarginNum);
+  const margin = marginNum.toFixed(1);
 
   const statsEl = document.getElementById('dashboardStats');
   if (statsEl) {
-    const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0';
     statsEl.innerHTML = `
       <div class="dash-stat-card card-bg-blue">
         <div class="dash-stat-header">
@@ -4419,7 +4483,7 @@ function renderDashboard() {
             <div class="dash-stat-value">${formatCurrencyGBP(totalRevenue)}</div>
           </div>
         </div>
-        <div class="trend-up"><i data-lucide="trending-up"></i> +12.4%</div>
+        ${revTrendHtml}
       </div>
       <div class="dash-stat-card card-bg-orange">
         <div class="dash-stat-header">
@@ -4429,7 +4493,7 @@ function renderDashboard() {
             <div class="dash-stat-value">${formatCurrencyGBP(totalCost)}</div>
           </div>
         </div>
-        <div class="trend-up"><i data-lucide="trending-up"></i> +8.2%</div>
+        ${costTrendHtml}
       </div>
       <div class="dash-stat-card ${totalProfit >= 0 ? 'card-bg-green' : 'card-bg-red'}">
         <div class="dash-stat-header">
@@ -4439,7 +4503,7 @@ function renderDashboard() {
             <div class="dash-stat-value">${formatCurrencyGBP(totalProfit)}</div>
           </div>
         </div>
-        <div class="trend-up"><i data-lucide="trending-up"></i> +18.7%</div>
+        ${profitTrendHtml}
       </div>
       <div class="dash-stat-card ${totalProfit >= 0 ? 'card-bg-green' : 'card-bg-red'}">
         <div class="dash-stat-header">
@@ -4449,7 +4513,7 @@ function renderDashboard() {
             <div class="dash-stat-value">${margin}%</div>
           </div>
         </div>
-        <div class="trend-up"><i data-lucide="trending-up"></i> +2.1%</div>
+        ${marginTrendHtml}
       </div>
     `;
     if (window.lucide) window.lucide.createIcons({ root: statsEl });
