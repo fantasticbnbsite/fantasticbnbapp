@@ -3392,10 +3392,10 @@ function renderJobs() {
       let timelineHtml = '';
       if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
         let items = [];
-        if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; margin-right:8px;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
-        if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
+        if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
+        if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
         if (items.length > 0) {
-          timelineHtml = `<div style="font-size:14px; margin-bottom:8px;">${items.join('')}</div>`;
+          timelineHtml = `<div style="font-size:14px; margin-bottom:8px; display:flex; flex-wrap:wrap; gap:8px;">${items.join('')}</div>`;
         }
       }
       
@@ -3413,16 +3413,16 @@ function renderJobs() {
             ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div style="display:flex; align-items:center; flex-wrap:wrap; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
-              <div style="display:flex; align-items:center; gap:6px; padding-right:12px;">
+            <div style="display:flex; flex-direction:column; gap:4px; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
+              <div style="display:flex; align-items:center; gap:6px;">
                 <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
+                ${job.durationHours ? `<span style="font-size:14px; margin-left:6px;">(Dur: ${formatHours(job.durationHours)})</span>` : ''}
               </div>
               <!-- Mobile cleaner copy -->
-              <div class="mobile-only" style="align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px; white-space: nowrap;">
+              <div class="mobile-only" style="align-items:center; gap:6px; white-space: nowrap;">
                 <i data-lucide="user" style="width:18px;height:18px;"></i> 
                 ${escapeHtml(job.employeeName || 'Sem Profissional')}
               </div>
-              ${job.durationHours ? `<div style="margin-left:auto; font-size:14px; white-space:nowrap;">Dur: ${formatHours(job.durationHours)}</div>` : ''}
             </div>
             ${timelineHtml}
           </td>
