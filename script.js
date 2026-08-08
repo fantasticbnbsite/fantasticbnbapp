@@ -3064,7 +3064,7 @@ function _finRender() {
     return `
       <tr style="position:relative; margin: 0 0 16px 0 !important; border-radius:16px; box-shadow:0 2px 4px rgba(0,0,0,0.02); padding:16px !important;">
         <!-- Mobile Layout -->
-        <td class="mobile-only" style="display:flex !important; flex-direction:column; padding:0 !important; border:none !important; width:100%; gap:0; margin:0 !important;">
+        <td class="mobile-only" style="flex-direction:column; padding:0 !important; border:none !important; width:100%; gap:0; margin:0 !important;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
             <div style="font-weight:800; font-size:18px; color:var(--text);">#${num}</div>
             <div style="display:flex; flex-direction:column; align-items:center;">
@@ -3106,6 +3106,10 @@ function _finRender() {
         </td>
       </tr>`;
   }).join('');
+  
+  if (window.lucide) {
+    window.lucide.createIcons({ root: tbody });
+  }
 }
 
 
@@ -3414,7 +3418,7 @@ function renderJobs() {
                 <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
               </div>
               <!-- Mobile cleaner copy -->
-              <div class="mobile-only" style="display:flex; align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px;">
+              <div class="mobile-only" style="align-items:center; gap:6px; border-left:1px solid var(--line); padding-left:12px;">
                 <i data-lucide="user" style="width:18px;height:18px;"></i> 
                 ${escapeHtml(job.employeeName || 'Sem Profissional')}
               </div>
