@@ -4413,16 +4413,11 @@ function renderDashboard() {
   let hasPeriod = dateFrom && dateTo;
 
   if (hasPeriod) {
-    const dFrom = new Date(dateFrom);
-    const dTo = new Date(dateTo);
-    const diffTime = Math.abs(dTo - dFrom);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const prevFrom = new Date(dateFrom);
+    prevFrom.setMonth(prevFrom.getMonth() - 1);
     
-    const prevTo = new Date(dFrom);
-    prevTo.setDate(prevTo.getDate() - 1);
-    
-    const prevFrom = new Date(prevTo);
-    prevFrom.setDate(prevFrom.getDate() - (diffDays - 1));
+    const prevTo = new Date(dateTo);
+    prevTo.setMonth(prevTo.getMonth() - 1);
     
     const sPrevFrom = prevFrom.toISOString().slice(0, 10);
     const sPrevTo = prevTo.toISOString().slice(0, 10);
