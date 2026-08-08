@@ -1371,13 +1371,17 @@ document.addEventListener('DOMContentLoaded', () => App.init());
 function openChangePasswordModal() {
   document.getElementById('changePasswordForm').reset();
   const modal = document.getElementById('changePasswordModal');
+  modal.classList.remove('hidden');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('active'), 10);
 }
 function closeChangePasswordModal() {
   const modal = document.getElementById('changePasswordModal');
   modal.classList.remove('active');
-  setTimeout(() => modal.style.display = 'none', 300);
+  setTimeout(() => {
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+  }, 300);
 }
 async function submitChangePassword(e) {
   e.preventDefault();
