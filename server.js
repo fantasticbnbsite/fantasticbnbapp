@@ -1096,7 +1096,8 @@ async function handleApi(req, res, requestUrl) {
       const startedAt = new Date(job.started_at || now);
       const finishedAt = new Date(now);
       const durationMs = Math.max(0, finishedAt - startedAt);
-      const durationMinutes = Math.min(1440, Math.round(durationMs / 60_000)); // Cap at 24 hours
+      const rawMinutes = Math.round(durationMs / 60_000);
+      const durationMinutes = Math.min(1440, Math.round(rawMinutes / 5) * 5); // Round to nearest 5 mins, cap at 24 hours
       const durationHours = Math.round((durationMinutes / 60) * 100) / 100;
 
       const employee = db.prepare('SELECT * FROM users WHERE id = ?').get(session.user.id);
@@ -1487,7 +1488,8 @@ async function handleApi(req, res, requestUrl) {
         let durationMinutes = 0;
         if (j.started_at && j.finished_at) {
           const durationMs = finishedAt - startedAt;
-          durationMinutes = Math.round(durationMs / 60_000);
+          const rawMinutes = Math.round(durationMs / 60_000);
+          durationMinutes = Math.round(rawMinutes / 5) * 5;
         } else {
           durationMinutes = Math.round(Number(j.duration_hours) * 60);
         }
