@@ -435,7 +435,10 @@ async function loadApp() {
   if (isAdmin()) await loadUsers();
   loadGeneratedDocuments();
   await loadHolerites();
-  switchView(isCollaborator() ? 'holerites' : 'dashboard');
+  let defaultView = 'dashboard';
+  if (isCollaborator()) defaultView = 'holerites';
+  else if (state.user?.role === 'manager') defaultView = 'jobs';
+  switchView(defaultView);
 }
 
 async function refreshClientContext() {
@@ -535,6 +538,12 @@ function updateRoleUi() {
   document.querySelectorAll('[data-view="admin"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   document.querySelectorAll('[data-view="config"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   document.querySelectorAll('[data-view="cleaners"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  document.querySelectorAll('[data-view="dashboard"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  
+  const cleanerPortalLink = document.getElementById('cleanerPortalLink');
+  if (cleanerPortalLink) {
+    cleanerPortalLink.classList.toggle('hidden', !(isAdmin() || isCleanerRole()));
+  }
   
   // admin-only elements: for managers with specific perms, show relevant elements
   document.querySelectorAll('.admin-only').forEach((node) => {
