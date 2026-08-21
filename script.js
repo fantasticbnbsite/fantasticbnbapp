@@ -1840,7 +1840,7 @@ async function onChangeUserPassword(userId) {
   try {
     await api(`/api/users/${userId}/password`, {
       method: 'PATCH',
-      body: JSON.stringify({ password: newPassword })
+      body: { password: newPassword }
     });
     toast('Senha alterada com sucesso!');
   } catch (error) {
