@@ -1259,7 +1259,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { config });
   }
   if (requestUrl.pathname === '/api/config' && req.method === 'PUT') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
     const body = await parseBody(req);
     const now = new Date().toISOString();
     for (const [key, value] of Object.entries(body || {})) {
@@ -1723,14 +1723,14 @@ async function handleApi(req, res, requestUrl) {
 
   if (subPath === 'config' && req.method === 'GET') return sendJson(res, 200, getClientConfig(clientId));
   if (subPath === 'fields' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager'], res)) return;
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     const next = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS nextPosition FROM fields WHERE client_id = ?').get(clientId).nextPosition;
     db.prepare('INSERT INTO fields (client_id, field_key, label, field_type, required, position) VALUES (?, ?, ?, ?, ?, ?)').run(clientId, slugify(body.fieldKey || body.label || `campo-${Date.now()}`), body.label || 'Novo campo', normalizeFieldType(body.fieldType), body.required ? 1 : 0, next);
     return sendJson(res, 201, getClientConfig(clientId));
   }
   if (subPath === 'statuses' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager'], res)) return;
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     const next = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS nextPosition FROM statuses WHERE client_id = ?').get(clientId).nextPosition;
     db.prepare('INSERT INTO statuses (client_id, status_key, label, color, position) VALUES (?, ?, ?, ?, ?)').run(clientId, slugify(body.statusKey || body.label || `status-${Date.now()}`), body.label || 'Novo status', body.color || '#5B8DEF', next);

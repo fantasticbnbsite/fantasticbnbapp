@@ -3204,6 +3204,7 @@ window.deletePayroll = async function(id) {
 
 
 window.openAdminEditJobModal = async function(jobId) {
+  if (!canCreateJobs()) return alert('Permissão insuficiente');
   const modal = document.getElementById('adminEditJobModal');
   const selEmp = document.getElementById('adminEditJobEmployee');
   
@@ -3542,6 +3543,7 @@ document.getElementById('jobsDateTo')?.addEventListener('change', renderJobs);
 
 
 window.openAssignEmployeeModal = async function(jobId) {
+  if (!canCreateJobs()) return alert('Permissão insuficiente');
   const modal = document.getElementById('assignJobModal');
   const select = document.getElementById('assignEmployeeSelect');
   document.getElementById('assignJobId').value = jobId;
@@ -4815,6 +4817,7 @@ function renderDashboard() {
 // ── MANUAL JOB ───────────────────────────────────────────
 
 async function openManualJobForFinance() {
+  if (!(canGenInvoices() || canGenPayrolls())) return alert('Permissão insuficiente');
   try {
     const isInvoice = currentFinanceEditType === 'invoice';
     let targetInvoice = null;
