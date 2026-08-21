@@ -205,7 +205,7 @@
               <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
                 <input name="name" type="text" placeholder="Nome do usuario" required />
                 <input name="email" type="email" placeholder="Email" required />
-                <input name="password" type="text" placeholder="Senha (vazio para manter)" />
+                <input name="password" type="text" placeholder="Senha (vazio para manter)" autocomplete="new-password" data-1p-ignore data-lpignore="true" />
                 <select name="role" id="userRoleSelect" required>
                   <option value="" disabled selected>Papel do usuario...</option>
                   <option value="superadmin">Administrador (Acesso Total)</option>
