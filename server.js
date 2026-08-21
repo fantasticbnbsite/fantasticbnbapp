@@ -366,6 +366,11 @@ try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT ""
 try { db.exec('ALTER TABLE flats ADD COLUMN show_project_hours INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN invoice_number TEXT;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN is_urgent INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN perm_create_jobs INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_invoices INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_payrolls INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -608,7 +613,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/users' && req.method === 'GET') {
     if (!ensureRole(session.user, ['superadmin'], res)) return;
     const users = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.hourly_rate, u.weekend_rate, u.holiday_rate, u.created_at, u.parent_client_id,
+      SELECT u.id, u.name, u.email, u.role, u.hourly_rate, u.weekend_rate, u.holiday_rate, u.created_at, u.parent_client_id, u.perm_create_jobs, u.perm_gen_invoices, u.perm_gen_payrolls, u.perm_manage_clients_flats, u.is_cleaner,
              GROUP_CONCAT(c.name, ' | ') AS client_names
       FROM users u
       LEFT JOIN user_clients uc ON uc.user_id = u.id
@@ -623,7 +628,12 @@ async function handleApi(req, res, requestUrl) {
     const body = await parseBody(req);
     const role = validateRole(body.role || 'viewer');
     const { salt, hash } = hashPassword(body.password || '123456');
-    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, role, password_hash, password_salt, hourly_rate, weekend_rate, holiday_rate, parent_client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(body.name || 'Novo usuario', body.email || '', role, hash, salt, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null);
+    const pCreate = body.perm_create_jobs ? 1 : 0;
+    const pInv = body.perm_gen_invoices ? 1 : 0;
+    const pPay = body.perm_gen_payrolls ? 1 : 0;
+    const pManage = body.perm_manage_clients_flats ? 1 : 0;
+    const isCleaner = body.is_cleaner ? 1 : 0;
+    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, role, password_hash, password_salt, hourly_rate, weekend_rate, holiday_rate, parent_client_id, perm_create_jobs, perm_gen_invoices, perm_gen_payrolls, perm_manage_clients_flats, is_cleaner) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(body.name || 'Novo usuario', body.email || '', role, hash, salt, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner);
     if (role === 'client' && Array.isArray(body.flatIds)) {
       for (const flatId of body.flatIds) {
         db.prepare('UPDATE flats SET client_user_id = ? WHERE id = ?').run(result.lastInsertRowid, Number(flatId));
@@ -640,13 +650,18 @@ async function handleApi(req, res, requestUrl) {
     const body = await parseBody(req);
     const role = validateRole(body.role || 'viewer');
     
+    const pCreate = body.perm_create_jobs ? 1 : 0;
+    const pInv = body.perm_gen_invoices ? 1 : 0;
+    const pPay = body.perm_gen_payrolls ? 1 : 0;
+    const pManage = body.perm_manage_clients_flats ? 1 : 0;
+    const isCleaner = body.is_cleaner ? 1 : 0;
     if (body.password) {
       const { salt, hash } = hashPassword(body.password);
-      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, password_hash = ?, password_salt = ?, parent_client_id = ? WHERE id = ?')
-        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), hash, salt, role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, userId);
+      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, password_hash = ?, password_salt = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ? WHERE id = ?')
+        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), hash, salt, role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, userId);
     } else {
-      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, parent_client_id = ? WHERE id = ?')
-        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, userId);
+      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ? WHERE id = ?')
+        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, userId);
     }
     
     if (role === 'client') {
@@ -686,7 +701,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Flats ──
   if (requestUrl.pathname === '/api/flats' && req.method === 'GET') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flats = db.prepare(`
       SELECT f.*, u.name AS client_name, u.email AS client_email
       FROM flats f
@@ -702,7 +717,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { flats });
   }
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
@@ -724,7 +739,7 @@ async function handleApi(req, res, requestUrl) {
 
   const flatCrudMatch = requestUrl.pathname.match(/^\/api\/flats\/(\d+)$/);
   if (flatCrudMatch && req.method === 'PUT') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flatId = Number(flatCrudMatch[1]);
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
@@ -749,7 +764,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId) });
   }
   if (flatCrudMatch && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flatId = Number(flatCrudMatch[1]);
     if (!db.prepare('SELECT id FROM flats WHERE id = ?').get(flatId)) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     db.prepare('DELETE FROM flats WHERE id = ?').run(flatId);
@@ -758,7 +773,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Jobs ──
   if (requestUrl.pathname === '/api/jobs' && req.method === 'GET') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const statusFilter = requestUrl.searchParams.get('status') || '';
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
     let sql = `
@@ -803,7 +818,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/jobs' && req.method === 'POST') {
-    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Sem permissao.' });
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Sem permissao.' });
     
     const body = await parseBody(req);
     if (!body.requestedDate) return sendJson(res, 400, { error: 'Data obrigatoria.' });
@@ -813,7 +828,7 @@ async function handleApi(req, res, requestUrl) {
     let empId = null;
     let flat;
     
-    if (isAdminRole(session.user.role)) {
+    if (canCreateJobs(session.user)) {
        targetClientId = Number(body.clientId);
        flat = db.prepare('SELECT * FROM flats WHERE id = ? AND client_user_id = ?').get(Number(body.flatId), targetClientId);
        if (body.employeeUserId) {
@@ -835,7 +850,7 @@ async function handleApi(req, res, requestUrl) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
     }
 
-    if (!isAdminRole(session.user.role)) {
+    if (!canCreateJobs(session.user)) {
       notifyAdmins({ title: 'Nova Limpeza Solicitada 🧹', body: `O flat ${flat.address} tem um novo pedido de limpeza para o dia ${body.requestedDate.split('T')[0]}` }).catch(()=>{});
     }
 
@@ -843,7 +858,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/jobs/manual' && req.method === 'POST') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     
     const flatId = Number(body.flatId);
@@ -946,7 +961,7 @@ async function handleApi(req, res, requestUrl) {
 
   const jobCrudMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)$/);
   if (jobCrudMatch && req.method === 'PUT') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const jobId = Number(jobCrudMatch[1]);
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
@@ -1058,7 +1073,7 @@ async function handleApi(req, res, requestUrl) {
     } catch (e) {}
 
     if (action === 'assign') {
-      if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+      if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       if (!['pending', 'assigned'].includes(job.status)) return sendJson(res, 400, { error: `Nao e possivel designar um servico com status '${job.status}'.` });
       const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role IN ('employee', 'admin', 'superadmin', 'manager', 'analyst')").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
@@ -1082,7 +1097,7 @@ async function handleApi(req, res, requestUrl) {
       notifyAdmins({ title: 'Serviço Recusado ❌', body: `O serviço #${jobId} foi recusado.` });
     } else if (action === 'start') {
       if (job.status !== 'accepted') return sendJson(res, 400, { error: 'O servico precisa estar aceito para iniciar.' });
-      if (job.employee_user_id !== session.user.id && !isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+      if (job.employee_user_id !== session.user.id && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
@@ -1147,7 +1162,7 @@ async function handleApi(req, res, requestUrl) {
         const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
         if (job.client_user_id !== targetClientId) return sendJson(res, 403, { error: 'Este servico nao pertence a voce.' });
         if (job.status === 'in_progress' || job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico ja em andamento ou concluido.' });
-      } else if (!isAdminRole(session.user.role)) {
+      } else if (!canCreateJobs(session.user)) {
         return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
@@ -1201,7 +1216,7 @@ async function handleApi(req, res, requestUrl) {
 
   const jobPhotoDeleteMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)\/photos\/(\d+)$/);
   if (jobPhotoDeleteMatch && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role) && session.user.role !== 'employee') return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canCreateJobs(session.user) && session.user.role !== 'employee') return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const photoId = Number(jobPhotoDeleteMatch[2]);
     const photo = db.prepare('SELECT * FROM job_photos WHERE id = ?').get(photoId);
     if (!photo) return sendJson(res, 404, { error: 'Foto nao encontrada.' });
@@ -1219,7 +1234,7 @@ async function handleApi(req, res, requestUrl) {
 
   const payslipMatch = requestUrl.pathname.match(/^\/api\/payslip\/employee\/(\d+)$/);
   if (payslipMatch && req.method === 'GET') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenPayrolls(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const employeeId = Number(payslipMatch[1]);
     const month = requestUrl.searchParams.get('month') || currentMonthParam();
     return sendJson(res, 200, buildJobPayslip(employeeId, month));
@@ -1227,7 +1242,7 @@ async function handleApi(req, res, requestUrl) {
 
   const invoiceMatch = requestUrl.pathname.match(/^\/api\/invoices\/client\/(\d+)$/);
   if (invoiceMatch && req.method === 'GET') {
-    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !isAdminRole(session.user.role) && session.user.role !== 'viewer') {
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !canGenPayrolls(session.user) && session.user.role !== 'viewer') {
       return sendJson(res, 403, { error: 'Sem permissao.' });
     }
     const clientId = Number(invoiceMatch[1]);
@@ -1302,7 +1317,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Automated Finance ──
   if (requestUrl.pathname === '/api/finance/generate' && req.method === 'POST') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     const { type, periodFrom, periodTo, targetId, groupByClient } = body;
     if (!periodFrom || !periodTo || !type) return sendJson(res, 400, { error: 'Periodo ou tipo invalido.' });
@@ -1382,7 +1397,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname === '/api/finance/summary' && req.method === 'GET') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoices = db.prepare(`
       SELECT i.*, u.name as client_name
       FROM invoices i LEFT JOIN users u ON u.id = i.client_user_id
@@ -1457,7 +1472,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (requestUrl.pathname.match(/^\/api\/finance\/fix-invoice\/(\d+)$/) && req.method === 'GET') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenPayrolls(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(requestUrl.pathname.match(/^\/api\/finance\/fix-invoice\/(\d+)$/)[1]);
     
     // Get all jobs for this invoice
@@ -1531,7 +1546,7 @@ async function handleApi(req, res, requestUrl) {
   // ── Edit Invoice Number ──
   const matchFinanceInvoiceNumber = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/number$/);
   if (matchFinanceInvoiceNumber && req.method === 'PATCH') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(matchFinanceInvoiceNumber[1]);
     const body = await parseBody(req);
     const invoiceNumber = body.invoiceNumber || null;
@@ -1559,7 +1574,7 @@ async function handleApi(req, res, requestUrl) {
   // ── Edit Finance Jobs ──
   const matchFinanceInvoiceJob = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/jobs\/(\d+)$/);
   if (matchFinanceInvoiceJob && req.method === 'PATCH') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(matchFinanceInvoiceJob[1]);
     const jobId = Number(matchFinanceInvoiceJob[2]);
     const body = await parseBody(req);
@@ -1575,7 +1590,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinancePayrollJob = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)\/jobs\/(\d+)$/);
   if (matchFinancePayrollJob && req.method === 'PATCH') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const payrollId = Number(matchFinancePayrollJob[1]);
     const jobId = Number(matchFinancePayrollJob[2]);
     const body = await parseBody(req);
@@ -1596,7 +1611,7 @@ async function handleApi(req, res, requestUrl) {
   // ── Edit Finance Extras ──
   const matchFinanceInvoiceExtra = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/extras$/);
   if (matchFinanceInvoiceExtra && req.method === 'POST') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(matchFinanceInvoiceExtra[1]);
     const body = await parseBody(req);
     const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
@@ -1613,7 +1628,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinanceInvoiceExtraDel = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)\/extras\/(\d+)$/);
   if (matchFinanceInvoiceExtraDel && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(matchFinanceInvoiceExtraDel[1]);
     const index = Number(matchFinanceInvoiceExtraDel[2]);
     const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
@@ -1630,7 +1645,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinancePayrollExtra = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)\/extras$/);
   if (matchFinancePayrollExtra && req.method === 'POST') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const payrollId = Number(matchFinancePayrollExtra[1]);
     const body = await parseBody(req);
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
@@ -1647,7 +1662,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinancePayrollExtraDel = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)\/extras\/(\d+)$/);
   if (matchFinancePayrollExtraDel && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const payrollId = Number(matchFinancePayrollExtraDel[1]);
     const index = Number(matchFinancePayrollExtraDel[2]);
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
@@ -1664,7 +1679,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinanceInvoiceDel = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)$/);
   if (matchFinanceInvoiceDel && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoiceId = Number(matchFinanceInvoiceDel[1]);
     const info = db.prepare('SELECT id FROM invoices WHERE id = ?').get(invoiceId);
     if (!info) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
@@ -1675,7 +1690,7 @@ async function handleApi(req, res, requestUrl) {
 
   const matchFinancePayrollDel = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)$/);
   if (matchFinancePayrollDel && req.method === 'DELETE') {
-    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const payrollId = Number(matchFinancePayrollDel[1]);
     const info = db.prepare('SELECT id FROM payrolls WHERE id = ?').get(payrollId);
     if (!info) return sendJson(res, 404, { error: 'Holerite nao encontrado.' });
@@ -1826,7 +1841,7 @@ async function handlePrintRequest(req, res, requestUrl) {
   // ── Print Invoice ──
   const printInvoiceMatch = requestUrl.pathname.match(/^\/print\/invoice\/(\d+)$/);
   if (printInvoiceMatch && req.method === 'GET') {
-    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !isAdminRole(session.user.role) && session.user.role !== 'viewer') {
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !canGenInvoices(session.user) && session.user.role !== 'viewer') {
       res.writeHead(403);
       return res.end('Acesso negado.');
     }
@@ -1868,7 +1883,7 @@ async function handlePrintRequest(req, res, requestUrl) {
       }
       employeeId = session.user.id;
     } else {
-      if (!isAdminRole(session.user.role) && session.user.role !== 'viewer') {
+      if (!canGenPayrolls(session.user) && session.user.role !== 'viewer') {
         res.writeHead(403);
         return res.end('Sem permissao.');
       }
@@ -2582,7 +2597,15 @@ function currentMonthParam() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function isAdminRole(role) { return ['superadmin', 'admin', 'manager', 'analyst'].includes(role); }
+
+function canManageUsers(u) { return u.role === 'superadmin' || u.role === 'admin'; }
+function canManageClientsFlats(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_manage_clients_flats); }
+function canCreateJobs(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_create_jobs); }
+function canGenInvoices(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_invoices); }
+function canGenPayrolls(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_payrolls); }
+function isCleanerRole(u) { return u.role === 'employee' || (u.role === 'manager' && u.is_cleaner); }
+
+function isAdminRole(role) { return ['superadmin', 'admin'].includes(role); }
 function normalizeFieldType(fieldType) { return ['text', 'number', 'date', 'status', 'textarea'].includes(fieldType) ? fieldType : 'text'; }
 function hashPassword(password) { const salt = crypto.randomBytes(16).toString('hex'); const hash = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return { salt, hash }; }
 function verifyPassword(password, salt, hash) { const candidate = crypto.pbkdf2Sync(password, salt, 120000, 64, 'sha512').toString('hex'); return crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex')); }

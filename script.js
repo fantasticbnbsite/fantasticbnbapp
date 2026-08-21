@@ -327,6 +327,10 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
       if (userHourlyRateContainer) {
         userHourlyRateContainer.style.display = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(userRoleSelect.value) ? 'block' : 'none';
       }
+      const permsContainer = document.getElementById('userManagerPermsContainer');
+      if (permsContainer) {
+        permsContainer.style.display = userRoleSelect.value === 'manager' ? 'block' : 'none';
+      }
     });
     // Trigger initial state
     if (userParentClientContainer) userParentClientContainer.style.display = 'none';
@@ -520,8 +524,24 @@ function updateUserUi() {
 
 function updateRoleUi() {
   const collaboratorMode = isCollaborator();
-  els.adminOnly.forEach((node) => node.classList.toggle('hidden', !isAdmin()));
-  els.adminOnlyBlocks.forEach((node) => node.classList.toggle('hidden', !canManageHolerites()));
+  
+  // Custom permission toggles for sidebar buttons
+  document.querySelectorAll('[data-view="finance"]').forEach(n => n.classList.toggle('hidden', !(canGenInvoices() || canGenPayrolls())));
+  document.querySelectorAll('[data-view="flats"]').forEach(n => n.classList.toggle('hidden', !canManageClientsFlats()));
+  document.querySelectorAll('[data-view="admin"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  document.querySelectorAll('[data-view="config"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  document.querySelectorAll('.admin-only').forEach((node) => {
+    // Only hide elements that aren't navigation buttons (handled above)
+    if (!node.hasAttribute('data-view')) {
+      node.classList.toggle('hidden', !isAdmin());
+    }
+  });
+  
+  // Create Job button
+  const createJobBtn = document.querySelector('button[onclick="openAdminRequestJobModal()"]');
+  if (createJobBtn) createJobBtn.classList.toggle('hidden', !canCreateJobs());
+  
+  els.adminOnlyBlocks.forEach((node) => node.classList.toggle('hidden', !canGenPayrolls()));
   els.adminNavs.forEach((node) => node.classList.toggle('hidden', collaboratorMode));
   document.querySelectorAll('.editor-only').forEach((node) => node.classList.toggle('hidden', isViewerOnly()));
 }
@@ -1177,7 +1197,12 @@ async function onCreateUser(event) {
         parentClientId: form.get('parentClientId'),
         hourlyRate: form.get('hourlyRate'),
         weekendRate: form.get('weekendRate'),
-        holidayRate: form.get('holidayRate')
+        holidayRate: form.get('holidayRate'),
+        perm_create_jobs: form.get('perm_create_jobs') ? 1 : 0,
+        perm_gen_invoices: form.get('perm_gen_invoices') ? 1 : 0,
+        perm_gen_payrolls: form.get('perm_gen_payrolls') ? 1 : 0,
+        perm_manage_clients_flats: form.get('perm_manage_clients_flats') ? 1 : 0,
+        is_cleaner: form.get('is_cleaner') ? 1 : 0
       },
     });
     resetUserForm();
@@ -1203,6 +1228,13 @@ function resetUserForm() {
   const rateContainer = document.getElementById('userHourlyRateContainer');
   const userRoleSelect = document.getElementById('userRoleInput');
   if (rateContainer) rateContainer.style.display = 'none';
+  const permsContainer = document.getElementById('userManagerPermsContainer');
+  if (permsContainer) permsContainer.style.display = 'none';
+  document.getElementById('perm_create_jobs').checked = false;
+  document.getElementById('perm_gen_invoices').checked = false;
+  document.getElementById('perm_gen_payrolls').checked = false;
+  document.getElementById('perm_manage_clients_flats').checked = false;
+  document.getElementById('is_cleaner').checked = false;
 }
 
 function startEditUser(userId) {
@@ -2157,9 +2189,14 @@ function renderPayrollStatus(status) {
 }
 
 function findStatus(statusKey) { return state.config?.statuses?.find((status) => status.status_key === statusKey) || null; }
-function isAdmin() { return state.user?.role === 'superadmin'; }
-function isCollaborator() { return Boolean(state.user?.collaborator); }
-function canManageHolerites() { return isAdmin() || state.user?.role === 'manager'; }
+
+function isSuperAdmin() { return state.user?.role === 'superadmin'; }
+function isAdmin() { return ['superadmin', 'admin'].includes(state.user?.role); }
+function canCreateJobs() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_create_jobs); }
+function canGenInvoices() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_gen_invoices); }
+function canGenPayrolls() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_gen_payrolls); }
+function canManageClientsFlats() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_manage_clients_flats); }
+function canManageUsers() { return isAdmin(); }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
 
 async function api(url, options = {}) {
@@ -2393,7 +2430,7 @@ async function loadAdminHolerites() {
   
   if (select.options.length <= 1) {
     if (!state.users) state.users = (await api('/api/users')).users;
-    const employees = state.users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
+    const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin', 'analyst'].includes(u.role));
     select.innerHTML = '<option value="">Selecione o Colaborador...</option>' + 
       employees.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
   }

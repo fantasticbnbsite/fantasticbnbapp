@@ -208,11 +208,34 @@
                 <input name="password" type="text" placeholder="Senha (vazio para manter)" />
                 <select name="role" id="userRoleSelect" required>
                   <option value="" disabled selected>Papel do usuario...</option>
-                  <option value="superadmin">Gerência</option>
+                  <option value="superadmin">Administrador (Acesso Total)</option>
+                  <option value="manager">Gerente (Acesso Personalizado)</option>
                   <option value="client">Empresa / Cliente Principal</option>
                   <option value="client_user">Acesso / Login de Cliente</option>
                   <option value="employee">Colaborador</option>
                 </select>
+              </div>
+              
+              <div id="userManagerPermsContainer" style="display:none; margin-top:12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:12px;">
+                <label style="font-weight:600; font-size:0.9rem; margin-bottom:8px; display:block;">Permissões do Gerente:</label>
+                <div style="display:grid; grid-template-columns:1fr; gap:8px; font-size:0.9rem;">
+                  <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="perm_create_jobs" id="perm_create_jobs"> Criar Serviços / Solicitações
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="perm_gen_invoices" id="perm_gen_invoices"> Gerar e Ver Faturas (Invoices)
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="perm_gen_payrolls" id="perm_gen_payrolls"> Gerar e Ver Holerites (Payrolls)
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="perm_manage_clients_flats" id="perm_manage_clients_flats"> Cadastrar Clientes e Flats
+                  </label>
+                  <hr style="border:0; border-top:1px solid var(--line); margin:4px 0;" />
+                  <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="is_cleaner" id="is_cleaner"> <strong>É também um Cleaner?</strong> (Aparecerá para designação)
+                  </label>
+                </div>
               </div>
               <div id="userParentClientContainer" style="display:none; margin-top:10px;">
                 <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Vincular a qual Empresa?</label>
