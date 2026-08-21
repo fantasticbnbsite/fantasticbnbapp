@@ -566,7 +566,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, {
       totals: {
         clients: clients.length,
-        users: isAdminRole(session.user.role) ? db.prepare('SELECT COUNT(*) AS total FROM users').get().total : null,
+        users: (isAdminRole(session.user.role) || session.user.role === 'manager') ? db.prepare('SELECT COUNT(*) AS total FROM users').get().total : null,
         records: countRecords(clientIds),
         updatesToday: countUpdatesToday(clientIds),
         backups: listBackups().slice(0, 3),
@@ -580,7 +580,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { clients: getAccessibleClients(session.user) });
   }
   if (requestUrl.pathname === '/api/clients' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
     const slug = slugify(body.slug || body.name || 'cliente');
     const result = db.prepare('INSERT INTO clients (name, slug, segment) VALUES (?, ?, ?)').run(body.name || 'Novo cliente', slug, body.segment || '');
@@ -590,7 +590,7 @@ async function handleApi(req, res, requestUrl) {
 
   const clientCrudMatch = requestUrl.pathname.match(/^\/api\/clients\/(\d+)$/);
   if (clientCrudMatch && req.method === 'PUT') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const clientId = Number(clientCrudMatch[1]);
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(clientId);
     if (!client) return sendJson(res, 404, { error: 'Cliente nao encontrado.' });
@@ -600,7 +600,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { client: db.prepare('SELECT * FROM clients WHERE id = ?').get(clientId) });
   }
   if (clientCrudMatch && req.method === 'DELETE') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const clientId = Number(clientCrudMatch[1]);
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(clientId);
     if (!client) return sendJson(res, 404, { error: 'Cliente nao encontrado.' });
@@ -611,7 +611,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Users (admin) ──
   if (requestUrl.pathname === '/api/users' && req.method === 'GET') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const users = db.prepare(`
       SELECT u.id, u.name, u.email, u.role, u.hourly_rate, u.weekend_rate, u.holiday_rate, u.created_at, u.parent_client_id, u.perm_create_jobs, u.perm_gen_invoices, u.perm_gen_payrolls, u.perm_manage_clients_flats, u.is_cleaner,
              GROUP_CONCAT(c.name, ' | ') AS client_names
@@ -624,7 +624,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { users });
   }
   if (requestUrl.pathname === '/api/users' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
     const body = await parseBody(req);
     const role = validateRole(body.role || 'viewer');
     const { salt, hash } = hashPassword(body.password || '123456');
@@ -645,7 +645,7 @@ async function handleApi(req, res, requestUrl) {
   const userCrudMatch = requestUrl.pathname.match(/^\/api\/users\/(\d+)$/);
   
   if (userCrudMatch && req.method === 'PUT') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
     const userId = Number(userCrudMatch[1]);
     const body = await parseBody(req);
     const role = validateRole(body.role || 'viewer');
@@ -676,7 +676,7 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (userCrudMatch && req.method === 'DELETE') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
     const userId = Number(userCrudMatch[1]);
     if (userId === session.user.id) return sendJson(res, 400, { error: 'Voce nao pode excluir o proprio usuario logado.' });
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
@@ -687,7 +687,7 @@ async function handleApi(req, res, requestUrl) {
 
   const userPasswordMatch = requestUrl.pathname.match(/^\/api\/users\/(\d+)\/password$/);
   if (userPasswordMatch && req.method === 'PATCH') {
-    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
     const userId = Number(userPasswordMatch[1]);
     const body = await parseBody(req);
     if (!body.password || body.password.length < 4) return sendJson(res, 400, { error: 'A nova senha deve ter pelo menos 4 caracteres.' });
@@ -1287,7 +1287,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { collaborators: listCollaborators(session.user) });
   }
   if (requestUrl.pathname === '/api/holerites/collaborators' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const body = await parseBody(req);
     const holeritesClientId = getHoleritesClientId();
     const { salt, hash } = hashPassword(body.password || '123456');
@@ -1300,7 +1300,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { entries: listHoleriteEntries(session.user) });
   }
   if (requestUrl.pathname === '/api/holerites/entries' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const body = await parseBody(req);
     const collaborator = getCollaboratorById(Number(body.collaboratorId));
     if (!collaborator) return sendJson(res, 404, { error: 'Colaborador nao encontrado.' });
@@ -1339,6 +1339,7 @@ async function handleApi(req, res, requestUrl) {
     let payrollsGenerated = 0;
 
     if (type === 'invoice') {
+      if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Sem permissao para faturas.' });
       const jobsByClientGroup = {};
       jobs.forEach(j => {
         if (!j.invoice_id) {
@@ -1364,6 +1365,7 @@ async function handleApi(req, res, requestUrl) {
         invoicesGenerated++;
       }
     } else if (type === 'payroll') {
+      if (!canGenPayrolls(session.user)) return sendJson(res, 403, { error: 'Sem permissao para holerites.' });
       const targetClientId = body.targetClientId;
       const jobsByEmployee = {};
       jobs.forEach(j => {
@@ -1705,7 +1707,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, getOperationsState());
   }
   if (requestUrl.pathname === '/api/operations/state' && req.method === 'PUT') {
-    if (!ensureRole(session.user, ['superadmin', 'manager', 'analyst'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const body = await parseBody(req);
     const nextState = sanitizeOperationsState(body);
     saveOperationsState(nextState);
@@ -1746,7 +1748,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { records: listRecords(clientId, filters), config: getClientConfig(clientId) });
   }
   if (subPath === 'records' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager', 'analyst'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const body = await parseBody(req);
     const now = new Date().toISOString();
     const result = db.prepare('INSERT INTO records (client_id, title, status_key, payload_json, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(clientId, body.title || 'Novo registro', body.statusKey || 'novo', JSON.stringify(body.payload || {}), session.user.id, session.user.id, now, now);
@@ -1755,7 +1757,7 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 201, { record: hydrateRecord(created) });
   }
   if (subPath === 'import' && req.method === 'POST') {
-    if (!ensureRole(session.user, ['superadmin', 'manager', 'analyst'], res)) return;
+    if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const body = await parseBody(req);
     const rows = parseCsv(String(body.csv || ''));
     if (!rows.length) return sendJson(res, 400, { error: 'CSV vazio ou invalido.' });
@@ -1808,7 +1810,7 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 200, { history });
     }
     if (req.method === 'PUT') {
-      if (!ensureRole(session.user, ['superadmin', 'manager', 'analyst'], res)) return;
+      if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
       const existing = db.prepare('SELECT * FROM records WHERE id = ? AND client_id = ?').get(recordId, clientId);
       if (!existing) return sendJson(res, 404, { error: 'Registro nao encontrado.' });
       const body = await parseBody(req);
@@ -1819,7 +1821,7 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 200, { record: hydrateRecord(updated) });
     }
     if (req.method === 'DELETE') {
-      if (!ensureRole(session.user, ['superadmin', 'manager', 'analyst'], res)) return;
+      if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
       const existing = db.prepare('SELECT * FROM records WHERE id = ? AND client_id = ?').get(recordId, clientId);
       if (!existing) return sendJson(res, 404, { error: 'Registro nao encontrado.' });
       db.prepare('DELETE FROM records WHERE id = ? AND client_id = ?').run(recordId, clientId);
