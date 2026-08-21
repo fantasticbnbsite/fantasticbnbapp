@@ -188,10 +188,11 @@ label { display: block; font-weight: 500; font-size: 0.9rem; color: var(--text);
 .badge-neutral { background: var(--surface-alt); color: var(--muted); border: 1px solid var(--line); }
 
 /* Modals & Drawers */
-.modal, .drawer { position: fixed; inset: 0; padding: 24px; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(4px); z-index: 50; }
-.modal { display: grid; place-items: center; }
-.drawer { display: grid; justify-items: end; }
-.modal-card, .drawer-card { width: min(600px, 100%); padding: 32px; display: flex; flex-direction: column; gap: 24px; max-height: 90vh; overflow-y: auto; }
+.modal, .drawer { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(4px); z-index: 50; overflow-y: auto; }
+.modal { display: flex; align-items: flex-start; justify-content: center; padding: 40px 24px; }
+.drawer { display: grid; justify-items: end; padding: 24px; }
+.modal-card, .drawer-card { width: min(600px, 100%); padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.modal-card { margin: auto; }
 .drawer-card { height: calc(100vh - 48px); max-height: unset; width: min(480px, 100%); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .modal-header h3 { margin: 0; font-size: 1.25rem; }
