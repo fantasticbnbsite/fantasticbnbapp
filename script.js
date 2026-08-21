@@ -325,7 +325,7 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
       }
       
       if (userHourlyRateContainer) {
-        userHourlyRateContainer.style.display = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(userRoleSelect.value) ? 'block' : 'none';
+        userHourlyRateContainer.style.display = ['employee', 'admin', 'superadmin', 'manager'].includes(userRoleSelect.value) ? 'block' : 'none';
       }
       const permsContainer = document.getElementById('userManagerPermsContainer');
       if (permsContainer) {
@@ -472,7 +472,7 @@ async function loadRecords() {
 
 async function loadUsers() {
   state.users = (await api('/api/users')).users;
-  state.cleaners = state.users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role)).map(u => ({
+  state.cleaners = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role)).map(u => ({
     name: u.name,
     weekdayRate: Number(u.hourly_rate || 0),
     weekendRate: Number(u.weekend_rate || 0),
@@ -534,6 +534,7 @@ function updateRoleUi() {
   document.querySelectorAll('[data-view="flats"]').forEach(n => n.classList.toggle('hidden', !canManageClientsFlats()));
   document.querySelectorAll('[data-view="admin"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   document.querySelectorAll('[data-view="config"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  document.querySelectorAll('[data-view="cleaners"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   
   // admin-only elements: for managers with specific perms, show relevant elements
   document.querySelectorAll('.admin-only').forEach((node) => {
@@ -1259,7 +1260,7 @@ function startEditUser(userId) {
   roleSelect.dispatchEvent(new Event('change'));
   
   const rateContainer = document.getElementById('userHourlyRateContainer');
-  if (['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(user.role)) {
+  if (['employee', 'admin', 'superadmin', 'manager'].includes(user.role)) {
     rateContainer.style.display = 'block';
     document.getElementById('userHourlyRateInput').value = user.hourly_rate || '';
     document.getElementById('userWeekendRateInput').value = user.weekend_rate || '';
@@ -2225,7 +2226,7 @@ function canGenInvoices() { return isAdmin() || (state.user?.role === 'manager' 
 function canGenPayrolls() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_gen_payrolls); }
 function canManageClientsFlats() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_manage_clients_flats); }
 function canManageUsers() { return isAdmin(); }
-function isCollaborator() { return !!state.user?.collaborator && state.user?.role === 'employee'; }
+function isCollaborator() { return !!state.user?.collaborator; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
 
 async function api(url, options = {}) {
@@ -2881,7 +2882,7 @@ window.renderFinanceSummary = async function() {
     const data = await api('/api/users');
     const users = data.users || [];
     const clients = users.filter(u => u.role === 'client');
-    const emps = users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
+    const emps = users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
     const selClient = document.getElementById('genInvoiceClient');
     if (selClient) selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     const selEmp = document.getElementById('genPayrollEmployee');
@@ -3210,7 +3211,7 @@ window.openAdminEditJobModal = async function(jobId) {
   try {
     const data = await api('/api/users');
     const users = data.users || [];
-    users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role)).forEach(emp => {
+    users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role)).forEach(emp => {
       const opt = document.createElement('option');
       opt.value = emp.id;
       opt.textContent = emp.name;
@@ -3548,7 +3549,7 @@ window.openAssignEmployeeModal = async function(jobId) {
   select.innerHTML = '<option value="">Carregando...</option>';
   try {
     const data = await api('/api/users');
-    const emps = (data.users || []).filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
+    const emps = (data.users || []).filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
     select.innerHTML = '<option value="">Selecione...</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
   } catch (err) {
     console.error(err);
@@ -4858,7 +4859,7 @@ async function openManualJobForFinance() {
     if (isInvoice) {
       const empSel = document.getElementById('manualJobEmployee');
       if (!empSel) throw new Error("Select de Employee não encontrado no HTML");
-      const employees = (state.users || []).filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
+      const employees = (state.users || []).filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
       empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('') || '<option value="">Nenhum funcionário</option>';
     }
 
@@ -4879,6 +4880,7 @@ function closeManualJobModal() {
 
 // --- Admin Request Job (CleanOps) ---
 async function openAdminRequestJobModal() {
+  if (!canCreateJobs()) { alert('Permissão insuficiente.'); return; }
   if (!state.flats || state.flats.length === 0) {
     if (typeof loadFlats === 'function') await loadFlats();
   }
@@ -4892,7 +4894,7 @@ async function openAdminRequestJobModal() {
   clientSelect.innerHTML = `<option value="">Selecione um cliente</option>` + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join('');
   
   // Load Employees
-  const employees = state.users.filter(u => ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(u.role));
+  const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
   employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => `<option value="${e.id}">${escapeHtml(e.name || e.email)}</option>`).join('');
   
   document.getElementById('adminReqJobFlat').innerHTML = '<option value="">Selecione um cliente primeiro</option>';
@@ -5092,6 +5094,7 @@ window.startDictationForNotes = startDictationForNotes;
 // 2. Assistente Inteligente (Auto-Fill)
 let smartRecognition = null;
 function startSmartVoiceAssistant() {
+  if (!canCreateJobs()) { alert('Permissão insuficiente.'); return; }
   if (!SpeechRecognition) return toast('Seu navegador não suporta reconhecimento de voz.', 'error');
   if (smartRecognition) return;
   
@@ -5248,7 +5251,7 @@ function processSmartVoiceCommand(text) {
   // 2. Employee Parsing
   let foundEmployeeId = '';
   let foundEmployeeName = '';
-  const employees = state.users.filter(u => u.role === 'employee' && u.active);
+  const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
   for (const emp of employees) {
     const empNameNorm = emp.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const first = empNameNorm.split(' ')[0];
