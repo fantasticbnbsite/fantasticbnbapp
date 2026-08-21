@@ -1296,6 +1296,12 @@ function startEditUser(userId) {
   
   document.getElementById('userSubmitButton').textContent = 'Atualizar usuario';
   document.getElementById('userCancelEdit').style.display = 'inline-block';
+  
+  const formContainer = document.getElementById('userFormContainer');
+  if (formContainer) {
+    formContainer.classList.remove('hidden');
+  }
+  
   els.userForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1833,19 +1839,15 @@ async function onDeleteUser(userId) {
   }
 }
 
-async function onChangeUserPassword(userId) {
-  const newPassword = window.prompt('Digite a nova senha para este usuario (min. 4 caracteres):');
-  if (!newPassword) return; // cancelled or empty
-  if (newPassword.length < 4) return toast('A senha deve ter pelo menos 4 caracteres.', 'error');
-  try {
-    await api(`/api/users/${userId}/password`, {
-      method: 'PATCH',
-      body: { password: newPassword }
-    });
-    toast('Senha alterada com sucesso!');
-  } catch (error) {
-    toast(error.message || 'Nao foi possivel alterar a senha.', 'error');
-  }
+function onChangeUserPassword(userId) {
+  startEditUser(userId);
+  setTimeout(() => {
+    const passInput = els.userForm.elements.namedItem('password');
+    if (passInput) {
+      passInput.focus();
+      toast('Digite a nova senha e clique em Atualizar.', 'default');
+    }
+  }, 100);
 }
 
 
