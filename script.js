@@ -524,15 +524,25 @@ function updateUserUi() {
 
 function updateRoleUi() {
   const collaboratorMode = isCollaborator();
+  const isManagerRole = state.user?.role === 'manager';
   
-  // Custom permission toggles for sidebar buttons
+  // First: hide admin-nav for collaborators
+  els.adminNavs.forEach((node) => node.classList.toggle('hidden', collaboratorMode));
+  
+  // Then: apply granular permission overrides (runs AFTER admin-nav toggle so it can override)
   document.querySelectorAll('[data-view="finance"]').forEach(n => n.classList.toggle('hidden', !(canGenInvoices() || canGenPayrolls())));
   document.querySelectorAll('[data-view="flats"]').forEach(n => n.classList.toggle('hidden', !canManageClientsFlats()));
   document.querySelectorAll('[data-view="admin"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   document.querySelectorAll('[data-view="config"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
+  
+  // admin-only elements: for managers with specific perms, show relevant elements
   document.querySelectorAll('.admin-only').forEach((node) => {
-    // Only hide elements that aren't navigation buttons (handled above)
-    if (!node.hasAttribute('data-view')) {
+    if (node.hasAttribute('data-view')) return; // handled above
+    // For flat-related admin-only elements, check canManageClientsFlats
+    const isFlatRelated = node.id === 'newFlatButton' || node.id === 'newFlatButtonMobile' || node.id === 'flatForm';
+    if (isFlatRelated) {
+      node.classList.toggle('hidden', !canManageClientsFlats());
+    } else {
       node.classList.toggle('hidden', !isAdmin());
     }
   });
@@ -542,7 +552,6 @@ function updateRoleUi() {
   if (createJobBtn) createJobBtn.classList.toggle('hidden', !canCreateJobs());
   
   els.adminOnlyBlocks.forEach((node) => node.classList.toggle('hidden', !canGenPayrolls()));
-  els.adminNavs.forEach((node) => node.classList.toggle('hidden', collaboratorMode));
   document.querySelectorAll('.editor-only').forEach((node) => node.classList.toggle('hidden', isViewerOnly()));
 }
 
@@ -1266,6 +1275,24 @@ function startEditUser(userId) {
     }
   }
   
+  // Populate manager permissions checkboxes
+  const permsContainer = document.getElementById('userManagerPermsContainer');
+  if (user.role === 'manager') {
+    if (permsContainer) permsContainer.style.display = 'block';
+    document.getElementById('perm_create_jobs').checked = !!user.perm_create_jobs;
+    document.getElementById('perm_gen_invoices').checked = !!user.perm_gen_invoices;
+    document.getElementById('perm_gen_payrolls').checked = !!user.perm_gen_payrolls;
+    document.getElementById('perm_manage_clients_flats').checked = !!user.perm_manage_clients_flats;
+    document.getElementById('is_cleaner').checked = !!user.is_cleaner;
+  } else {
+    if (permsContainer) permsContainer.style.display = 'none';
+    document.getElementById('perm_create_jobs').checked = false;
+    document.getElementById('perm_gen_invoices').checked = false;
+    document.getElementById('perm_gen_payrolls').checked = false;
+    document.getElementById('perm_manage_clients_flats').checked = false;
+    document.getElementById('is_cleaner').checked = false;
+  }
+  
   document.getElementById('userSubmitButton').textContent = 'Atualizar usuario';
   document.getElementById('userCancelEdit').style.display = 'inline-block';
   els.userForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1579,7 +1606,8 @@ function renderUsers() {
   els.usersList.innerHTML = filteredUsers.map((user) => {
     let roleLabel = user.role;
     let icon = 'user';
-    if (user.role === 'superadmin' || user.role === 'manager') { roleLabel = 'Gerência'; icon = 'shield'; }
+    if (user.role === 'superadmin') { roleLabel = 'Administrador'; icon = 'shield'; }
+    if (user.role === 'manager') { roleLabel = 'Gerente'; icon = 'shield-check'; }
     if (user.role === 'client') { roleLabel = 'Cliente Principal'; icon = 'briefcase'; }
     if (user.role === 'client_user') { roleLabel = 'Login de Cliente'; icon = 'briefcase'; }
     if (user.role === 'employee') { roleLabel = 'Colaborador'; icon = 'users'; }
@@ -2197,6 +2225,7 @@ function canGenInvoices() { return isAdmin() || (state.user?.role === 'manager' 
 function canGenPayrolls() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_gen_payrolls); }
 function canManageClientsFlats() { return isAdmin() || (state.user?.role === 'manager' && !!state.user?.perm_manage_clients_flats); }
 function canManageUsers() { return isAdmin(); }
+function isCollaborator() { return !!state.user?.collaborator && state.user?.role === 'employee'; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
 
 async function api(url, options = {}) {
