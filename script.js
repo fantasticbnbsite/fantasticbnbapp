@@ -436,8 +436,14 @@ async function loadApp() {
   loadGeneratedDocuments();
   await loadHolerites();
   let defaultView = 'dashboard';
-  if (isCollaborator()) defaultView = 'holerites';
-  else if (state.user?.role === 'manager') defaultView = 'jobs';
+  if (isCollaborator()) {
+    defaultView = 'holerites';
+  } else if (state.user?.role === 'manager') {
+    if (canCreateJobs()) defaultView = 'jobs';
+    else if (canManageClientsFlats()) defaultView = 'flats';
+    else if (canGenInvoices() || canGenPayrolls()) defaultView = 'finance';
+    else defaultView = 'overview';
+  }
   switchView(defaultView);
 }
 
@@ -2239,6 +2245,7 @@ function canManageClientsFlats() { return isAdmin() || (state.user?.role === 'ma
 function canManageUsers() { return isAdmin(); }
 function isCollaborator() { return !!state.user?.collaborator; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
+function isCleanerRole() { return state.user?.role === 'employee' || (state.user?.role === 'manager' && !!state.user?.is_cleaner); }
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
