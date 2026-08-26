@@ -546,10 +546,7 @@ function updateRoleUi() {
   document.querySelectorAll('[data-view="cleaners"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   document.querySelectorAll('[data-view="dashboard"]').forEach(n => n.classList.toggle('hidden', !isAdmin()));
   
-  const cleanerPortalLink = document.getElementById('cleanerPortalLink');
-  if (cleanerPortalLink) {
-    cleanerPortalLink.classList.toggle('hidden', !(isAdmin() || isCleanerRole()));
-  }
+  // cleanerPortalLink handled AFTER admin-only loop below so it isn't overridden
   
   // admin-only elements: for managers with specific perms, show relevant elements
   document.querySelectorAll('.admin-only').forEach((node) => {
@@ -562,7 +559,12 @@ function updateRoleUi() {
       node.classList.toggle('hidden', !isAdmin());
     }
   });
-  
+
+  // Portal do Cleaner – must run AFTER admin-only loop so it can override it
+  document.querySelectorAll('#cleanerPortalLink, #cleanerPortalLinkMobile').forEach((el) => {
+    el.classList.toggle('hidden', !(isAdmin() || isCleanerRole()));
+  });
+
   // Create Job button
   const createJobBtn = document.querySelector('button[onclick="openAdminRequestJobModal()"]');
   if (createJobBtn) createJobBtn.classList.toggle('hidden', !canCreateJobs());
