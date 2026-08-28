@@ -156,6 +156,7 @@ const els = {
     jobs: $('#jobsView'),
     flats: $('#flatsView'),
     config: $('#configView'),
+    logs: $('#logsView'),
     dashboard: $('#dashboardView'),
   },
 };
@@ -549,6 +550,9 @@ function updateRoleUi() {
   // cleanerPortalLink handled AFTER admin-only loop below so it isn't overridden
   
   // admin-only elements: for managers with specific perms, show relevant elements
+  document.querySelectorAll('[data-view="logs"]').forEach(n => n.classList.toggle('hidden', state.user?.role !== 'superadmin'));
+  document.querySelectorAll('.superadmin-only').forEach(n => n.classList.toggle('hidden', state.user?.role !== 'superadmin'));
+  
   document.querySelectorAll('.admin-only').forEach((node) => {
     if (node.hasAttribute('data-view')) return; // handled above
     // For flat-related admin-only elements, check canManageClientsFlats
@@ -3752,6 +3756,7 @@ function switchView(view) {
     finance: 'Financeiro',
     flats: 'Gestão de Flats',
     config: 'Configurações',
+    logs: 'Logs do Sistema',
     admin: 'Administração',
     overview: 'Visão Geral'
   };
@@ -3780,6 +3785,7 @@ function switchView(view) {
     if (typeof renderFlats === 'function') renderFlats();
   }
   if (view === 'finance') loadFinance();
+  if (view === 'logs') loadSystemLogs();
   if (view === 'cleaners') {
     if (typeof loadUsers === 'function') loadUsers();
     if (typeof loadClients === 'function') loadClients();
@@ -5426,4 +5432,63 @@ function processSmartVoiceCommand(text) {
     msg += `(Ouvido: "${originalText}")`;
     toast(msg, 'success');
   }, 350);
+}
+
+
+async function loadSystemLogs() {
+  if (state.user?.role !== 'superadmin') return;
+  const tbody = document.getElementById('logsTableBody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--muted);">Carregando logs...</td></tr>';
+  try {
+    const res = await api('/api/system-logs');
+    if (res.logs) {
+      renderSystemLogs(res.logs);
+    }
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--danger);">Erro ao carregar logs.</td></tr>';
+  }
+}
+
+function renderSystemLogs(logs) {
+  const tbody = document.getElementById('logsTableBody');
+  if (!tbody) return;
+  
+  if (!logs || !logs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--muted);">Nenhum log encontrado.</td></tr>';
+    return;
+  }
+  
+  const roleNames = {
+    'superadmin': 'Superadmin',
+    'admin': 'Admin',
+    'manager': 'Gerente',
+    'client': 'Cliente',
+    'client_user': 'Cliente',
+    'employee': 'Cleaner'
+  };
+  
+  tbody.innerHTML = logs.map(log => {
+    const timeStr = new Date(log.created_at).toLocaleString('pt-BR');
+    const roleStr = roleNames[log.user_role] || log.user_role || 'Sistema';
+    const userStr = log.user_name ? `${escapeHtml(log.user_name)} (${roleStr})` : 'Sistema';
+    
+    let actionBadge = '';
+    if (log.action.includes('CREATE')) actionBadge = '<span class="badge badge-success" style="font-size:12px;">' + log.action + '</span>';
+    else if (log.action.includes('DELETE')) actionBadge = '<span class="badge badge-danger" style="font-size:12px;">' + log.action + '</span>';
+    else if (log.action.includes('UPDATE') || log.action.includes('EDIT')) actionBadge = '<span class="badge badge-warning" style="font-size:12px;">' + log.action + '</span>';
+    else actionBadge = '<span class="badge badge-neutral" style="font-size:12px;">' + log.action + '</span>';
+    
+    return `
+      <tr>
+        <td style="color:var(--muted); font-size:14px;">${timeStr}</td>
+        <td style="font-weight:500;">${userStr}</td>
+        <td>${actionBadge}</td>
+        <td style="text-transform:uppercase; font-size:13px; color:var(--primary); font-weight:600;">${escapeHtml(log.entity)}</td>
+        <td style="white-space:normal; max-width:400px; color:var(--text); font-size:14px;">${escapeHtml(log.details || '')}</td>
+      </tr>
+    `;
+  }).join('');
 }

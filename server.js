@@ -334,6 +334,17 @@ CREATE TABLE IF NOT EXISTS config (
   account_number TEXT DEFAULT ''
 );
 INSERT OR IGNORE INTO config (id) VALUES (1);
+
+CREATE TABLE IF NOT EXISTS system_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  action TEXT NOT NULL,
+  entity TEXT NOT NULL,
+  entity_id INTEGER,
+  details TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
 CREATE INDEX IF NOT EXISTS idx_records_client_updated ON records(client_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_records_client_status ON records(client_id, status_key);
 CREATE INDEX IF NOT EXISTS idx_logs_client_record ON audit_logs(client_id, record_id, created_at DESC);
@@ -482,6 +493,7 @@ async function handleApi(req, res, requestUrl) {
     const expiresAtIso = new Date(Date.now() + SESSION_TTL_MS).toISOString();
     const expiresAtUtc = new Date(Date.now() + SESSION_TTL_MS).toUTCString();
     db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAtIso);
+    logSystemActivity(user.id, 'LOGIN', 'auth', user.id, 'Usuário realizou login no sistema');
     const isSecure = req.headers['x-forwarded-proto'] === 'https';
     res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}; Expires=${expiresAtUtc}${isSecure ? '; Secure' : ''}`);
     return sendJson(res, 200, buildSessionPayload(user));
@@ -562,6 +574,21 @@ async function handleApi(req, res, requestUrl) {
   if (!session) return;
 
   // ── Overview ──
+  if (requestUrl.pathname === '/api/system-logs' && req.method === 'GET') {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: 'Sessao expirada.' });
+    if (!ensureRole(session.user, ['superadmin'], res)) return;
+    
+    const logs = db.prepare(`
+      SELECT sl.*, u.name as user_name, u.role as user_role 
+      FROM system_logs sl 
+      LEFT JOIN users u ON u.id = sl.user_id 
+      ORDER BY sl.created_at DESC 
+      LIMIT 1000
+    `).all();
+    return sendJson(res, 200, { logs });
+  }
+
   if (requestUrl.pathname === '/api/overview' && req.method === 'GET') {
     const clients = getAccessibleClients(session.user);
     const clientIds = clients.map((c) => c.id);
@@ -608,6 +635,7 @@ async function handleApi(req, res, requestUrl) {
     if (!client) return sendJson(res, 404, { error: 'Cliente nao encontrado.' });
     if (client.slug === 'holerites') return sendJson(res, 400, { error: 'O cliente HOLERITES nao pode ser excluido.' });
     db.prepare('DELETE FROM clients WHERE id = ?').run(clientId);
+      logSystemActivity(session.user.id, 'DELETE', 'client', clientId, `Cliente removido`);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -684,6 +712,7 @@ async function handleApi(req, res, requestUrl) {
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
     if (!user) return sendJson(res, 404, { error: 'Usuario nao encontrado.' });
     db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+      logSystemActivity(session.user.id, 'DELETE', 'user', userId, `Usuário removido`);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -770,6 +799,7 @@ async function handleApi(req, res, requestUrl) {
     const flatId = Number(flatCrudMatch[1]);
     if (!db.prepare('SELECT id FROM flats WHERE id = ?').get(flatId)) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     db.prepare('DELETE FROM flats WHERE id = ?').run(flatId);
+      logSystemActivity(session.user.id, 'DELETE', 'flat', flatId, `Flat removido`);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -862,6 +892,7 @@ async function handleApi(req, res, requestUrl) {
       notifyAdmins({ title: 'Nova Limpeza Solicitada 🧹', body: `O flat ${flat.address} tem um novo pedido de limpeza para o dia ${body.requestedDate.split('T')[0]}` }).catch(()=>{});
     }
 
+    logSystemActivity(session.user.id, 'CREATE', 'job', result.lastInsertRowid, `Serviço agendado no flat ${flat.address}`);
     return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
@@ -1063,6 +1094,7 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 403, { error: 'Voce nao tem permissao para excluir este servico.' });
     }
     db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
+      logSystemActivity(session.user.id, 'DELETE', 'job', jobId, `Serviço excluído`);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
     return sendNoContent(res);
   }
@@ -1086,6 +1118,7 @@ async function handleApi(req, res, requestUrl) {
       const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role IN ('employee', 'admin', 'superadmin', 'manager', 'analyst')").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
       db.prepare('UPDATE jobs SET employee_user_id=?, status=?, designated_by_user_id=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', session.user.id, now, jobId);
+        logSystemActivity(session.user.id, 'ASSIGN', 'job', jobId, `Designado ao profissional ID ${employee.id}`);
       sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.' }).catch(() => {});
     } else if (action === 'accept') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
@@ -1175,6 +1208,7 @@ async function handleApi(req, res, requestUrl) {
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('cancelled', now, jobId);
+        logSystemActivity(session.user.id, 'CANCEL', 'job', jobId, `Serviço cancelado`);
       recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
         sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.` }).catch(() => {});
@@ -2685,6 +2719,14 @@ function requireSession(req, res) {
 function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0), parent_client_id: user.parent_client_id, perm_create_jobs: Number(user.perm_create_jobs || 0), perm_gen_invoices: Number(user.perm_gen_invoices || 0), perm_gen_payrolls: Number(user.perm_gen_payrolls || 0), perm_manage_clients_flats: Number(user.perm_manage_clients_flats || 0), is_cleaner: Number(user.is_cleaner || 0) }; }
 function buildSessionPayload(user) { return { user: { ...sanitizeUser(user), collaborator: getCollaboratorProfile(user.id) } }; }
 function ensureRole(user, roles, res) { if (!roles.includes(user.role)) { sendJson(res, 403, { error: 'Permissao insuficiente.' }); return false; } return true; }
+function logSystemActivity(userId, action, entity, entityId = null, details = '') {
+  try {
+    db.prepare('INSERT INTO system_logs (user_id, action, entity, entity_id, details) VALUES (?, ?, ?, ?, ?)')
+      .run(userId, action, entity, entityId, typeof details === 'string' ? details : JSON.stringify(details));
+  } catch (err) {
+    console.error('Falha ao registrar log de sistema:', err);
+  }
+}
 function cleanupExpiredSessions() {
   db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
   const now = Date.now();
