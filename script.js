@@ -2298,6 +2298,19 @@ function updateFlatRateFields() {
   const billingType = document.getElementById('flatBillingType').value;
   const hourlyField = document.getElementById('flatHourlyRateField');
   const projectField = document.getElementById('flatProjectRateField');
+  
+  if (!isAdmin()) {
+    if (hourlyField) hourlyField.classList.add('hidden');
+    if (projectField) projectField.classList.add('hidden');
+    // Also hide the billing type select wrapper
+    const billingTypeWrapper = document.getElementById('flatBillingType')?.closest('.flats-input-group');
+    if (billingTypeWrapper) billingTypeWrapper.classList.add('hidden');
+    return;
+  }
+  
+  const billingTypeWrapper = document.getElementById('flatBillingType')?.closest('.flats-input-group');
+  if (billingTypeWrapper) billingTypeWrapper.classList.remove('hidden');
+
   if (billingType === 'hourly') {
     if (hourlyField) hourlyField.classList.remove('hidden');
     if (projectField) projectField.classList.add('hidden');
@@ -3521,10 +3534,12 @@ function renderJobs() {
               <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
             </div>
             ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            ${isAdmin() ? `
             <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
               ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">+${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
               ${job.employeeAmount != null ? `<strong style="color:#ea580c; font-size:15px;">-${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
             </div>
+            ` : ''}
           </td>
           <td class="td-actions" data-label="Ações">
             <div class="table-actions" style="justify-content:flex-end; display:flex; gap:12px; flex-wrap:nowrap;">${actions}</div>
@@ -4336,7 +4351,7 @@ function renderFlats() {
             ${f.full_address ? `<div style="font-size:0.875rem;color:var(--muted);margin-bottom:4px;">📍 ${escapeHtml(f.full_address)}</div>` : ''}
             ${f.access_code ? `<div style="font-size:0.875rem;color:var(--primary);margin-bottom:8px;">🔑 ${escapeHtml(f.access_code)}</div>` : ''}
             <div style="font-size:0.875rem;color:var(--muted);margin-bottom:12px;">
-              Cobrança: ${f.billing_type === 'hourly' ? 'Por hora (£' + f.hourly_rate + ')' : 'Projeto fixo (£' + f.project_rate + ')'}
+              ${isAdmin() ? `Cobrança: ${f.billing_type === 'hourly' ? 'Por hora (£' + f.hourly_rate + ')' : 'Projeto fixo (£' + f.project_rate + ')'}` : `Cobrança: ${f.billing_type === 'hourly' ? 'Por hora' : 'Projeto fixo'}`}
               ${f.city ? '<br/>Cidade: ' + escapeHtml(f.city) : ''}
             </div>
             <div class="toolbar-actions" style="margin-top:12px;">
