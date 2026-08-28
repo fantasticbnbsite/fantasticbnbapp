@@ -701,7 +701,7 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Flats ──
   if (requestUrl.pathname === '/api/flats' && req.method === 'GET') {
-    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    if (!canManageClientsFlats(session.user) && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flats = db.prepare(`
       SELECT f.*, u.name AS client_name, u.email AS client_email
       FROM flats f

@@ -432,7 +432,7 @@ async function loadApp() {
   loadCleaningClients();
   loadCleanings();
   if (state.selectedClientId) await refreshClientContext();
-  if (isAdmin()) await loadUsers();
+  if (isAdmin() || canCreateJobs()) await loadUsers();
   loadGeneratedDocuments();
   await loadHolerites();
   let defaultView = 'dashboard';
