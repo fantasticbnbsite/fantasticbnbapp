@@ -372,6 +372,7 @@ try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_payrolls INTEGER NOT NULL D
 try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN designated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -777,7 +778,6 @@ async function handleApi(req, res, requestUrl) {
     if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const statusFilter = requestUrl.searchParams.get('status') || '';
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
-    const isManagerOnly = session.user.role === 'manager'; // managers see only their own jobs
     let sql = `
       SELECT j.*,
         f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
@@ -792,7 +792,11 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
-    if (isManagerOnly) { sql += ' AND j.created_by_user_id = ?'; params.push(session.user.id); }
+    // Managers only see: jobs they designated OR pending/undesignated jobs (to be able to assign)
+    if (session.user.role === 'manager') {
+      sql += ' AND (j.designated_by_user_id = ? OR (j.designated_by_user_id IS NULL AND j.status = ?))';
+      params.push(session.user.id, 'pending');
+    }
     sql += ' ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 3000';
     const jobs = db.prepare(sql).all(...params).map(hydrateJob);
     return sendJson(res, 200, { jobs });
@@ -1081,7 +1085,7 @@ async function handleApi(req, res, requestUrl) {
       if (!['pending', 'assigned'].includes(job.status)) return sendJson(res, 400, { error: `Nao e possivel designar um servico com status '${job.status}'.` });
       const employee = db.prepare("SELECT * FROM users WHERE id = ? AND role IN ('employee', 'admin', 'superadmin', 'manager', 'analyst')").get(Number(body.employeeUserId));
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
-      db.prepare('UPDATE jobs SET employee_user_id=?, status=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', now, jobId);
+      db.prepare('UPDATE jobs SET employee_user_id=?, status=?, designated_by_user_id=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', session.user.id, now, jobId);
       sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.' }).catch(() => {});
     } else if (action === 'accept') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
