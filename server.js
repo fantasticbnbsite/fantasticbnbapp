@@ -371,6 +371,7 @@ try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_invoices INTEGER NOT NULL D
 try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_payrolls INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -776,6 +777,7 @@ async function handleApi(req, res, requestUrl) {
     if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const statusFilter = requestUrl.searchParams.get('status') || '';
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
+    const isManagerOnly = session.user.role === 'manager'; // managers see only their own jobs
     let sql = `
       SELECT j.*,
         f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
@@ -790,6 +792,7 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
+    if (isManagerOnly) { sql += ' AND j.created_by_user_id = ?'; params.push(session.user.id); }
     sql += ' ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 3000';
     const jobs = db.prepare(sql).all(...params).map(hydrateJob);
     return sendJson(res, 200, { jobs });
@@ -844,7 +847,8 @@ async function handleApi(req, res, requestUrl) {
     
     const now = new Date().toISOString();
     const isHoliday = body.isHoliday ? 1 : 0;
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, now, now);
+    const createdBy = session.user.id;
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, createdBy, now, now);
     
     if (status === 'assigned' && empId) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
@@ -898,8 +902,8 @@ async function handleApi(req, res, requestUrl) {
     let invoiceId = body.invoiceId || null;
     let payrollId = body.payrollId || null;
 
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, notes, invoice_id, payroll_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, 'Serviço lançado manualmente pelo admin', invoiceId, payrollId, now, now, now);
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, 'Serviço lançado manualmente pelo admin', invoiceId, payrollId, session.user.id, now, now, now);
 
     // If attached to invoice or payroll, we must recount totals
     if (invoiceId) {
