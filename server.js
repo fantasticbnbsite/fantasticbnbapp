@@ -792,10 +792,10 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
-    // Managers only see: jobs they designated OR pending/undesignated jobs (to be able to assign)
+    // Managers see: jobs they designated + undesignated pending + jobs created by admins
     if (session.user.role === 'manager') {
-      sql += ' AND (j.designated_by_user_id = ? OR (j.designated_by_user_id IS NULL AND j.status = ?))';
-      params.push(session.user.id, 'pending');
+      sql += ` AND (j.designated_by_user_id = ? OR (j.designated_by_user_id IS NULL AND j.status = 'pending') OR j.created_by_user_id IN (SELECT id FROM users WHERE role IN ('admin','superadmin')))`;
+      params.push(session.user.id);
     }
     sql += ' ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 3000';
     const jobs = db.prepare(sql).all(...params).map(hydrateJob);
