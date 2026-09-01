@@ -133,7 +133,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Invoice #${invoice.invoice_number || invoice.id}</title>
+  <title>${client.name ? `${client.name} - Invoice #${invoice.invoice_number || invoice.id}` : `Invoice #${invoice.invoice_number || invoice.id}`}</title>
   <style>
     body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; color: #000; }
     .invoice-box { max-width: 800px; margin: auto; border: 2px solid #000; padding: 0; }
@@ -326,7 +326,7 @@ export function renderPayslipHtml(payroll, jobs, employee) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Payslip - ${employee.name}</title>
+  <title>Payslip #${payroll.payroll_number || payroll.id} - ${employee.name}</title>
   <style>
     body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; color: #333; }
     .invoice-box { max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
