@@ -995,6 +995,36 @@
         </div>
       </section>
 
+      <section class="view hidden" id="logsView">
+        <div class="panel glass-card">
+          <div class="panel-header">
+            <div>
+              <h3>Logs de Auditoria</h3>
+              <p class="panel-kicker">Histórico de ações de todos os usuários do sistema.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="button button-sm" onclick="loadSystemLogs()"><i data-lucide="refresh-cw"></i> Atualizar</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border); text-align:left;">
+                  <th style="padding:10px 12px; color:var(--muted); font-weight:600; white-space:nowrap;">Data/Hora</th>
+                  <th style="padding:10px 12px; color:var(--muted); font-weight:600;">Usuário</th>
+                  <th style="padding:10px 12px; color:var(--muted); font-weight:600;">Ação</th>
+                  <th style="padding:10px 12px; color:var(--muted); font-weight:600;">Entidade</th>
+                  <th style="padding:10px 12px; color:var(--muted); font-weight:600;">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody id="logsTableBody">
+                <tr><td colspan="5" style="text-align:center; padding:32px; color:var(--muted);">Carregando logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <nav class="mobile-bottom-nav mobile-only">
         <button class="nav-link active" data-view="dashboard" onclick="switchView('dashboard')">
           <i data-lucide="home"></i>

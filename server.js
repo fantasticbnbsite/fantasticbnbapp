@@ -614,6 +614,7 @@ async function handleApi(req, res, requestUrl) {
     const slug = slugify(body.slug || body.name || 'cliente');
     const result = db.prepare('INSERT INTO clients (name, slug, segment) VALUES (?, ?, ?)').run(body.name || 'Novo cliente', slug, body.segment || '');
     createDefaultClientConfig(result.lastInsertRowid);
+    logSystemActivity(session.user.id, 'CREATE', 'client', result.lastInsertRowid, `Cliente criado: ${body.name || 'Novo cliente'}`);
     return sendJson(res, 201, { client: db.prepare('SELECT * FROM clients WHERE id = ?').get(result.lastInsertRowid) });
   }
 
@@ -669,6 +670,7 @@ async function handleApi(req, res, requestUrl) {
         db.prepare('UPDATE flats SET client_user_id = ? WHERE id = ?').run(result.lastInsertRowid, Number(flatId));
       }
     }
+    logSystemActivity(session.user.id, 'CREATE', 'user', result.lastInsertRowid, `Usuário criado: ${body.name || 'Novo usuario'} (${role})`);
     return sendJson(res, 201, { ok: true });
   }
 
@@ -765,6 +767,7 @@ async function handleApi(req, res, requestUrl) {
       body.city || '',
       body.showProjectHours ? 1 : 0
     );
+    logSystemActivity(session.user.id, 'CREATE', 'flat', result.lastInsertRowid, `Flat criado: ${body.address || 'Novo flat'}`);
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
   }
 
@@ -1188,6 +1191,7 @@ async function handleApi(req, res, requestUrl) {
 
       const isUrgent = body.isUrgent === true ? 1 : 0;
       db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, is_urgent=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', isUrgent, now, jobId);
+      logSystemActivity(session.user.id, 'FINISH', 'job', jobId, `Serviço concluído no flat ${flat.address} (${durationHours}h)`);
 
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
