@@ -1258,26 +1258,26 @@
           <h4>Lançamentos Extras / Deduções</h4>
           <div id="financeEditExtrasList" style="margin-top: 12px; margin-bottom: 16px;"></div>
           
-          <div style="display: flex; gap: 8px; align-items: flex-end; background: var(--surface-2); padding: 12px; border-radius: 8px;">
-            <div style="flex: 2;">
-              <label style="font-size: 0.8rem;">Descrição</label>
-              <input type="text" id="financeExtraDesc" placeholder="Ex: Produto extra, adiantamento..." style="width: 100%;" />
+          <div style="background: var(--surface-2); padding: 14px; border-radius: 8px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size: 0.8rem; display:block; margin-bottom:4px;">Descrição</label>
+                <input type="text" id="financeExtraDesc" placeholder="Ex: Produto extra, adiantamento..." style="width: 100%; box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-size: 0.8rem; display:block; margin-bottom:4px;">Quantidade</label>
+                <input type="number" id="financeExtraQtd" value="1" step="0.5" style="width: 100%; box-sizing:border-box;" onchange="document.getElementById('financeExtraTotal').value = (this.value * document.getElementById('financeExtraUnit').value).toFixed(2)" />
+              </div>
+              <div>
+                <label style="font-size: 0.8rem; display:block; margin-bottom:4px;">Valor Unitário (£)</label>
+                <input type="number" id="financeExtraUnit" value="0.00" step="0.01" style="width: 100%; box-sizing:border-box;" onchange="document.getElementById('financeExtraTotal').value = (document.getElementById('financeExtraQtd').value * this.value).toFixed(2)" />
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label style="font-size: 0.8rem; display:block; margin-bottom:4px;">Total (£)</label>
+                <input type="number" id="financeExtraTotal" value="0.00" disabled style="width: 100%; box-sizing:border-box; background: var(--surface-3, #eee); color: var(--text); font-weight:600;" />
+              </div>
             </div>
-            <div style="flex: 1;">
-              <label style="font-size: 0.8rem;">Qtd</label>
-              <input type="number" id="financeExtraQtd" value="1" step="0.5" style="width: 100%;" onchange="document.getElementById('financeExtraTotal').value = (this.value * document.getElementById('financeExtraUnit').value).toFixed(2)" />
-            </div>
-            <div style="flex: 1;">
-              <label style="font-size: 0.8rem;">Valor Unitário</label>
-              <input type="number" id="financeExtraUnit" value="0.00" step="0.01" style="width: 100%;" onchange="document.getElementById('financeExtraTotal').value = (document.getElementById('financeExtraQtd').value * this.value).toFixed(2)" />
-            </div>
-            <div style="flex: 1;">
-              <label style="font-size: 0.8rem;">Total (£)</label>
-              <input type="number" id="financeExtraTotal" value="0.00" disabled style="width: 100%; background: #eee;" />
-            </div>
-            <div>
-              <button class="button button-primary" id="btnFinanceAddExtra" onclick="addFinanceExtra()">Adicionar</button>
-            </div>
+            <button class="button button-primary" id="btnFinanceAddExtra" onclick="addFinanceExtra()" style="width:100%;">Adicionar Lançamento</button>
           </div>
         </div>
       </div>
