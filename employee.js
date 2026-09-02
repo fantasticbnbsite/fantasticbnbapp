@@ -947,32 +947,28 @@ const App = (() => {
   }
 
   async function startJob(jobId, btn) {
-    // Optimistic update — set startedAt so the time shows immediately
-    const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
-    const originalJob = idx !== -1 ? { ...allJobs[idx] } : null;
-    if (idx !== -1) {
-      allJobs[idx].status = 'in_progress';
-      allJobs[idx].startedAt = new Date().toISOString();
-    }
-    renderServices();
-
+    if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
     try {
       const data = await apiFetch(`/api/jobs/${jobId}/start`, { method: 'PATCH', body: JSON.stringify({}) });
       showToast('Serviço iniciado!', 'success');
-      // Update with real server timestamp
+      // Update with real server data
       if (data && data.job) {
         const i = allJobs.findIndex(j => String(j.id) === String(jobId));
         if (i !== -1) {
           allJobs[i] = { ...allJobs[i], ...data.job };
-          renderServices();
+        }
+      } else {
+        // Fallback: mark as in_progress locally
+        const idx = allJobs.findIndex(j => String(j.id) === String(jobId));
+        if (idx !== -1) {
+          allJobs[idx].status = 'in_progress';
+          allJobs[idx].startedAt = new Date().toISOString();
         }
       }
+      renderServices();
     } catch (err) {
-      if (originalJob && idx !== -1) {
-        allJobs[idx] = originalJob;
-        renderServices();
-      }
-      showToast('Erro ao iniciar serviço: ' + (err.message || ''), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Iniciar Serviço'; }
+      showToast(err.message || 'Erro ao iniciar serviço.', 'error');
     }
   }
 
