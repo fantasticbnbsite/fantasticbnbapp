@@ -1254,10 +1254,11 @@ async function handleApi(req, res, requestUrl) {
     const jobId = Number(jobPhotosMatch[1]);
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
-    if (!['employee', 'admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerencia podem enviar fotos.' });
-    if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
+    // Hard block: completed jobs never accept new photos — no exceptions, no role bypasses
     if (job.status === 'completed') return sendJson(res, 400, { error: 'Não é possível adicionar fotos a um serviço já concluído.' });
     if (!['in_progress'].includes(job.status)) return sendJson(res, 400, { error: 'Só é possível enviar fotos durante o serviço em andamento.' });
+    if (!['employee', 'admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerencia podem enviar fotos.' });
+    if (job.employee_user_id !== session.user.id && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
 
     let uploadedFile;
     try {
