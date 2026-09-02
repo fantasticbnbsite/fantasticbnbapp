@@ -737,17 +737,7 @@ const App = (() => {
         <div class="photo-section" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px;">
           <div class="photo-section-title">📸 Fotos</div>
           <div class="photo-thumbnails" id="photos-${job.id}"></div>
-          <label class="photo-upload-label" for="photo-input-${job.id}" style="margin-top:12px;">
-            📎 Adicionar Foto
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            class="photo-input-hidden"
-            id="photo-input-${job.id}"
-            data-job-id="${job.id}"
-          />
+          <p style="font-size:0.82rem;color:var(--muted);margin-top:8px;text-align:center;">Serviço concluído — não é possível adicionar novas fotos.</p>
         </div>`;
     }
 

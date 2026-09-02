@@ -1246,7 +1246,8 @@ async function handleApi(req, res, requestUrl) {
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
     if (!['employee', 'admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerencia podem enviar fotos.' });
     if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
-    if (!['in_progress', 'completed'].includes(job.status)) return sendJson(res, 400, { error: 'So e possivel enviar fotos durante ou apos o servico.' });
+    if (job.status === 'completed') return sendJson(res, 400, { error: 'Não é possível adicionar fotos a um serviço já concluído.' });
+    if (!['in_progress'].includes(job.status)) return sendJson(res, 400, { error: 'Só é possível enviar fotos durante o serviço em andamento.' });
 
     let uploadedFile;
     try {
