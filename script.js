@@ -2352,6 +2352,8 @@ function openFlatForm(flat) {
   document.getElementById('flatAddress').value = flat ? flat.address : '';
   document.getElementById('flatFullAddress').value = flat && flat.full_address ? flat.full_address : '';
   document.getElementById('flatAccessCode').value = flat && flat.access_code ? flat.access_code : '';
+  const guestyInput = document.getElementById('flatGuestyListingId');
+  if (guestyInput) guestyInput.value = flat && flat.guesty_listing_id ? flat.guesty_listing_id : '';
   const cityInput = document.getElementById('flatCity');
   if (cityInput) cityInput.value = flat && flat.city ? flat.city : '';
   document.getElementById('flatBillingType').value = flat ? flat.billing_type : 'hourly';
@@ -2378,6 +2380,7 @@ async function onFlatSubmit(e) {
     address: document.getElementById('flatAddress').value.trim(),
     fullAddress: document.getElementById('flatFullAddress').value.trim(),
     accessCode: document.getElementById('flatAccessCode').value.trim(),
+    guestyListingId: document.getElementById('flatGuestyListingId') ? document.getElementById('flatGuestyListingId').value.trim() : '',
     city: document.getElementById('flatCity') ? document.getElementById('flatCity').value.trim() : '',
     clientUserId: document.getElementById('flatClientUser').value || null,
     billingType: document.getElementById('flatBillingType').value,
@@ -2447,6 +2450,7 @@ async function loadConfig() {
     // Never pre-fill password
     const passEl = document.getElementById('configSmtpPass');
     if (passEl) passEl.value = '';
+    loadGuestyConfig();
   } catch (e) {
     toast('Erro ao carregar configuracoes.');
   }
@@ -3504,13 +3508,19 @@ function renderJobs() {
         }
       }
       
-      const urgentFlag = job.is_urgent ? `<div style="margin-top:8px; display:inline-block; background:var(--danger); color:#fff; padding:4px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> URGENTE</div>` : '';
+      const isB2B = job.isBackToBack || job.is_back_to_back;
+      const isUrg = (job.isUrgent || job.is_urgent);
+      const b2bFlag = isB2B ? `<div style="margin-top:4px; display:inline-block; background:#ea580c; color:#fff; padding:3px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="repeat" style="width:11px;height:11px;display:inline;vertical-align:-2px;"></i> BACK-TO-BACK</div>` : '';
+      const urgentFlag = isUrg && !isB2B ? `<div style="margin-top:4px; display:inline-block; background:var(--danger); color:#fff; padding:3px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> URGENTE</div>` : '';
+      const guestyBadge = job.guestyReservationId ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;"><i data-lucide="calendar-check" style="width:11px;height:11px;"></i> Guesty</span></div>` : '';
 
       return `
-        <tr ${job.is_urgent ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
+        <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
             <span class="badge ${badgeClass}" style="border-radius:24px; padding:6px 12px; font-weight:600;">${statusLabels[job.status] || job.status}</span>
+            ${b2bFlag}
             ${urgentFlag}
+            ${guestyBadge}
           </td>
           <td class="td-prop" data-label="Propriedade">
             <strong style="display:block; font-size:18px; margin-bottom:4px; color:var(--text);">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
@@ -3537,7 +3547,8 @@ function renderJobs() {
               <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
               <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
             </div>
-            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
+            ${job.guestName ? `<div style="color:var(--text); font-size:13px; margin-bottom:6px;"><i data-lucide="user-check" style="width:13px;height:13px;display:inline;vertical-align:-2px;color:var(--primary);"></i> Hóspede: <strong>${escapeHtml(job.guestName)}</strong></div>` : ''}
             ${isAdmin() ? `
             <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
               ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">+${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
@@ -4355,7 +4366,8 @@ function renderFlats() {
           <div class="glass-card" style="padding:16px;border-left:4px solid ${isActive ? 'var(--primary)' : 'var(--muted)'};opacity:${isActive ? 1 : 0.6}">
             <div style="font-weight:600;margin-bottom:8px;">${escapeHtml(f.address)}</div>
             ${f.full_address ? `<div style="font-size:0.875rem;color:var(--muted);margin-bottom:4px;">📍 ${escapeHtml(f.full_address)}</div>` : ''}
-            ${f.access_code ? `<div style="font-size:0.875rem;color:var(--primary);margin-bottom:8px;">🔑 ${escapeHtml(f.access_code)}</div>` : ''}
+            ${f.access_code ? `<div style="font-size:0.875rem;color:var(--primary);margin-bottom:4px;">🔑 ${escapeHtml(f.access_code)}</div>` : ''}
+            ${f.guesty_listing_id ? `<div style="font-size:0.8rem;color:#4f46e5;margin-bottom:8px;font-family:monospace;font-weight:600;"><i data-lucide="link" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Guesty ID: ${escapeHtml(f.guesty_listing_id)}</div>` : ''}
             <div style="font-size:0.875rem;color:var(--muted);margin-bottom:12px;">
               ${isAdmin() ? `Cobrança: ${f.billing_type === 'hourly' ? 'Por hora (£' + f.hourly_rate + ')' : 'Projeto fixo (£' + f.project_rate + ')'}` : `Cobrança: ${f.billing_type === 'hourly' ? 'Por hora' : 'Projeto fixo'}`}
               ${f.city ? '<br/>Cidade: ' + escapeHtml(f.city) : ''}
@@ -5492,3 +5504,132 @@ function renderSystemLogs(logs) {
     `;
   }).join('');
 }
+
+// ── Guesty Integration UI ──────────────────────────────────────────────────
+async function loadGuestyConfig() {
+  const urlInput = document.getElementById('guestyWebhookUrl');
+  if (urlInput) {
+    urlInput.value = `${window.location.origin}/api/integrations/guesty/webhook`;
+  }
+  const summaryEl = document.getElementById('guestyStatusSummary');
+  try {
+    const data = await api('/api/integrations/guesty/status');
+    if (summaryEl) {
+      summaryEl.textContent = `Total de reservas processadas: ${data.totalReservations || 0}`;
+    }
+  } catch (err) {
+    if (summaryEl) summaryEl.textContent = '';
+  }
+}
+
+function copyGuestyWebhookUrl() {
+  const urlInput = document.getElementById('guestyWebhookUrl');
+  if (!urlInput) return;
+  navigator.clipboard.writeText(urlInput.value).then(() => {
+    toast('URL do Webhook copiada!', 'success');
+  }).catch(() => {
+    urlInput.select();
+    document.execCommand('copy');
+    toast('URL do Webhook copiada!', 'success');
+  });
+}
+
+function openGuestyTestModal() {
+  const modal = document.getElementById('guestyTestModal');
+  if (!modal) return;
+  const flatSelect = document.getElementById('guestyTestFlat');
+  if (flatSelect) {
+    const flatsWithGuesty = (state.flats || []).filter(f => f.guesty_listing_id);
+    if (!flatsWithGuesty.length) {
+      flatSelect.innerHTML = '<option value="">Nenhum flat com Guesty ID configurado (cadastre no Flat primeiro)</option>';
+    } else {
+      flatSelect.innerHTML = flatsWithGuesty.map(f => `<option value="${escapeAttribute(f.guesty_listing_id)}">${escapeHtml(f.address)} (Listing: ${escapeHtml(f.guesty_listing_id)})</option>`).join('');
+    }
+  }
+
+  const today = new Date();
+  const checkInStr = today.toISOString().slice(0, 10);
+  const checkOutDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const checkOutStr = checkOutDate.toISOString().slice(0, 10);
+
+  const cin = document.getElementById('guestyTestCheckIn');
+  const cout = document.getElementById('guestyTestCheckOut');
+  if (cin && !cin.value) cin.value = checkInStr;
+  if (cout && !cout.value) cout.value = checkOutStr;
+
+  const resDiv = document.getElementById('guestyTestResult');
+  if (resDiv) { resDiv.style.display = 'none'; resDiv.textContent = ''; }
+
+  modal.classList.remove('hidden');
+}
+
+function closeGuestyTestModal() {
+  const modal = document.getElementById('guestyTestModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function onGuestyTestSubmit(e) {
+  e.preventDefault();
+  const listingId = document.getElementById('guestyTestFlat')?.value;
+  if (!listingId) return toast('Selecione um flat com Guesty ID válido.', 'error');
+
+  const checkIn = document.getElementById('guestyTestCheckIn')?.value;
+  const checkOut = document.getElementById('guestyTestCheckOut')?.value;
+  const guestName = document.getElementById('guestyTestGuestName')?.value;
+  const guestEmail = document.getElementById('guestyTestGuestEmail')?.value;
+  const status = document.getElementById('guestyTestStatus')?.value || 'confirmed';
+
+  const btn = document.getElementById('btnGuestyTestSubmit');
+  const resDiv = document.getElementById('guestyTestResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  const payload = {
+    event: 'reservation.created',
+    data: {
+      _id: 'test_res_' + Date.now(),
+      listingId,
+      checkIn,
+      checkOut,
+      status,
+      confirmationCode: 'TEST-' + Math.floor(1000 + Math.random() * 9000),
+      guest: {
+        fullName: guestName,
+        email: guestEmail,
+        phone: '+447000000000'
+      }
+    }
+  };
+
+  try {
+    const res = await api('/api/integrations/guesty/test', {
+      method: 'POST',
+      body: payload
+    });
+    if (resDiv) {
+      resDiv.style.display = 'block';
+      resDiv.style.background = res.ok ? 'rgba(22,117,107,0.1)' : 'rgba(220,38,38,0.1)';
+      resDiv.style.color = res.ok ? 'var(--primary)' : 'var(--danger)';
+      resDiv.textContent = 'Resultado da simulação:\n' + JSON.stringify(res, null, 2);
+    }
+    toast(res.ok ? 'Simulação processada com sucesso!' : 'Aviso retornado na simulação', res.ok ? 'success' : 'default');
+    if (typeof loadJobs === 'function') loadJobs();
+    if (typeof loadGuestyConfig === 'function') loadGuestyConfig();
+  } catch (err) {
+    if (resDiv) {
+      resDiv.style.display = 'block';
+      resDiv.style.background = 'rgba(220,38,38,0.1)';
+      resDiv.style.color = 'var(--danger)';
+      resDiv.textContent = 'Erro:\n' + err.message;
+    }
+    toast(err.message || 'Erro ao simular reserva', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar Simulação'; }
+  }
+}
+
+window.loadGuestyConfig = loadGuestyConfig;
+window.copyGuestyWebhookUrl = copyGuestyWebhookUrl;
+window.openGuestyTestModal = openGuestyTestModal;
+window.closeGuestyTestModal = closeGuestyTestModal;
+window.onGuestyTestSubmit = onGuestyTestSubmit;
+

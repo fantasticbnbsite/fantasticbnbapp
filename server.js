@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { renderInvoiceHtml, renderPayslipHtml } from './templates.js';
+import { processGuestyReservation } from './guesty.js';
 import webpush from 'web-push';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -384,6 +385,35 @@ try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NO
 try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN designated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN guesty_listing_id TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN guesty_reservation_id TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN guest_name TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN guest_email TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN is_back_to_back INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS guesty_reservations (
+      id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
+      flat_id INTEGER,
+      confirmation_code TEXT,
+      guest_name TEXT,
+      guest_email TEXT,
+      guest_phone TEXT,
+      check_in TEXT NOT NULL,
+      check_out TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      raw_payload TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_guesty_res_listing ON guesty_reservations(listing_id, check_in, check_out);
+    CREATE INDEX IF NOT EXISTS idx_guesty_res_dates ON guesty_reservations(check_in, check_out);
+  `);
+} catch (e) {
+  console.error('Erro ao migrar tabela guesty_reservations:', e);
+}
 migrateUserRoles();
 seedDatabase();
 // syncClientCatalog();
@@ -569,9 +599,59 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { success: true });
   }
 
+  // ── Guesty Webhook (External Server-to-Server, No Session Required) ──
+  if (requestUrl.pathname === '/api/integrations/guesty/webhook' && req.method === 'POST') {
+    const body = await parseBody(req);
+    try {
+      const result = await processGuestyReservation({
+        db,
+        logSystemActivity,
+        notifyAdmins,
+        payload: body
+      });
+      return sendJson(res, result.ok ? 200 : 400, result);
+    } catch (err) {
+      console.error('Erro ao processar webhook Guesty:', err);
+      return sendJson(res, 500, { ok: false, error: err.message });
+    }
+  }
+
   // All remaining routes require auth
   const session = requireSession(req, res);
   if (!session) return;
+
+  // ── Guesty Admin Endpoints (Status & Test Simulation) ──
+  if (requestUrl.pathname === '/api/integrations/guesty/status' && req.method === 'GET') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const totalReservations = db.prepare('SELECT COUNT(*) as count FROM guesty_reservations').get().count;
+    const recentReservations = db.prepare(`
+      SELECT gr.*, f.address as flat_address 
+      FROM guesty_reservations gr
+      LEFT JOIN flats f ON f.id = gr.flat_id
+      ORDER BY gr.updated_at DESC LIMIT 15
+    `).all();
+    return sendJson(res, 200, {
+      totalReservations,
+      recentReservations,
+      webhookUrl: '/api/integrations/guesty/webhook'
+    });
+  }
+
+  if (requestUrl.pathname === '/api/integrations/guesty/test' && req.method === 'POST') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const body = await parseBody(req);
+    try {
+      const result = await processGuestyReservation({
+        db,
+        logSystemActivity,
+        notifyAdmins,
+        payload: body
+      });
+      return sendJson(res, result.ok ? 200 : 400, result);
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message });
+    }
+  }
 
   // ── Overview ──
   if (requestUrl.pathname === '/api/system-logs' && req.method === 'GET') {
@@ -752,7 +832,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -765,7 +845,8 @@ async function handleApi(req, res, requestUrl) {
       Number(body.projectWeekendRate || 0),
       Number(body.projectHolidayRate || 0),
       body.city || '',
-      body.showProjectHours ? 1 : 0
+      body.showProjectHours ? 1 : 0,
+      (body.guestyListingId || '').trim()
     );
     logSystemActivity(session.user.id, 'CREATE', 'flat', result.lastInsertRowid, `Flat criado: ${body.address || 'Novo flat'}`);
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
@@ -778,7 +859,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -793,6 +874,7 @@ async function handleApi(req, res, requestUrl) {
       body.city ?? flat.city,
       body.active === false ? 0 : 1,
       body.showProjectHours !== undefined ? (body.showProjectHours ? 1 : 0) : (flat.show_project_hours || 0),
+      body.guestyListingId !== undefined ? body.guestyListingId.trim() : (flat.guesty_listing_id || ''),
       flatId
     );
     return sendJson(res, 200, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId) });
@@ -2150,6 +2232,11 @@ function hydrateJob(row) {
     employeeAmount: row.employee_amount !== null && row.employee_amount !== undefined ? Number(row.employee_amount) : null,
     invoiceSent: Boolean(row.invoice_sent),
     isHoliday: Boolean(row.is_holiday),
+    isUrgent: Boolean(row.is_urgent),
+    isBackToBack: Boolean(row.is_back_to_back),
+    guestyReservationId: row.guesty_reservation_id || '',
+    guestName: row.guest_name || '',
+    guestEmail: row.guest_email || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

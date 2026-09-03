@@ -781,6 +781,15 @@
                 </div>
               </div>
 
+              <!-- ID Guesty (Listing ID) -->
+              <div class="flats-input-group full-width">
+                <label for="flatGuestyListingId">ID da Propriedade no Guesty (Listing ID)</label>
+                <div class="flats-input-wrapper">
+                  <i data-lucide="link"></i>
+                  <input type="text" id="flatGuestyListingId" placeholder="Ex: 5e1b8c34f2a7b8001a9c..." />
+                </div>
+              </div>
+
               <!-- Tipo de cobrança -->
               <div class="flats-input-group full-width" style="grid-column: span 1;">
                 <label for="flatBillingType">Tipo de cobrança</label>
@@ -935,6 +944,30 @@
             </div>
             <button type="submit" class="button button-primary" id="configSubmitButton" style="margin-top:16px;">Salvar configuracoes</button>
           </form>
+
+          <hr style="margin:28px 0; border:none; border-top:1px solid var(--border);" />
+
+          <div class="panel-header">
+            <div>
+              <h3>Integração Guesty (PMS)</h3>
+              <p class="panel-kicker">Automação de criação de limpezas via webhook do Guesty.</p>
+            </div>
+          </div>
+          <div style="background:var(--surface-2); padding:16px; border-radius:12px; margin-top:12px;">
+            <label style="font-weight:600; font-size:0.9rem; display:block; margin-bottom:6px;">URL do Webhook (Cole no painel de Webhooks do Guesty):</label>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="guestyWebhookUrl" readonly value="" style="flex:1; min-width:260px; background:var(--surface-3); font-family:monospace; font-size:0.85rem;" />
+              <button type="button" class="button button-secondary" onclick="copyGuestyWebhookUrl()"><i data-lucide="copy"></i> Copiar URL</button>
+            </div>
+            <p style="font-size:0.82rem; color:var(--muted); margin-top:8px; line-height:1.4;">
+              Eventos no Guesty: <code>reservation.created</code>, <code>reservation.updated</code> e <code>reservation.canceled</code>.<br/>
+              O sistema detecta automaticamente <strong>estadias contínuas</strong> (mesmo hóspede) para não gerar limpezas desnecessárias, e marca <strong>Back-to-Back 🔄</strong> quando há novo check-in no mesmo dia.
+            </p>
+            <div style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="button button-outline" onclick="openGuestyTestModal()"><i data-lucide="play-circle"></i> Simular Envio de Reserva (Teste)</button>
+              <span id="guestyStatusSummary" style="font-size:0.85rem; color:var(--muted); font-weight:500;"></span>
+            </div>
+          </div>
         </article>
       </section>
 
@@ -1368,6 +1401,54 @@
           <button type="submit" class="button button-primary" id="cpSubmitBtn" style="margin-top:16px;">Salvar Senha</button>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Guesty Simulation Test Modal ────────────────────────────────────── -->
+  <div class="modal hidden" id="guestyTestModal">
+    <div class="modal-card glass-card" style="max-width:520px;">
+      <div class="modal-header">
+        <div><p class="eyebrow">Simulação Guesty</p><h3>Simular Webhook de Reserva</h3></div>
+        <button class="icon-button" onclick="closeGuestyTestModal()">✕</button>
+      </div>
+      <form id="guestyTestForm" onsubmit="onGuestyTestSubmit(event)" style="padding:16px 0; display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <label for="guestyTestFlat">Flat (com Guesty ID)</label>
+          <select id="guestyTestFlat" required style="width:100%;"></select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label for="guestyTestCheckIn">Check-In</label>
+            <input type="date" id="guestyTestCheckIn" required style="width:100%;" />
+          </div>
+          <div>
+            <label for="guestyTestCheckOut">Check-Out</label>
+            <input type="date" id="guestyTestCheckOut" required style="width:100%;" />
+          </div>
+        </div>
+        <div>
+          <label for="guestyTestGuestName">Nome do Hóspede</label>
+          <input type="text" id="guestyTestGuestName" value="John Doe" required style="width:100%;" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label for="guestyTestGuestEmail">Email do Hóspede</label>
+            <input type="email" id="guestyTestGuestEmail" value="guest@example.com" style="width:100%;" />
+          </div>
+          <div>
+            <label for="guestyTestStatus">Status da Reserva</label>
+            <select id="guestyTestStatus" style="width:100%;">
+              <option value="confirmed">Confirmada (confirmed)</option>
+              <option value="canceled">Cancelada (canceled)</option>
+            </select>
+          </div>
+        </div>
+        <div id="guestyTestResult" style="display:none; padding:12px; border-radius:8px; font-size:0.85rem; font-family:monospace; white-space:pre-wrap;"></div>
+        <div class="toolbar-actions" style="margin-top:8px;">
+          <button type="button" class="button button-secondary" onclick="closeGuestyTestModal()">Fechar</button>
+          <button type="submit" class="button button-primary" id="btnGuestyTestSubmit">Enviar Simulação</button>
+        </div>
+      </form>
     </div>
   </div>
 
