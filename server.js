@@ -1022,8 +1022,9 @@ async function handleApi(req, res, requestUrl) {
     let invoiceId = body.invoiceId || null;
     let payrollId = body.payrollId || null;
 
+    const notes = (body.notes && body.notes.trim()) ? body.notes.trim() : 'Serviço lançado manualmente pelo admin';
     const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, 'Serviço lançado manualmente pelo admin', invoiceId, payrollId, session.user.id, now, now, now);
+      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, notes, invoiceId, payrollId, session.user.id, now, now, now);
 
     // If attached to invoice or payroll, we must recount totals
     if (invoiceId) {
@@ -1152,8 +1153,15 @@ async function handleApi(req, res, requestUrl) {
       }
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, now, jobId);
+    let updatedFinishedAt = job.finished_at;
+    if (updatedStatus === 'completed' && !updatedFinishedAt) {
+      updatedFinishedAt = now;
+    } else if (updatedStatus !== 'completed' && job.status === 'completed') {
+      updatedFinishedAt = null;
+    }
+
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, finished_at=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedFinishedAt, now, jobId);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {

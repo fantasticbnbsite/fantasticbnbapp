@@ -3271,6 +3271,7 @@ window.openAdminEditJobModal = async function(jobId) {
   document.getElementById('adminEditJobDate').value = job.requestedDate || '';
   document.getElementById('adminEditJobStatus').value = job.status || 'pending';
   document.getElementById('adminEditJobIsHoliday').checked = job.isHoliday ? true : false;
+  document.getElementById('adminEditJobNotes').value = job.notes || '';
   
   const durContainer = document.getElementById('adminEditJobDurationContainer');
   const durInput = document.getElementById('adminEditJobDuration');
@@ -3305,12 +3306,14 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
   const requestedDate = document.getElementById('adminEditJobDate').value;
   const durationStr = document.getElementById('adminEditJobDuration').value;
   const isHoliday = document.getElementById('adminEditJobIsHoliday').checked;
+  const notes = document.getElementById('adminEditJobNotes').value;
   
   const payload = { 
     status, 
     employeeUserId: employeeUserId || null, 
     requestedDate, 
     isHoliday,
+    notes,
     durationHours: status === 'completed' ? timeStrToDecimal(durationStr) : undefined
   };
 
@@ -3526,6 +3529,8 @@ function renderJobs() {
             <strong style="display:block; font-size:18px; margin-bottom:4px; color:var(--text);">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
             ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:14px; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
+            ${job.notes ? `<div style="margin-top:6px; font-size:13px; color:var(--text); background:rgba(0,0,0,0.03); border-left:3px solid var(--primary); padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;"><strong style="color:var(--primary); font-size:12px;"><i data-lucide="message-square" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Obs:</strong> ${escapeHtml(job.notes)}</div>` : ''}
+            ${job.employeeNotes ? `<div style="margin-top:4px; font-size:13px; color:#059669; background:rgba(16,185,129,0.06); border-left:3px solid #059669; padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;"><strong style="font-size:12px;"><i data-lucide="user-check" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Cleaner:</strong> ${escapeHtml(job.employeeNotes)}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
             <div style="display:flex; flex-direction:column; gap:4px; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
@@ -3642,7 +3647,61 @@ document.getElementById('confirmAssignButton')?.addEventListener('click', async 
   }
 });
 
+window.openCompleteJobModal = function(jobId) {
+  const job = state.jobs?.find(j => j.id === jobId);
+  if (!job) return;
+  document.getElementById('completeJobId').value = job.id;
+  document.getElementById('completeJobFlatAddress').textContent = job.flatAddress || `Flat #${job.flatId}`;
+  document.getElementById('completeJobDate').textContent = job.requestedDate || '-';
+  document.getElementById('completeJobEmployee').textContent = job.employeeName || 'Sem profissional';
+  document.getElementById('completeJobDuration').value = job.durationHours ? decimalToTimeStr(job.durationHours) : '';
+  document.getElementById('completeJobNotes').value = job.notes || '';
+  document.getElementById('completeJobModal').classList.remove('hidden');
+};
+
+window.closeCompleteJobModal = function() {
+  document.getElementById('completeJobModal')?.classList.add('hidden');
+};
+
+document.getElementById('confirmCompleteJobBtn')?.addEventListener('click', async (e) => {
+  const jobId = document.getElementById('completeJobId').value;
+  const durationStr = document.getElementById('completeJobDuration').value;
+  const notes = document.getElementById('completeJobNotes').value;
+
+  const payload = {
+    status: 'completed',
+    notes: notes
+  };
+  if (durationStr) {
+    payload.durationHours = timeStrToDecimal(durationStr);
+  }
+
+  e.target.disabled = true;
+  e.target.textContent = 'Concluindo...';
+
+  try {
+    const res = await fetch(`/api/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Falha ao concluir serviço');
+    toast('Serviço concluído com sucesso!', 'success');
+    closeCompleteJobModal();
+    loadJobs();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    e.target.disabled = false;
+    e.target.textContent = 'Confirmar Conclusão';
+  }
+});
+
 async function markJobAs(id, status) {
+  if (status === 'completed') {
+    openCompleteJobModal(id);
+    return;
+  }
   try {
     const res = await fetch(`/api/jobs/${id}`, {
       method: 'PUT',
@@ -4932,6 +4991,8 @@ async function openManualJobForFinance() {
 
 function closeManualJobModal() {
   document.getElementById('manualJobModal').classList.add('hidden');
+  const notesEl = document.getElementById('manualJobNotes');
+  if (notesEl) notesEl.value = '';
 }
 
 // --- Admin Request Job (CleanOps) ---
@@ -4949,14 +5010,17 @@ async function openAdminRequestJobModal() {
   const clients = state.users.filter(u => u.role === 'client');
   clientSelect.innerHTML = `<option value="">Selecione um cliente</option>` + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join('');
   
+  // Load Flats based on client
+  updateAdminReqJobFlats();
+  
   // Load Employees
   const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
   employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => `<option value="${e.id}">${escapeHtml(e.name || e.email)}</option>`).join('');
   
-  document.getElementById('adminReqJobFlat').innerHTML = '<option value="">Selecione um cliente primeiro</option>';
-  document.getElementById('adminReqJobDate').value = '';
-  document.getElementById('adminReqJobNotes').value = '';
+  // Reset other fields
+  document.getElementById('adminReqJobDate').value = new Date().toISOString().slice(0, 10);
   document.getElementById('adminReqJobIsHoliday').checked = false;
+  document.getElementById('adminReqJobNotes').value = '';
   
   modal.classList.remove('hidden');
 }
@@ -4966,45 +5030,54 @@ function closeAdminRequestJobModal() {
 }
 
 function updateAdminReqJobFlats() {
-  const clientId = Number(document.getElementById('adminReqJobClient').value);
+  const clientId = document.getElementById('adminReqJobClient').value;
   const flatSelect = document.getElementById('adminReqJobFlat');
   if (!clientId) {
-    flatSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+    flatSelect.innerHTML = `<option value="">Selecione um cliente primeiro</option>`;
     return;
   }
-  const clientFlats = state.flats.filter(f => f.client_user_id === clientId && f.active);
-  if (clientFlats.length === 0) {
-    flatSelect.innerHTML = '<option value="">Nenhum flat ativo encontrado</option>';
-    return;
+  const filteredFlats = state.flats.filter(f => f.client_user_id == clientId);
+  if (filteredFlats.length === 0) {
+    flatSelect.innerHTML = `<option value="">Nenhum flat encontrado para este cliente</option>`;
+  } else {
+    flatSelect.innerHTML = filteredFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('');
   }
-  flatSelect.innerHTML = clientFlats.map(f => `<option value="${f.id}">${escapeHtml(f.address)}</option>`).join('');
 }
 
 async function submitAdminRequestJob(e) {
   e.preventDefault();
-  const btn = document.getElementById('adminReqJobSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
+  const flatId = document.getElementById('adminReqJobFlat').value;
+  const requestedDate = document.getElementById('adminReqJobDate').value;
+  const isHoliday = document.getElementById('adminReqJobIsHoliday').checked;
+  const employeeUserId = document.getElementById('adminReqJobEmployee').value;
+  const notes = document.getElementById('adminReqJobNotes').value;
+  
+  if (!flatId) return toast('Selecione um flat.', 'error');
+  if (!requestedDate) return toast('Informe a data.', 'error');
+  
+  const submitBtn = document.getElementById('adminReqJobSubmitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Criando...';
   
   try {
     const payload = {
-      clientId: document.getElementById('adminReqJobClient').value,
-      flatId: document.getElementById('adminReqJobFlat').value,
-      requestedDate: document.getElementById('adminReqJobDate').value,
-      employeeUserId: document.getElementById('adminReqJobEmployee').value || null,
-      notes: document.getElementById('adminReqJobNotes').value,
-      isHoliday: document.getElementById('adminReqJobIsHoliday').checked
+      flatId,
+      requestedDate,
+      isHoliday,
+      employeeUserId: employeeUserId ? Number(employeeUserId) : null,
+      notes
     };
     
     await api('/api/jobs', { method: 'POST', body: payload });
-    toast('Servico solicitado com sucesso!', 'success');
+    toast('Solicitação de limpeza criada com sucesso!', 'success');
     closeAdminRequestJobModal();
     if (typeof loadJobs === 'function') loadJobs();
-  } catch (err) {
-    toast(err.message || 'Erro ao criar solicitacao', 'error');
+  } catch(err) {
+    console.error(err);
+    toast('Erro ao criar solicitação: ' + err.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Criar Solicitacao';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Criar Solicitacao';
   }
 }
 
@@ -5023,6 +5096,7 @@ async function submitManualJob(e) {
   let date = document.getElementById('manualJobDate').value;
   let timeStr = document.getElementById('manualJobHours').value;
   let isHoliday = document.getElementById('manualJobHoliday').checked;
+  let notes = document.getElementById('manualJobNotes')?.value || '';
   
   if (!flatId || !employeeUserId || !date || !timeStr) return toast('Preencha os campos obrigatorios');
   
@@ -5039,6 +5113,7 @@ async function submitManualJob(e) {
       requestedDate: date,
       durationHours: hours,
       isHoliday,
+      notes,
       invoiceId: isInvoice ? currentFinanceEditId : null,
       payrollId: !isInvoice ? currentFinanceEditId : null
     };

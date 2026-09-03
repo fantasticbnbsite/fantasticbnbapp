@@ -1144,6 +1144,10 @@
                <span>Aplicar taxa de feriado</span>
              </label>
           </div>
+          <div>
+             <label for="manualJobNotes">Observações</label>
+             <textarea id="manualJobNotes" rows="2" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Observações sobre o serviço..."></textarea>
+          </div>
           <button type="submit" class="button button-primary" id="manualJobSubmit" style="margin-top:16px;">Criar e Anexar Serviço</button>
         </form>
       </div>
@@ -1216,7 +1220,41 @@
           <label for="adminEditJobDuration">Duracao (HH:mm) - Apenas para Concluidos</label>
           <input type="time" id="adminEditJobDuration" style="width:100%;" />
         </div>
+        <div>
+          <label for="adminEditJobNotes">Observações</label>
+          <textarea id="adminEditJobNotes" rows="3" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Adicione observações sobre o serviço..."></textarea>
+        </div>
         <button class="button button-primary" id="confirmAdminEditJobButton" style="margin-top:8px;">Salvar Alteracoes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Complete Job Modal (Admin/Gerente) ────────────────────────── -->
+  <div class="modal hidden" id="completeJobModal" style="z-index: 100002;">
+    <div class="modal-card glass-card" style="max-width:480px;">
+      <div class="modal-header">
+        <div><p class="eyebrow">Finalizar Serviço</p><h3 style="margin:0;">Concluir Serviço</h3></div>
+        <button type="button" class="icon-button" onclick="closeCompleteJobModal()">x</button>
+      </div>
+      <div style="padding:12px 0; display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" id="completeJobId" />
+        <div style="background:rgba(0,0,0,0.03); padding:10px 14px; border-radius:8px; font-size:14px;">
+          <div><strong id="completeJobFlatAddress">-</strong></div>
+          <div style="color:var(--muted); font-size:13px; margin-top:2px;">Data: <span id="completeJobDate">-</span> | Profissional: <span id="completeJobEmployee">-</span></div>
+        </div>
+        <div>
+          <label for="completeJobDuration">Duração do Serviço (HH:mm)</label>
+          <input type="time" id="completeJobDuration" style="width:100%;" />
+          <small style="color:var(--muted); font-size:12px;">Se não informar, mantém a duração padrão ou atual.</small>
+        </div>
+        <div>
+          <label for="completeJobNotes">Observações da Conclusão</label>
+          <textarea id="completeJobNotes" rows="3" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Ex: Limpeza finalizada, troca de toalhas ok, chave no cofre..."></textarea>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
+          <button type="button" class="button" onclick="closeCompleteJobModal()">Cancelar</button>
+          <button type="button" class="button button-primary" id="confirmCompleteJobBtn" style="background:var(--success); border-color:var(--success);">Confirmar Conclusão</button>
+        </div>
       </div>
     </div>
   </div>
