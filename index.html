@@ -692,6 +692,8 @@
                 <option value="accepted">Aceito</option>
                 <option value="in_progress">Em andamento</option>
                 <option value="completed">Concluido</option>
+                <option value="cancelled_late">Canc. Última Hora (£17)</option>
+                <option value="cancelled_company">Cancelamento Empresa (£0)</option>
                 <option value="cancelled">Cancelado</option>
               </select>
               <select id="jobsClientFilter" class="filter-select">
@@ -1213,11 +1215,13 @@
             <option value="accepted">Aceito (accepted)</option>
             <option value="in_progress">Em Andamento (in_progress)</option>
             <option value="completed">Concluido (completed)</option>
+            <option value="cancelled_late">Canc. Última Hora (£17)</option>
+            <option value="cancelled_company">Cancelamento Empresa (£0)</option>
             <option value="cancelled">Cancelado (cancelled)</option>
           </select>
         </div>
         <div id="adminEditJobDurationContainer" class="hidden">
-          <label for="adminEditJobDuration">Duracao (HH:mm) - Apenas para Concluidos</label>
+          <label for="adminEditJobDuration">Duracao (HH:mm) - Concluído ou Cancelamento com Tempo</label>
           <input type="time" id="adminEditJobDuration" style="width:100%;" />
         </div>
         <div>
@@ -1254,6 +1258,44 @@
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
           <button type="button" class="button" onclick="closeCompleteJobModal()">Cancelar</button>
           <button type="button" class="button button-primary" id="confirmCompleteJobBtn" style="background:var(--success); border-color:var(--success);">Confirmar Conclusão</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Cancel Job Modal (Admin/Gerente) ────────────────────────── -->
+  <div class="modal hidden" id="cancelJobModal" style="z-index: 100002;">
+    <div class="modal-card glass-card" style="max-width:500px;">
+      <div class="modal-header">
+        <div><p class="eyebrow" style="color:#ef4444;">Gerenciar Cancelamento</p><h3 style="margin:0;">Cancelar Serviço</h3></div>
+        <button type="button" class="icon-button" onclick="closeCancelJobModal()">x</button>
+      </div>
+      <div style="padding:12px 0; display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" id="cancelJobId" />
+        <div style="background:rgba(0,0,0,0.03); padding:10px 14px; border-radius:8px; font-size:14px;">
+          <div><strong id="cancelJobFlatAddress">-</strong></div>
+          <div style="color:var(--muted); font-size:13px; margin-top:2px;">Data: <span id="cancelJobDate">-</span> | Profissional: <span id="cancelJobEmployee">-</span></div>
+        </div>
+        <div>
+          <label for="cancelJobType">Tipo de Cancelamento</label>
+          <select id="cancelJobType" style="width:100%;">
+            <option value="cancelled_late">Canc. Última Hora (Cobra £17 do cliente + Paga cleaner pelo tempo)</option>
+            <option value="cancelled_company">Cancelamento Empresa (Cobra £0 do cliente + Paga cleaner pelo tempo)</option>
+            <option value="cancelled">Cancelamento Padrão (Sem cobrança e sem pagamento)</option>
+          </select>
+        </div>
+        <div id="cancelJobDurationContainer">
+          <label for="cancelJobDuration">Tempo de Trabalho do Cleaner (HH:mm)</label>
+          <input type="time" id="cancelJobDuration" value="00:00" style="width:100%;" />
+          <small style="color:var(--muted); font-size:12px;">Informe as horas/minutos trabalhados pelo cleaner para lançamento no holerite.</small>
+        </div>
+        <div>
+          <label for="cancelJobNotes">Motivo / Observações do Cancelamento</label>
+          <textarea id="cancelJobNotes" rows="3" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Ex: Cancelado pelo hóspede em cima da hora, cleaner já a caminho..."></textarea>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
+          <button type="button" class="button" onclick="closeCancelJobModal()">Voltar</button>
+          <button type="button" class="button button-primary" id="confirmCancelJobBtn" style="background:#dc2626; border-color:#dc2626; color:#fff;">Confirmar Cancelamento</button>
         </div>
       </div>
     </div>

@@ -3275,7 +3275,7 @@ window.openAdminEditJobModal = async function(jobId) {
   
   const durContainer = document.getElementById('adminEditJobDurationContainer');
   const durInput = document.getElementById('adminEditJobDuration');
-  if (job.status === 'completed') {
+  if (['completed', 'cancelled_late', 'cancelled_company'].includes(job.status)) {
     durContainer.classList.remove('hidden');
     durInput.value = decimalToTimeStr(job.durationHours);
   } else {
@@ -3292,7 +3292,7 @@ document.getElementById('closeAdminEditJobModal')?.addEventListener('click', () 
 
 document.getElementById('adminEditJobStatus')?.addEventListener('change', (e) => {
   const durContainer = document.getElementById('adminEditJobDurationContainer');
-  if (e.target.value === 'completed') {
+  if (['completed', 'cancelled_late', 'cancelled_company'].includes(e.target.value)) {
     durContainer.classList.remove('hidden');
   } else {
     durContainer.classList.add('hidden');
@@ -3314,7 +3314,7 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
     requestedDate, 
     isHoliday,
     notes,
-    durationHours: status === 'completed' ? timeStrToDecimal(durationStr) : undefined
+    durationHours: ['completed', 'cancelled_late', 'cancelled_company'].includes(status) ? (durationStr ? timeStrToDecimal(durationStr) : 0) : undefined
   };
 
   e.target.disabled = true;
@@ -3441,6 +3441,8 @@ function renderJobs() {
     accepted: 'Aceito',
     in_progress: 'Em andamento',
     completed: 'Concluido',
+    cancelled_late: 'Canc. Última Hora',
+    cancelled_company: 'Canc. Empresa',
     cancelled: 'Cancelado'
   };
 
@@ -3475,6 +3477,7 @@ function renderJobs() {
       if (state.user.role === 'client' || state.user.role === 'client_user') {
         if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
           actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
+          actions += `<button class="ghost-button" style="color:var(--danger);" onclick="clientCancelJob(${job.id})" title="Cancelar Pedido"><i data-lucide="x-circle"></i></button>`;
         }
       } else {
         actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
@@ -3484,8 +3487,9 @@ function renderJobs() {
         if (job.status === 'pending' || job.status === 'assigned') {
           actions += `<button class="ghost-button" style="color:var(--primary);" onclick="openAssignEmployeeModal(${job.id})" title="Designar"><i data-lucide="user-plus"></i></button>`;
         }
-        if (job.status !== 'completed' && job.status !== 'cancelled') {
+        if (job.status !== 'completed' && !job.status.startsWith('cancelled')) {
           actions += `<button class="ghost-button" style="color:var(--success);" onclick="markJobAs(${job.id}, 'completed')" title="Marcar Concluído"><i data-lucide="check-circle"></i></button>`;
+          actions += `<button class="ghost-button" style="color:#ea580c;" onclick="openCancelJobModal(${job.id})" title="Cancelar Serviço"><i data-lucide="x-circle"></i></button>`;
         }
       }
       if (job.status === 'in_progress' || job.status === 'completed') {
@@ -3498,6 +3502,8 @@ function renderJobs() {
       if(job.status === 'pending') badgeClass = 'badge-warning';
       if(job.status === 'in_progress') badgeClass = 'badge-primary';
       if(job.status === 'cancelled') badgeClass = 'badge-danger';
+      if(job.status === 'cancelled_late') badgeClass = 'badge-danger';
+      if(job.status === 'cancelled_company') badgeClass = 'badge-info';
       if(job.status === 'assigned') badgeClass = 'badge-info';
       if(job.status === 'accepted') badgeClass = 'badge-light-green';
       
@@ -3697,9 +3703,104 @@ document.getElementById('confirmCompleteJobBtn')?.addEventListener('click', asyn
   }
 });
 
+window.openCancelJobModal = function(jobId) {
+  const job = state.jobs?.find(j => j.id === jobId);
+  if (!job) return;
+  document.getElementById('cancelJobId').value = job.id;
+  document.getElementById('cancelJobFlatAddress').textContent = job.flatAddress || `Flat #${job.flatId}`;
+  document.getElementById('cancelJobDate').textContent = job.requestedDate || '-';
+  document.getElementById('cancelJobEmployee').textContent = job.employeeName || 'Sem profissional';
+  document.getElementById('cancelJobType').value = 'cancelled_late';
+  document.getElementById('cancelJobDuration').value = job.durationHours ? decimalToTimeStr(job.durationHours) : '00:00';
+  document.getElementById('cancelJobNotes').value = '';
+
+  const durContainer = document.getElementById('cancelJobDurationContainer');
+  if (durContainer) durContainer.style.display = 'block';
+
+  document.getElementById('cancelJobModal')?.classList.remove('hidden');
+};
+
+window.closeCancelJobModal = function() {
+  document.getElementById('cancelJobModal')?.classList.add('hidden');
+};
+
+document.getElementById('cancelJobType')?.addEventListener('change', (e) => {
+  const durContainer = document.getElementById('cancelJobDurationContainer');
+  if (!durContainer) return;
+  if (e.target.value === 'cancelled') {
+    durContainer.style.display = 'none';
+  } else {
+    durContainer.style.display = 'block';
+  }
+});
+
+document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async (e) => {
+  const jobId = document.getElementById('cancelJobId').value;
+  const type = document.getElementById('cancelJobType').value;
+  const durationStr = document.getElementById('cancelJobDuration').value;
+  const notes = document.getElementById('cancelJobNotes').value;
+
+  const payload = {
+    status: type,
+    cancellationType: type,
+    notes: notes
+  };
+  if (['cancelled_late', 'cancelled_company'].includes(type) && durationStr) {
+    payload.durationHours = timeStrToDecimal(durationStr);
+  } else {
+    payload.durationHours = 0;
+  }
+
+  e.target.disabled = true;
+  e.target.textContent = 'Cancelando...';
+
+  try {
+    const res = await fetch(`/api/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Falha ao cancelar serviço');
+    }
+    toast('Serviço cancelado com sucesso!', 'success');
+    closeCancelJobModal();
+    loadJobs();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    e.target.disabled = false;
+    e.target.textContent = 'Confirmar Cancelamento';
+  }
+});
+
+window.clientCancelJob = async function(id) {
+  if (!confirm('Deseja realmente cancelar este serviço?')) return;
+  try {
+    const res = await fetch(`/api/jobs/${id}/cancel`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Falha ao cancelar serviço');
+    }
+    toast('Serviço cancelado com sucesso!', 'success');
+    loadJobs();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+};
+
 async function markJobAs(id, status) {
   if (status === 'completed') {
     openCompleteJobModal(id);
+    return;
+  }
+  if (status === 'cancelled' || status === 'cancelled_late' || status === 'cancelled_company') {
+    openCancelJobModal(id);
     return;
   }
   try {

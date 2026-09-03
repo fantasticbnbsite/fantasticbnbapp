@@ -1010,7 +1010,7 @@ async function handleApi(req, res, requestUrl) {
       } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
         finalProjectRate = Number(flat.project_weekend_rate);
       }
-      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND client_amount > 0 AND status != ?').get(flatId, body.requestedDate, 'cancelled');
+      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND client_amount > 0 AND status NOT LIKE ?').get(flatId, body.requestedDate, 'cancelled%');
       clientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
     } else {
       clientAmount = roundCurrency(durationHours * clientRate);
@@ -1111,6 +1111,23 @@ async function handleApi(req, res, requestUrl) {
       updatedIsHoliday = body.isHoliday ? 1 : 0;
     }
 
+    const reqDate = new Date(updatedRequestedDate);
+    const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
+
+    let employeeRate = 0;
+    if (updatedEmployeeUserId) {
+      const emp = db.prepare('SELECT * FROM users WHERE id = ?').get(updatedEmployeeUserId);
+      if (emp) {
+        if (updatedIsHoliday) {
+          employeeRate = Number(emp.holiday_rate || emp.hourly_rate || 0);
+        } else if (isWeekend) {
+          employeeRate = Number(emp.weekend_rate || emp.hourly_rate || 0);
+        } else {
+          employeeRate = Number(emp.hourly_rate || 0);
+        }
+      }
+    }
+
     if (updatedStatus === 'completed') {
       if (body.durationHours !== undefined) {
         updatedDurationHours = Number(body.durationHours) || 0;
@@ -1118,23 +1135,6 @@ async function handleApi(req, res, requestUrl) {
         updatedDurationHours = Number(job.duration_hours) || 0;
       }
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
-      const reqDate = new Date(updatedRequestedDate);
-      const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
-      
-      let employeeRate = 0;
-      if (updatedEmployeeUserId) {
-        const emp = db.prepare('SELECT * FROM users WHERE id = ?').get(updatedEmployeeUserId);
-        if (emp) {
-          if (updatedIsHoliday) {
-            employeeRate = Number(emp.holiday_rate || emp.hourly_rate || 0);
-          } else if (isWeekend) {
-            employeeRate = Number(emp.weekend_rate || emp.hourly_rate || 0);
-          } else {
-            employeeRate = Number(emp.hourly_rate || 0);
-          }
-        }
-      }
-      
       let clientRate = updatedIsHoliday ? Number(flat.hourly_holiday_rate || flat.hourly_rate || 0) : (isWeekend ? Number(flat.hourly_weekend_rate || flat.hourly_rate || 0) : Number(flat.hourly_rate || 0));
       
       updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
@@ -1146,11 +1146,34 @@ async function handleApi(req, res, requestUrl) {
         } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
           finalProjectRate = Number(flat.project_weekend_rate);
         }
-        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND id != ? AND client_amount > 0 AND status != ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled');
+        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND id != ? AND client_amount > 0 AND status NOT LIKE ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled%');
         updatedClientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
       } else {
         updatedClientAmount = roundCurrency(updatedDurationHours * clientRate);
       }
+    } else if (updatedStatus === 'cancelled_late') {
+      // Cancelamento de Última Hora: cobra £17 do cliente e paga o cleaner pelo tempo trabalhado
+      if (body.durationHours !== undefined) {
+        updatedDurationHours = Number(body.durationHours) || 0;
+      } else {
+        updatedDurationHours = Number(job.duration_hours) || 0;
+      }
+      updatedClientAmount = 17.00;
+      updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
+    } else if (updatedStatus === 'cancelled_company') {
+      // Cancelamento Empresa: não cobra nada do cliente (£0) e paga o cleaner pelo tempo trabalhado
+      if (body.durationHours !== undefined) {
+        updatedDurationHours = Number(body.durationHours) || 0;
+      } else {
+        updatedDurationHours = Number(job.duration_hours) || 0;
+      }
+      updatedClientAmount = 0.00;
+      updatedEmployeeAmount = roundCurrency(updatedDurationHours * employeeRate);
+    } else if (updatedStatus === 'cancelled') {
+      // Cancelamento normal: sem cobrança do cliente e sem valor do cleaner
+      updatedDurationHours = 0;
+      updatedClientAmount = 0.00;
+      updatedEmployeeAmount = 0.00;
     }
 
     let updatedFinishedAt = job.finished_at;
@@ -1311,8 +1334,48 @@ async function handleApi(req, res, requestUrl) {
         return sendJson(res, 403, { error: 'Permissao insuficiente.' });
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
-      db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('cancelled', now, jobId);
-        logSystemActivity(session.user.id, 'CANCEL', 'job', jobId, `Serviço cancelado`);
+
+      let cancelStatus = 'cancelled';
+      let durationHours = 0;
+      let clientAmount = 0.00;
+      let employeeAmount = 0.00;
+      const cancellationType = body.cancellationType || body.status || 'cancelled';
+      let notes = job.notes || '';
+      if (body.notes && body.notes.trim()) {
+        notes = notes ? `${notes}\n[Cancelamento] ${body.notes.trim()}` : body.notes.trim();
+      }
+
+      if (['cancelled_late', 'cancelled_company'].includes(cancellationType) && (isAdminRole(session.user.role) || session.user.role === 'manager')) {
+        cancelStatus = cancellationType;
+        durationHours = Number(body.durationHours) || 0;
+
+        if (job.employee_user_id) {
+          const emp = db.prepare('SELECT * FROM users WHERE id = ?').get(job.employee_user_id);
+          if (emp) {
+            const reqDate = new Date(job.requested_date || now);
+            const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
+            let employeeRate = 0;
+            if (job.is_holiday) {
+              employeeRate = Number(emp.holiday_rate || emp.hourly_rate || 0);
+            } else if (isWeekend) {
+              employeeRate = Number(emp.weekend_rate || emp.hourly_rate || 0);
+            } else {
+              employeeRate = Number(emp.hourly_rate || 0);
+            }
+            employeeAmount = roundCurrency(durationHours * employeeRate);
+          }
+        }
+
+        if (cancelStatus === 'cancelled_late') {
+          clientAmount = 17.00;
+        } else {
+          clientAmount = 0.00;
+        }
+      }
+
+      db.prepare('UPDATE jobs SET status=?, duration_hours=?, client_amount=?, employee_amount=?, notes=?, updated_at=? WHERE id=?')
+        .run(cancelStatus, durationHours, clientAmount, employeeAmount, notes, now, jobId);
+      logSystemActivity(session.user.id, 'CANCEL', 'job', jobId, `Serviço cancelado (${cancelStatus})`);
       recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
         sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.` }).catch(() => {});
@@ -1478,7 +1541,7 @@ async function handleApi(req, res, requestUrl) {
       LEFT JOIN flats f ON f.id = j.flat_id
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
-      WHERE j.status = 'completed'
+      WHERE (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
         AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
         AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     `).all(periodFrom, periodTo);
@@ -1583,7 +1646,7 @@ async function handleApi(req, res, requestUrl) {
       FROM jobs j
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
-      WHERE j.status = 'completed'
+      WHERE (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
     `).all();
     return sendJson(res, 200, { jobs });
   }
@@ -2096,7 +2159,7 @@ function buildJobPayslip(employeeId, month) {
     SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
-    WHERE j.employee_user_id = ? AND j.status = 'completed'
+    WHERE j.employee_user_id = ? AND (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
       AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
       AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     ORDER BY j.finished_at ASC
@@ -2134,7 +2197,7 @@ function buildClientInvoice(clientId, month) {
     SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code
     FROM jobs j
     LEFT JOIN flats f ON f.id = j.flat_id
-    WHERE j.client_user_id = ? AND j.status = 'completed'
+    WHERE j.client_user_id = ? AND (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
       AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)
       AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)
     ORDER BY j.finished_at ASC
@@ -2174,7 +2237,7 @@ function buildFinancialReport(from, to) {
     LEFT JOIN flats f ON f.id = j.flat_id
     LEFT JOIN users cu ON cu.id = j.client_user_id
     LEFT JOIN users eu ON eu.id = j.employee_user_id
-    WHERE j.status = 'completed'`;
+    WHERE (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))`;
   const params = [];
   if (from) { sql += ' AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) >= substr(?, 1, 10)'; params.push(from); }
   if (to) { sql += ' AND substr(COALESCE(j.requested_date, j.finished_at), 1, 10) <= substr(?, 1, 10)'; params.push(to); }

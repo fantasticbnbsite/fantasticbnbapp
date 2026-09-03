@@ -243,14 +243,17 @@ const App = (() => {
 
   /* ── Status config ───────────────────────────────────────────── */
   const STATUS_CONFIG = {
-    pending:     { label: 'Pendente',     color: '#706356', order: 0 },
-    assigned:    { label: 'Designado',    color: '#5B8DEF', order: 1 },
-    accepted:    { label: 'Aceito',       color: '#FFB347', order: 2 },
-    in_progress: { label: 'Em andamento', color: '#16756b', order: 3 },
-    completed:   { label: 'Concluído',    color: '#34C38F', order: 4 },
+    pending:           { label: 'Pendente',            color: '#706356', order: 0 },
+    assigned:          { label: 'Designado',           color: '#5B8DEF', order: 1 },
+    accepted:          { label: 'Aceito',              color: '#FFB347', order: 2 },
+    in_progress:       { label: 'Em andamento',        color: '#16756b', order: 3 },
+    completed:         { label: 'Concluído',           color: '#34C38F', order: 4 },
+    cancelled_late:    { label: 'Canc. Última Hora',   color: '#ea580c', order: 5 },
+    cancelled_company: { label: 'Canc. Empresa',       color: '#6366f1', order: 6 },
+    cancelled:         { label: 'Cancelado',           color: '#ef4444', order: 7 },
   };
 
-  const STATUS_DISPLAY_ORDER = ['in_progress', 'accepted', 'assigned', 'pending', 'completed'];
+  const STATUS_DISPLAY_ORDER = ['in_progress', 'accepted', 'assigned', 'pending', 'completed', 'cancelled_late', 'cancelled_company', 'cancelled'];
 
   /* ══════════════════════════════════════════════════════════════
      INIT
@@ -717,28 +720,31 @@ const App = (() => {
         </div>`;
     }
 
-    if (job.status === 'completed') {
+    if (job.status === 'completed' || job.status === 'cancelled_late' || job.status === 'cancelled_company') {
       extraHtml = `
         <div class="job-completed-details">
+          ${job.durationHours ? `
           <div class="completed-stat">
             <div class="cs-label">Duração</div>
             <div class="cs-value">${formatHours(job.durationHours)}</div>
-          </div>
+          </div>` : ''}
+          ${job.employeeAmount !== undefined ? `
           <div class="completed-stat">
             <div class="cs-label">Ganho</div>
             <div class="cs-value">${formatCurrency(job.employeeAmount)}</div>
-          </div>
+          </div>` : ''}
           ${job.finishedAt ? `
           <div class="completed-stat">
-            <div class="cs-label">Concluído em</div>
+            <div class="cs-label">${job.status === 'completed' ? 'Concluído em' : 'Finalizado em'}</div>
             <div class="cs-value" style="font-size:0.85rem">${formatDate(job.finishedAt)}</div>
           </div>` : ''}
         </div>
+        ${job.status === 'completed' ? `
         <div class="photo-section" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px;">
           <div class="photo-section-title">📸 Fotos</div>
           <div class="photo-thumbnails" id="photos-${job.id}"></div>
           <p style="font-size:0.82rem;color:var(--muted);margin-top:8px;text-align:center;">Serviço concluído — não é possível adicionar novas fotos.</p>
-        </div>`;
+        </div>` : ''}`;
     }
 
     const timeFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
