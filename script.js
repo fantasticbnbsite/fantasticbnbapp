@@ -3591,6 +3591,7 @@ function renderJobs() {
       }
       if (job.status === 'in_progress' || job.status === 'completed') {
         actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
+        actions += `<a class="ghost-button" style="color: #166534; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" download><i data-lucide="download"></i></a>`;
       }
       actions += `<button class="ghost-button" style="color: var(--danger);" onclick="deleteJob(${job.id})" title="Excluir"><i data-lucide="trash-2"></i></button>`;
       
@@ -4224,6 +4225,11 @@ if (closePhotosModalBottom) {
 async function openJobPhotos(jobId, address) {
   const title = document.getElementById('jobPhotosModalTitle');
   if (title) title.textContent = `Fotos — ${address || 'Limpeza'}`;
+
+  const topDlBtn = document.getElementById('downloadAllJobPhotosBtn');
+  const bottomDlBtn = document.getElementById('downloadAllJobPhotosBtnBottom');
+  if (topDlBtn) topDlBtn.style.display = 'none';
+  if (bottomDlBtn) bottomDlBtn.style.display = 'none';
   
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Carregando...</div>`;
   photosModal.classList.remove('hidden');
@@ -4234,6 +4240,15 @@ async function openJobPhotos(jobId, address) {
     if (photos.length === 0) {
       photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Nenhuma foto enviada para este servico.</div>`;
     } else {
+      const dlUrl = `/api/jobs/${jobId}/photos/download`;
+      if (topDlBtn) {
+        topDlBtn.href = dlUrl;
+        topDlBtn.style.display = 'inline-flex';
+      }
+      if (bottomDlBtn) {
+        bottomDlBtn.href = dlUrl;
+        bottomDlBtn.style.display = 'inline-flex';
+      }
       const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
       const allSrcsJson = escapeHtml(JSON.stringify(allSrcs));
       photoGrid.innerHTML = photos.map(p => {

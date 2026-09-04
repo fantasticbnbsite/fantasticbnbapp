@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 import { renderInvoiceHtml, renderPayslipHtml } from './templates.js';
 import { processGuestyReservation } from './guesty.js';
@@ -1441,6 +1442,95 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { ok: true });
   }
 
+  // ── Download All Job Photos as ZIP ──
+  const jobPhotosDownloadMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)\/photos\/(download|zip)$/);
+  if (jobPhotosDownloadMatch && req.method === 'GET') {
+    const rawJobId = Number(jobPhotosDownloadMatch[1]);
+    const jobIdsParam = requestUrl.searchParams.get('job_ids');
+    const jobIds = jobIdsParam
+      ? jobIdsParam.split(',').map(s => Number(s.trim())).filter(n => Number.isInteger(n) && n > 0)
+      : [rawJobId];
+
+    if (jobIds.length === 0) jobIds.push(rawJobId);
+
+    const placeholders = jobIds.map(() => '?').join(',');
+    const jobs = db.prepare(`
+      SELECT j.*, f.address AS flat_address
+      FROM jobs j
+      LEFT JOIN flats f ON f.id = j.flat_id
+      WHERE j.id IN (${placeholders})
+    `).all(...jobIds);
+
+    if (jobs.length === 0) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
+
+    const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+    for (const j of jobs) {
+      if (session.user.role === 'employee' && j.employee_user_id !== session.user.id && !canCreateJobs(session.user)) {
+        return sendJson(res, 403, { error: 'Sem permissao para acessar fotos deste servico.' });
+      }
+      if ((session.user.role === 'client' || session.user.role === 'client_user') && j.client_user_id !== targetClientId) {
+        return sendJson(res, 403, { error: 'Sem permissao para acessar fotos deste servico.' });
+      }
+    }
+
+    const photos = db.prepare(`
+      SELECT * FROM job_photos
+      WHERE job_id IN (${placeholders})
+      ORDER BY job_id ASC, uploaded_at ASC
+    `).all(...jobIds);
+
+    if (photos.length === 0) {
+      return sendJson(res, 404, { error: 'Nenhuma foto encontrada para este servico.' });
+    }
+
+    const nameCount = {};
+    const files = [];
+    for (const p of photos) {
+      const filePath = path.join(UPLOAD_DIR, p.filename);
+      if (!existsSync(filePath)) continue;
+
+      let baseName = p.original_name || p.filename;
+      baseName = path.basename(baseName).replace(/[\0\/\\]/g, '_');
+      if (!baseName) baseName = p.filename;
+
+      const ext = path.extname(baseName) || path.extname(p.filename) || '.jpg';
+      const nameWithoutExt = path.basename(baseName, ext);
+
+      let finalName = baseName;
+      if (nameCount[baseName] !== undefined) {
+        nameCount[baseName]++;
+        finalName = `${nameWithoutExt}_${nameCount[baseName]}${ext}`;
+      } else {
+        nameCount[baseName] = 0;
+      }
+
+      try {
+        const data = readFileSync(filePath);
+        files.push({ name: finalName, data });
+      } catch (err) {
+        console.error('Erro ao ler foto para download:', filePath, err);
+      }
+    }
+
+    if (files.length === 0) {
+      return sendJson(res, 404, { error: 'Arquivos de foto nao encontrados no servidor.' });
+    }
+
+    const zipBuffer = createZipArchive(files);
+    const mainJob = jobs[0];
+    const cleanAddress = (mainJob.flat_address || 'servico').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const zipFilename = `fotos_servico_${rawJobId}_${cleanAddress}.zip`;
+
+    res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${zipFilename}"`,
+      'Content-Length': zipBuffer.length,
+      'Cache-Control': 'no-cache'
+    });
+    res.end(zipBuffer);
+    return;
+  }
+
   // ── Payslip / Holerite por serviço ──
   if (requestUrl.pathname === '/api/payslip/mine' && req.method === 'GET') {
     if (!['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerência podem acessar holerites.' });
@@ -2316,6 +2406,77 @@ function hydrateJob(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ─── ZIP Archive Generator (Zero-Dependency) ─────────────────────────────────
+function createZipArchive(files) {
+  // files: [{ name: string, data: Buffer }]
+  const localHeaders = [];
+  const centralHeaders = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBuf = Buffer.from(file.name, 'utf8');
+    const crc = zlib.crc32(file.data);
+    const size = file.data.length;
+
+    // Local file header (30 bytes + name)
+    const localHdr = Buffer.alloc(30);
+    localHdr.writeUInt32LE(0x04034b50, 0); // PK\x03\x04
+    localHdr.writeUInt16LE(20, 4);         // version needed: 2.0
+    localHdr.writeUInt16LE(0x0800, 6);     // flags: UTF-8 filename
+    localHdr.writeUInt16LE(0, 8);          // method: Store (0)
+    localHdr.writeUInt16LE(0, 10);         // time
+    localHdr.writeUInt16LE(0, 12);         // date
+    localHdr.writeUInt32LE(crc, 14);       // crc32
+    localHdr.writeUInt32LE(size, 18);      // compressed size
+    localHdr.writeUInt32LE(size, 22);      // uncompressed size
+    localHdr.writeUInt16LE(nameBuf.length, 26); // name length
+    localHdr.writeUInt16LE(0, 28);         // extra length
+
+    localHeaders.push(localHdr, nameBuf, file.data);
+
+    // Central directory header (46 bytes + name)
+    const cdHdr = Buffer.alloc(46);
+    cdHdr.writeUInt32LE(0x02014b50, 0);    // PK\x01\x02
+    cdHdr.writeUInt16LE(20, 4);            // version made by: 2.0
+    cdHdr.writeUInt16LE(20, 6);            // version needed: 2.0
+    cdHdr.writeUInt16LE(0x0800, 8);        // flags: UTF-8
+    cdHdr.writeUInt16LE(0, 10);            // method: Store (0)
+    cdHdr.writeUInt16LE(0, 12);            // time
+    cdHdr.writeUInt16LE(0, 14);            // date
+    cdHdr.writeUInt32LE(crc, 16);          // crc32
+    cdHdr.writeUInt32LE(size, 20);         // compressed size
+    cdHdr.writeUInt32LE(size, 24);         // uncompressed size
+    cdHdr.writeUInt16LE(nameBuf.length, 28); // name length
+    cdHdr.writeUInt16LE(0, 30);            // extra length
+    cdHdr.writeUInt16LE(0, 32);            // comment length
+    cdHdr.writeUInt16LE(0, 34);            // disk number
+    cdHdr.writeUInt16LE(0, 36);            // internal attr
+    cdHdr.writeUInt32LE(0, 38);            // external attr
+    cdHdr.writeUInt32LE(offset, 42);       // local header offset
+
+    centralHeaders.push(cdHdr, nameBuf);
+
+    offset += 30 + nameBuf.length + size;
+  }
+
+  const cdOffset = offset;
+  let cdSize = 0;
+  for (const b of centralHeaders) cdSize += b.length;
+
+  // End of central directory record (22 bytes)
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);       // PK\x05\x06
+  eocd.writeUInt16LE(0, 4);                // disk number
+  eocd.writeUInt16LE(0, 6);                // disk with CD
+  eocd.writeUInt16LE(files.length, 8);     // entries on this disk
+  eocd.writeUInt16LE(files.length, 10);    // total entries
+  eocd.writeUInt32LE(cdSize, 12);          // CD size
+  eocd.writeUInt32LE(cdOffset, 16);        // CD offset
+  eocd.writeUInt16LE(0, 20);               // comment length
+
+  return Buffer.concat([...localHeaders, ...centralHeaders, eocd]);
 }
 
 // ─── Multipart Upload Parser ─────────────────────────────────────────────────

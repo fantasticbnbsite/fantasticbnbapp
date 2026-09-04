@@ -750,7 +750,10 @@ const App = (() => {
         </div>
         ${job.status === 'completed' ? `
         <div class="photo-section" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px;">
-          <div class="photo-section-title">📸 Fotos</div>
+          <div class="photo-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>📸 Fotos</span>
+            <a href="/api/jobs/${job.id}/photos/download" download style="font-size:0.75rem; padding:4px 10px; border-radius:6px; background:#e8efe6; color:#166534; text-decoration:none; font-weight:700; display:inline-flex; align-items:center; gap:4px;">📦 Baixar Fotos (.zip)</a>
+          </div>
           <div class="photo-thumbnails" id="photos-${job.id}"></div>
           <p style="font-size:0.82rem;color:var(--muted);margin-top:8px;text-align:center;">Serviço concluído — não é possível adicionar novas fotos.</p>
         </div>` : ''}`;

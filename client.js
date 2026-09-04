@@ -45,6 +45,8 @@ const photosModal   = $('photosModal');
 const photosModalTitle = $('photosModalTitle');
 const photoGrid     = $('photoGrid');
 const closePhotosModalBtn = $('closePhotosModal');
+const clientDownloadAllPhotosBtn = $('clientDownloadAllPhotosBtn');
+const clientDownloadAllPhotosBtnBottom = $('clientDownloadAllPhotosBtnBottom');
 const lightbox      = $('lightbox');
 const lightboxImg   = $('lightboxImg');
 const lightboxClose = $('lightboxClose');
@@ -586,9 +588,14 @@ function jobCardHTML(job) {
           <span class="pulse-dot"></span>
           In progress
         </div>
-        <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
-          📸 View photos
-        </button>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
+            📸 View photos
+          </button>
+          <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" style="text-decoration:none; padding: 4px 8px;" download>
+            📦 .zip
+          </a>
+        </div>
       </div>
     `;
   } else if (job.status === 'completed') {
@@ -598,9 +605,14 @@ function jobCardHTML(job) {
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         ${dur}${amt}
       </div>
-      <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
-        📸 View photos
-      </button>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
+          📸 View photos
+        </button>
+        <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" style="text-decoration:none; padding: 4px 8px;" download>
+          📦 .zip
+        </a>
+      </div>
     `;
   } else {
     // pending / assigned / accepted — show cleaner if assigned
@@ -848,12 +860,15 @@ window.downloadPhoto = downloadPhoto;
 
 async function openPhotosModal(jobIdsStr, address) {
   photosModalTitle.textContent = `📸 Photos — ${address || 'Clean'}`;
+  if (clientDownloadAllPhotosBtn) clientDownloadAllPhotosBtn.style.display = 'none';
+  if (clientDownloadAllPhotosBtnBottom) clientDownloadAllPhotosBtnBottom.style.display = 'none';
+
   photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--muted);">Loading…</div>`;
   photosModal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
   try {
-    const ids = String(jobIdsStr).split(',');
+    const ids = String(jobIdsStr).split(',').map(s => s.trim()).filter(Boolean);
     let photos = [];
     for (const id of ids) {
       const data = await api('GET', `/api/jobs/${id}/photos`);
@@ -868,6 +883,16 @@ async function openPhotosModal(jobIdsStr, address) {
         </div>
       `;
     } else {
+      const dlUrl = `/api/jobs/${ids[0]}/photos/download?job_ids=${encodeURIComponent(ids.join(','))}`;
+      if (clientDownloadAllPhotosBtn) {
+        clientDownloadAllPhotosBtn.href = dlUrl;
+        clientDownloadAllPhotosBtn.style.display = 'inline-flex';
+      }
+      if (clientDownloadAllPhotosBtnBottom) {
+        clientDownloadAllPhotosBtnBottom.href = dlUrl;
+        clientDownloadAllPhotosBtnBottom.style.display = 'inline-flex';
+      }
+
       photoGrid.innerHTML = photos.map(p => `
         <div style="display:flex; flex-direction:column; gap:6px; background:#faf8f5; padding:8px; border-radius:12px; border:1px solid var(--line);">
           <div class="photo-thumb" data-src="/uploads/${escHtml(p.filename)}" title="${escHtml(p.originalName || p.filename)}">
