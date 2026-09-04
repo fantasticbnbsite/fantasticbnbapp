@@ -3562,7 +3562,7 @@ function renderJobs() {
             <div style="display:flex; flex-direction:column; gap:4px; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
-                ${job.durationHours ? `<span style="font-size:14px; margin-left:6px;">(Dur: ${formatHours(job.durationHours)})</span>` : ''}
+                ${(job.durationHours && job.status !== 'cancelled') ? `<span style="font-size:14px; margin-left:6px;">(Dur: ${formatHours(job.durationHours)})</span>` : ''}
               </div>
               <!-- Mobile cleaner copy -->
               <div class="mobile-only" style="align-items:center; gap:6px; white-space: nowrap;">
@@ -3582,8 +3582,12 @@ function renderJobs() {
             ${job.guestName ? `<div style="color:var(--text); font-size:13px; margin-bottom:6px;"><i data-lucide="user-check" style="width:13px;height:13px;display:inline;vertical-align:-2px;color:var(--primary);"></i> Hóspede: <strong>${escapeHtml(job.guestName)}</strong></div>` : ''}
             ${isAdmin() ? `
             <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
-              ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">+${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
-              ${job.employeeAmount != null ? `<strong style="color:#ea580c; font-size:15px;">-${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
+              ${job.status === 'cancelled' ? `
+                <span style="color:var(--muted); font-size:13px; font-weight:600;">Sem cobrança / pagamento (£0.00)</span>
+              ` : `
+                ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">+${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
+                ${job.employeeAmount != null ? `<strong style="color:#ea580c; font-size:15px;">-${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
+              `}
             </div>
             ` : ''}
           </td>

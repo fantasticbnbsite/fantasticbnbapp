@@ -416,6 +416,20 @@ try {
 }
 migrateUserRoles();
 seedDatabase();
+
+function cleanupCancelledJobs() {
+  try {
+    const cancelledWithAmounts = db.prepare("SELECT id, invoice_id, payroll_id FROM jobs WHERE status = 'cancelled' AND (client_amount > 0 OR employee_amount > 0 OR duration_hours > 0)").all();
+    if (cancelledWithAmounts.length > 0) {
+      db.exec("UPDATE jobs SET client_amount = 0.00, employee_amount = 0.00, duration_hours = 0 WHERE status = 'cancelled';");
+      cancelledWithAmounts.forEach(j => recalculateFinancialTotals(j.invoice_id, j.payroll_id));
+      console.log(`[Migration] Zerados valores de ${cancelledWithAmounts.length} serviços cancelados.`);
+    }
+  } catch (e) {
+    console.error('[Migration] Erro ao limpar valores de serviços cancelados:', e);
+  }
+}
+cleanupCancelledJobs();
 // syncClientCatalog();
 // seedCollaboratorModule();
 // seedCleanOps();
@@ -1027,25 +1041,8 @@ async function handleApi(req, res, requestUrl) {
       .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, notes, invoiceId, payrollId, session.user.id, now, now, now);
 
     // If attached to invoice or payroll, we must recount totals
-    if (invoiceId) {
-       const jData = db.prepare('SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ?').get(invoiceId);
-       const inv = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
-       let ex = 0;
-       if (inv) {
-          const arr = safeJsonParse(inv.extras_json) || [];
-          ex = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
-       }
-       db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(roundCurrency((jData.s || 0) + ex), invoiceId);
-    }
-    if (payrollId) {
-       const pData = db.prepare('SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ?').get(payrollId);
-       const p = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
-       let px = 0;
-       if (p) {
-          const arr = safeJsonParse(p.extras_json) || [];
-          px = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
-       }
-       db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(roundCurrency((pData.s || 0) + px), payrollId);
+    if (invoiceId || payrollId) {
+      recalculateFinancialTotals(invoiceId, payrollId);
     }
       
     return sendJson(res, 201, { success: true, jobId: result.lastInsertRowid });
@@ -1738,7 +1735,7 @@ async function handleApi(req, res, requestUrl) {
       }
       
       // Recalculate invoice total
-      const invoiceTotal = roundCurrency(db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0);
+      const invoiceTotal = roundCurrency(db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0);
       db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(invoiceTotal, invoiceId);
       db.exec('COMMIT');
       return sendJson(res, 200, { success: true, message: `Corrigidos ${totalUpdated} serviços da fatura ${invoiceId}. Novo total: £${invoiceTotal}` });
@@ -1797,7 +1794,7 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('UPDATE jobs SET client_amount = ?, duration_hours = ? WHERE id = ? AND invoice_id = ?')
       .run(Number(body.clientAmount) || 0, Number(body.durationHours) || 0, jobId, invoiceId);
       
-    const total = roundCurrency(db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0);
+    const total = roundCurrency(db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
     
     return sendJson(res, 200, { success: true, newTotal: total });
@@ -1813,7 +1810,7 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('UPDATE jobs SET employee_amount = ?, duration_hours = ? WHERE id = ? AND payroll_id = ?')
       .run(Number(body.employeeAmount) || 0, Number(body.durationHours) || 0, jobId, payrollId);
       
-    const totalJobs = db.prepare('SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ?').get(payrollId).total || 0;
+    const totalJobs = db.prepare("SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ? AND status != 'cancelled'").get(payrollId).total || 0;
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
     const extras = safeJsonParse(payroll.extras_json) || [];
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
@@ -1834,7 +1831,7 @@ async function handleApi(req, res, requestUrl) {
     extras.push({ description: body.description, quantity: Number(body.quantity), unitPrice: Number(body.unitPrice), total: Number(body.total) });
     db.prepare('UPDATE invoices SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), invoiceId);
     
-    const totalJobs = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
+    const totalJobs = db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
     const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
@@ -1851,7 +1848,7 @@ async function handleApi(req, res, requestUrl) {
     extras.splice(index, 1);
     db.prepare('UPDATE invoices SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), invoiceId);
     
-    const totalJobs = db.prepare('SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ?').get(invoiceId).total || 0;
+    const totalJobs = db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
     const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
@@ -1868,7 +1865,7 @@ async function handleApi(req, res, requestUrl) {
     extras.push({ description: body.description, quantity: Number(body.quantity), unitPrice: Number(body.unitPrice), total: Number(body.total) });
     db.prepare('UPDATE payrolls SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), payrollId);
     
-    const totalJobs = db.prepare('SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ?').get(payrollId).total || 0;
+    const totalJobs = db.prepare("SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ? AND status != 'cancelled'").get(payrollId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
     const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
@@ -1885,7 +1882,7 @@ async function handleApi(req, res, requestUrl) {
     extras.splice(index, 1);
     db.prepare('UPDATE payrolls SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), payrollId);
     
-    const totalJobs = db.prepare('SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ?').get(payrollId).total || 0;
+    const totalJobs = db.prepare("SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ? AND status != 'cancelled'").get(payrollId).total || 0;
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
     const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
@@ -2299,9 +2296,9 @@ function hydrateJob(row) {
     employeeNotes: row.employee_notes || '',
     startedAt: row.started_at || null,
     finishedAt: row.finished_at || null,
-    durationHours: row.duration_hours !== null && row.duration_hours !== undefined ? Number(row.duration_hours) : null,
-    clientAmount: row.client_amount !== null && row.client_amount !== undefined ? Number(row.client_amount) : null,
-    employeeAmount: row.employee_amount !== null && row.employee_amount !== undefined ? Number(row.employee_amount) : null,
+    durationHours: row.status === 'cancelled' ? 0 : (row.duration_hours !== null && row.duration_hours !== undefined ? Number(row.duration_hours) : null),
+    clientAmount: row.status === 'cancelled' ? 0 : (row.client_amount !== null && row.client_amount !== undefined ? Number(row.client_amount) : null),
+    employeeAmount: row.status === 'cancelled' ? 0 : (row.employee_amount !== null && row.employee_amount !== undefined ? Number(row.employee_amount) : null),
     invoiceSent: Boolean(row.invoice_sent),
     isHoliday: Boolean(row.is_holiday),
     isUrgent: Boolean(row.is_urgent),
