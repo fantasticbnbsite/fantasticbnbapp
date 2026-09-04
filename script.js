@@ -3581,11 +3581,11 @@ function renderJobs() {
       <table class="data-table responsive-table">
         <thead>
           <tr>
-            <th>Status</th>
-            <th>Propriedade</th>
-            <th>Data/Hora</th>
-            <th>Profissional / Cliente</th>
-            <th>Ações</th>
+            <th class="col-status">Status</th>
+            <th class="col-prop">Propriedade</th>
+            <th class="col-datetime">Data/Hora</th>
+            <th class="col-cleaner">Profissional / Cliente</th>
+            <th class="col-actions">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -3636,75 +3636,95 @@ function renderJobs() {
       if(job.status === 'assigned') badgeClass = 'badge-info';
       if(job.status === 'accepted') badgeClass = 'badge-light-green';
       
+      let cleanAccessCode = (job.flatAccessCode || '').trim();
+      if (/^(c[oó]digo|code)[:\s]*/i.test(cleanAccessCode)) {
+        cleanAccessCode = cleanAccessCode.replace(/^(c[oó]digo|code)[:\s]*/i, '').trim();
+      }
+
       let timelineHtml = '';
       if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
         let items = [];
         if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
         if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
         if (items.length > 0) {
-          timelineHtml = `<div style="font-size:14px; margin-bottom:8px; display:flex; flex-wrap:wrap; gap:8px;">${items.join('')}</div>`;
+          timelineHtml = `<div style="font-size:13px; margin-top:4px; display:flex; flex-wrap:wrap; gap:6px;">${items.join('')}</div>`;
         }
       }
       
       const isB2B = job.isBackToBack || job.is_back_to_back;
       const isUrg = (job.isUrgent || job.is_urgent);
-      const b2bFlag = isB2B ? `<div style="margin-top:4px; display:inline-block; background:#ea580c; color:#fff; padding:3px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="repeat" style="width:11px;height:11px;display:inline;vertical-align:-2px;"></i> BACK-TO-BACK</div>` : '';
-      const urgentFlag = isUrg && !isB2B ? `<div style="margin-top:4px; display:inline-block; background:var(--danger); color:#fff; padding:3px 8px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> URGENTE</div>` : '';
-      const guestyBadge = job.guestyReservationId ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;"><i data-lucide="calendar-check" style="width:11px;height:11px;"></i> Guesty</span></div>` : '';
+      const b2bFlag = isB2B ? `<div style="margin-top:4px; display:inline-block; background:#ea580c; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap;"><i data-lucide="repeat" style="width:10px;height:10px;display:inline;vertical-align:-1px;"></i> BACK-TO-BACK</div>` : '';
+      const urgentFlag = isUrg && !isB2B ? `<div style="margin-top:4px; display:inline-block; background:var(--danger); color:#fff; padding:2px 7px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap;"><i data-lucide="alert-circle" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> URGENTE</div>` : '';
+      const guestyBadge = job.guestyReservationId ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#e0e7ff; color:#3730a3; padding:2px 7px; border-radius:12px; font-size:0.7rem; font-weight:600; white-space:nowrap;"><i data-lucide="calendar-check" style="width:10px;height:10px;"></i> Guesty</span></div>` : '';
 
       return `
         <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
-            <span class="badge ${badgeClass}" style="border-radius:24px; padding:6px 12px; font-weight:600;">${statusLabels[job.status] || job.status}</span>
+            <span class="badge ${badgeClass}" style="border-radius:24px; padding:5px 10px; font-weight:600; font-size:12px; white-space:nowrap; display:inline-block;">${statusLabels[job.status] || job.status}</span>
             ${b2bFlag}
             ${urgentFlag}
             ${guestyBadge}
           </td>
           <td class="td-prop" data-label="Propriedade">
-            <strong style="display:block; font-size:18px; margin-bottom:4px; color:var(--text);">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</strong>
-            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:14px; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
-            ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
-            ${job.notes ? `<div style="margin-top:6px; font-size:13px; color:var(--text); background:rgba(0,0,0,0.03); border-left:3px solid var(--primary); padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;"><strong style="color:var(--primary); font-size:12px;"><i data-lucide="message-square" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Obs:</strong> ${escapeHtml(job.notes)}</div>` : ''}
+            <div style="font-weight:700; font-size:15px; margin-bottom:3px; color:var(--text); line-height:1.3; word-break:keep-all;">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
+            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:13px; line-height:1.35; margin-bottom:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${cleanAccessCode ? `<div style="color:var(--primary); font-size:12px; font-weight:600; margin-bottom:4px; display:inline-flex; align-items:center; gap:4px; background:rgba(234,88,12,0.08); padding:2px 7px; border-radius:6px; white-space:nowrap;"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: ${escapeHtml(cleanAccessCode)}</div>` : ''}
+            ${job.notes ? `
+              <div style="margin-top:4px; font-size:12px; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-left:3px solid var(--primary); padding:5px 9px; border-radius:4px 6px 6px 4px; line-height:1.4; overflow-wrap:break-word;">
+                <strong style="color:var(--primary); font-size:11px; display:inline-flex; align-items:center; gap:3px;"><i data-lucide="message-square" style="width:11px;height:11px;"></i> Obs:</strong> ${escapeHtml(job.notes)}
+              </div>` : ''}
             ${job.employeeNotes ? `
-              <div style="margin-top:4px; font-size:13px; color:${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; background:${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.08)' : 'rgba(16,185,129,0.06)'}; border-left:3px solid ${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;">
-                <strong style="font-size:12px;"><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
+              <div style="margin-top:4px; font-size:12px; color:${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; background:${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.06)' : 'rgba(16,185,129,0.06)'}; border:1px solid ${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.2)' : 'rgba(16,185,129,0.2)'}; border-left:3px solid ${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; padding:5px 9px; border-radius:4px 6px 6px 4px; line-height:1.4; overflow-wrap:break-word;">
+                <strong style="font-size:11px; display:inline-flex; align-items:center; gap:3px;"><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
               </div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div style="display:flex; flex-direction:column; gap:4px; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <i data-lucide="calendar" style="width:18px;height:18px;"></i> ${escapeHtml(job.requestedDate)}
-                ${(job.durationHours && job.status !== 'cancelled') ? `<span style="font-size:14px; margin-left:6px;">(Dur: ${formatHours(job.durationHours)})</span>` : ''}
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--text); margin-bottom:4px;">
+              <div style="display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap;">
+                <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+                <span>${escapeHtml(job.requestedDate)}</span>
               </div>
+              ${(job.durationHours && !job.status.startsWith('cancelled')) ? `
+                <div style="color:var(--muted); font-size:12px; margin-left:21px; white-space:nowrap;">
+                  Duração: ${formatHours(job.durationHours)}
+                </div>` : ''}
               <!-- Mobile cleaner copy -->
-              <div class="mobile-only" style="align-items:center; gap:6px; white-space: nowrap;">
-                <i data-lucide="user" style="width:18px;height:18px;"></i> 
-                ${escapeHtml(job.employeeName || 'Sem Profissional')}
+              <div class="mobile-only" style="align-items:center; gap:6px; margin-top:3px; white-space:nowrap;">
+                <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i> 
+                <span>${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
               </div>
             </div>
             ${timelineHtml}
           </td>
           <td class="td-meta2" data-label="Profissional / Cliente">
             <!-- Desktop cleaner copy -->
-            <div class="desktop-only" style="font-weight:500; font-size:14px; margin-bottom:4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">
-              <i data-lucide="user" style="width:14px;height:14px;display:inline;vertical-align:-2px;color:var(--muted);"></i> 
-              <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
+            <div class="desktop-only" style="font-weight:600; font-size:13px; margin-bottom:3px; color:var(--text); display:flex; align-items:center; gap:5px;">
+              <i data-lucide="user" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i> 
+              <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px;">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
             </div>
-            ${job.clientName ? `<div style="color:var(--muted); font-size:15px; margin-bottom:4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(job.clientName)}">Cliente: ${escapeHtml(job.clientName)}</div>` : ''}
-            ${job.guestName ? `<div style="color:var(--text); font-size:13px; margin-bottom:6px;"><i data-lucide="user-check" style="width:13px;height:13px;display:inline;vertical-align:-2px;color:var(--primary);"></i> Hóspede: <strong>${escapeHtml(job.guestName)}</strong></div>` : ''}
+            ${job.clientName ? `
+              <div style="color:var(--muted); font-size:13px; margin-bottom:3px; display:flex; align-items:center; gap:4px;" title="${escapeHtml(job.clientName)}">
+                <span style="opacity:0.8;">Cliente:</span>
+                <strong style="color:var(--text); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:170px;">${escapeHtml(job.clientName)}</strong>
+              </div>` : ''}
+            ${job.guestName ? `
+              <div style="color:var(--text); font-size:12px; margin-bottom:3px; display:flex; align-items:center; gap:4px;">
+                <i data-lucide="user-check" style="width:12px;height:12px;color:var(--primary);flex-shrink:0;"></i>
+                <span>Hóspede: <strong>${escapeHtml(job.guestName)}</strong></span>
+              </div>` : ''}
             ${isAdmin() ? `
-            <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px; white-space:nowrap;">
-              ${job.status === 'cancelled' ? `
-                <span style="color:var(--muted); font-size:13px; font-weight:600;">Sem cobrança / pagamento (£0.00)</span>
+            <div style="margin-top:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              ${job.status.startsWith('cancelled') ? `
+                <span style="color:var(--muted); font-size:11px; font-weight:500; background:rgba(0,0,0,0.04); padding:2px 6px; border-radius:4px; white-space:nowrap;">Sem cobrança / pagamento (£0.00)</span>
               ` : `
-                ${job.clientAmount != null ? `<strong style="color:var(--primary); font-size:15px;">+${formatCurrencyGBP(job.clientAmount)}</strong>` : ''}
-                ${job.employeeAmount != null ? `<strong style="color:#ea580c; font-size:15px;">-${formatCurrencyGBP(job.employeeAmount)}</strong>` : ''}
+                ${job.clientAmount != null ? `<span style="color:var(--primary); font-size:13px; font-weight:700;">+${formatCurrencyGBP(job.clientAmount)}</span>` : ''}
+                ${job.employeeAmount != null ? `<span style="color:#ea580c; font-size:13px; font-weight:700;">-${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
               `}
             </div>
             ` : ''}
           </td>
           <td class="td-actions" data-label="Ações">
-            <div class="table-actions" style="justify-content:flex-end; display:flex; gap:12px; flex-wrap:nowrap;">${actions}</div>
+            <div class="table-actions">${actions}</div>
           </td>
         </tr>
       `;

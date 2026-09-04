@@ -122,7 +122,7 @@ label { display: block; font-weight: 500; font-size: 0.9rem; color: var(--text);
   background: var(--surface);
 }
 .content {
-  padding: 32px 48px;
+  padding: 24px 32px;
   display: grid;
   align-content: start;
   gap: 24px;
@@ -681,6 +681,70 @@ textarea {
 
 .data-table th {
   backdrop-filter: blur(8px);
+}
+
+/* Responsive / CleanOps Services Table (Desktop & Tablet) */
+@media (min-width: 769px) {
+  .data-table.responsive-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 1020px;
+  }
+  .data-table.responsive-table th,
+  .data-table.responsive-table td {
+    vertical-align: top !important;
+    padding: 14px 12px !important;
+    box-sizing: border-box;
+  }
+  .data-table.responsive-table th.col-status,
+  .data-table.responsive-table td.td-status {
+    width: 130px;
+  }
+  .data-table.responsive-table th.col-prop,
+  .data-table.responsive-table td.td-prop {
+    width: auto;
+    overflow: hidden;
+  }
+  .data-table.responsive-table th.col-datetime,
+  .data-table.responsive-table td.td-meta1 {
+    width: 175px;
+  }
+  .data-table.responsive-table th.col-cleaner,
+  .data-table.responsive-table td.td-meta2 {
+    width: 240px;
+  }
+  .data-table.responsive-table th.col-actions,
+  .data-table.responsive-table td.td-actions {
+    width: 160px;
+    text-align: right;
+  }
+  .data-table.responsive-table .table-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .data-table.responsive-table .table-actions .ghost-button {
+    min-height: 34px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+  }
+  .data-table.responsive-table .table-actions .ghost-button:hover {
+    background: var(--surface-alt);
+    border-color: var(--line);
+  }
+  .data-table.responsive-table .table-actions .ghost-button i {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .holerites-hero {
