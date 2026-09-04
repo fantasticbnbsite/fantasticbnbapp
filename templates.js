@@ -96,6 +96,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
   }
 
   let extrasHtml = '';
+  let sumExtras = 0;
   try {
     const extrasArr = JSON.parse(invoice.extras_json || '[]');
     
@@ -110,16 +111,10 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
       
       // Recalcular total de horas
       totalHours = weekdaysHours + weekendsHours + holidaysHours;
-      
-      // Recalcular o valor TOTAL da fatura
-      let sumExtras = 0;
-      extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
-        sumExtras += Number(e.total || 0);
-      });
-      invoice.total_amount = Math.round((weekdaysAmount + weekendsAmount + holidaysAmount + projectsAmount + totalExtras + sumExtras + Number.EPSILON) * 100) / 100;
     }
     
     extrasArr.filter(e => e.type !== '__manualOverrides').forEach(e => {
+      sumExtras += Number(e.total || 0);
       extrasHtml += `
       <tr>
         <td>${esc(e.description)} (x${e.quantity})</td>
@@ -127,6 +122,9 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
       </tr>`;
     });
   } catch(e) {}
+
+  const finalInvoiceTotal = Math.round((weekdaysAmount + weekendsAmount + holidaysAmount + projectsAmount + totalExtras + sumExtras + Number.EPSILON) * 100) / 100;
+  invoice.total_amount = finalInvoiceTotal;
 
   return `
 <!DOCTYPE html>

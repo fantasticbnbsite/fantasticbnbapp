@@ -469,7 +469,7 @@ function cleanupDuplicateProjectJobCharges() {
       JOIN flats f ON f.id = j.flat_id
       WHERE f.billing_type = 'project'
         AND j.client_amount > 0
-        AND j.status NOT LIKE 'cancelled%'
+        AND j.status = 'completed'
       GROUP BY j.flat_id, day
       HAVING cnt > 1
     `).all();
@@ -481,7 +481,7 @@ function cleanupDuplicateProjectJobCharges() {
         WHERE flat_id = ? 
           AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ?
           AND client_amount > 0
-          AND status NOT LIKE 'cancelled%'
+          AND status = 'completed'
         ORDER BY (CASE WHEN invoice_id IS NOT NULL THEN 0 ELSE 1 END) ASC, id ASC
       `).all(dup.flat_id, dup.day);
 
@@ -509,7 +509,7 @@ function enforceProjectFlatIntegrity(flatId, dateStr) {
       FROM jobs 
       WHERE flat_id = ? 
         AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ?
-        AND status NOT LIKE 'cancelled%'
+        AND status = 'completed'
       ORDER BY (CASE WHEN invoice_id IS NOT NULL THEN 0 ELSE 1 END) ASC, 
                (CASE WHEN client_amount > 0 THEN 0 ELSE 1 END) ASC, 
                id ASC
@@ -3925,7 +3925,7 @@ function listRecords(clientId, filters) {
 
 function recalculateFinancialTotals(invoiceId, payrollId) {
   if (invoiceId) {
-    const jData = db.prepare("SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ? AND status NOT LIKE 'cancelled%'").get(invoiceId);
+    const jData = db.prepare("SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId);
     const inv = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
     let ex = 0;
     if (inv) {
@@ -3935,7 +3935,7 @@ function recalculateFinancialTotals(invoiceId, payrollId) {
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(roundCurrency((jData.s || 0) + ex), invoiceId);
   }
   if (payrollId) {
-    const pData = db.prepare("SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ? AND status NOT LIKE 'cancelled%'").get(payrollId);
+    const pData = db.prepare("SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ? AND status != 'cancelled'").get(payrollId);
     const p = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
     let px = 0;
     if (p) {
@@ -3945,3 +3945,20 @@ function recalculateFinancialTotals(invoiceId, payrollId) {
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(roundCurrency((pData.s || 0) + px), payrollId);
   }
 }
+
+function repairInvoiceAndPayrollTotals() {
+  try {
+    const invoices = db.prepare('SELECT id FROM invoices').all();
+    for (const inv of invoices) {
+      recalculateFinancialTotals(inv.id, null);
+    }
+    const payrolls = db.prepare('SELECT id FROM payrolls').all();
+    for (const pr of payrolls) {
+      recalculateFinancialTotals(null, pr.id);
+    }
+  } catch (e) {
+    console.error('Error repairing invoice/payroll totals:', e);
+  }
+}
+repairInvoiceAndPayrollTotals();
+
