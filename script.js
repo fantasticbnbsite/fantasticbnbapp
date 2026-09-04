@@ -332,6 +332,10 @@ function bindEvents() { window.onerror = function(msg, url, lineNo, columnNo, er
       if (permsContainer) {
         permsContainer.style.display = userRoleSelect.value === 'manager' ? 'block' : 'none';
       }
+      const isCleanerContainer = document.getElementById('userIsCleanerContainer');
+      if (isCleanerContainer) {
+        isCleanerContainer.style.display = ['manager', 'admin', 'superadmin'].includes(userRoleSelect.value) ? 'block' : 'none';
+      }
     });
     // Trigger initial state
     if (userParentClientContainer) userParentClientContainer.style.display = 'none';
@@ -482,7 +486,7 @@ async function loadRecords() {
 
 async function loadUsers() {
   state.users = (await api('/api/users')).users;
-  state.cleaners = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role)).map(u => ({
+  state.cleaners = state.users.filter(u => isEligibleCleaner(u)).map(u => ({
     name: u.name,
     weekdayRate: Number(u.hourly_rate || 0),
     weekendRate: Number(u.weekend_rate || 0),
@@ -1261,6 +1265,8 @@ function resetUserForm() {
   if (rateContainer) rateContainer.style.display = 'none';
   const permsContainer = document.getElementById('userManagerPermsContainer');
   if (permsContainer) permsContainer.style.display = 'none';
+  const isCleanerContainer = document.getElementById('userIsCleanerContainer');
+  if (isCleanerContainer) isCleanerContainer.style.display = 'none';
   document.getElementById('perm_create_jobs').checked = false;
   document.getElementById('perm_gen_invoices').checked = false;
   document.getElementById('perm_gen_payrolls').checked = false;
@@ -1305,13 +1311,21 @@ function startEditUser(userId) {
     document.getElementById('perm_gen_invoices').checked = !!user.perm_gen_invoices;
     document.getElementById('perm_gen_payrolls').checked = !!user.perm_gen_payrolls;
     document.getElementById('perm_manage_clients_flats').checked = !!user.perm_manage_clients_flats;
-    document.getElementById('is_cleaner').checked = !!user.is_cleaner;
   } else {
     if (permsContainer) permsContainer.style.display = 'none';
     document.getElementById('perm_create_jobs').checked = false;
     document.getElementById('perm_gen_invoices').checked = false;
     document.getElementById('perm_gen_payrolls').checked = false;
     document.getElementById('perm_manage_clients_flats').checked = false;
+  }
+  
+  // Populate is_cleaner for manager, admin, superadmin
+  const isCleanerContainer = document.getElementById('userIsCleanerContainer');
+  if (['manager', 'admin', 'superadmin'].includes(user.role)) {
+    if (isCleanerContainer) isCleanerContainer.style.display = 'block';
+    document.getElementById('is_cleaner').checked = !!user.is_cleaner;
+  } else {
+    if (isCleanerContainer) isCleanerContainer.style.display = 'none';
     document.getElementById('is_cleaner').checked = false;
   }
   
@@ -2251,7 +2265,11 @@ function canManageClientsFlats() { return isAdmin() || (state.user?.role === 'ma
 function canManageUsers() { return isAdmin(); }
 function isCollaborator() { return !!state.user?.collaborator; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
-function isCleanerRole() { return state.user?.role === 'employee' || (state.user?.role === 'manager' && !!state.user?.is_cleaner); }
+function isEligibleCleaner(u) {
+  if (!u) return false;
+  return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && !!u.is_cleaner);
+}
+function isCleanerRole() { return state.user?.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(state.user?.role) && !!state.user?.is_cleaner); }
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -2501,9 +2519,14 @@ async function loadAdminHolerites() {
   
   if (select.options.length <= 1) {
     if (!state.users) state.users = (await api('/api/users')).users;
-    const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin', 'analyst'].includes(u.role));
+    const employees = state.users.filter(u => isEligibleCleaner(u));
     select.innerHTML = '<option value="">Selecione o Colaborador...</option>' + 
-      employees.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
+      employees.map(u => {
+        let label = u.name;
+        if (u.role === 'manager') label += ' (Gerente)';
+        else if (['admin', 'superadmin'].includes(u.role)) label += ' (Admin)';
+        return `<option value="${u.id}">${escapeHtml(label)}</option>`;
+      }).join('');
   }
   
   if (!monthInput.value) {
@@ -2923,12 +2946,17 @@ window.renderFinanceSummary = async function() {
     const data = await api('/api/users');
     const users = data.users || [];
     const clients = users.filter(u => u.role === 'client');
-    const emps = users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
+    const emps = users.filter(u => isEligibleCleaner(u));
     const selClient = document.getElementById('genInvoiceClient');
     if (selClient) selClient.innerHTML = '<option value="all">Todos os Clientes</option>' + clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     const selEmp = document.getElementById('genPayrollEmployee');
     const selPayClientList = document.getElementById('genPayrollClientList');
-    if (selEmp) selEmp.innerHTML = '<option value="all">Todos os Funcionários</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+    if (selEmp) selEmp.innerHTML = '<option value="all">Todos os Funcionários</option>' + emps.map(e => {
+      let label = e.name;
+      if (e.role === 'manager') label += ' (Gerente)';
+      else if (['admin', 'superadmin'].includes(e.role)) label += ' (Admin)';
+      return `<option value="${e.id}">${escapeHtml(label)}</option>`;
+    }).join('');
     if (selPayClientList) {
       selPayClientList.innerHTML = clients.map(c => `
         <label style="display:flex; align-items:center; gap:12px; font-size:1rem; cursor:pointer;">
@@ -3253,10 +3281,13 @@ window.openAdminEditJobModal = async function(jobId) {
   try {
     const data = await api('/api/users');
     const users = data.users || [];
-    users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role)).forEach(emp => {
+    users.filter(u => isEligibleCleaner(u)).forEach(emp => {
       const opt = document.createElement('option');
       opt.value = emp.id;
-      opt.textContent = emp.name;
+      let label = emp.name;
+      if (emp.role === 'manager') label += ' (Gerente)';
+      else if (['admin', 'superadmin'].includes(emp.role)) label += ' (Admin)';
+      opt.textContent = label;
       selEmp.appendChild(opt);
     });
   } catch (e) {
@@ -3265,6 +3296,13 @@ window.openAdminEditJobModal = async function(jobId) {
 
   const job = state.jobs?.find(j => j.id === jobId);
   if (!job) return;
+
+  if (job.employeeUserId && !Array.from(selEmp.options).some(o => o.value == job.employeeUserId)) {
+    const opt = document.createElement('option');
+    opt.value = job.employeeUserId;
+    opt.textContent = job.employeeName || `ID ${job.employeeUserId}`;
+    selEmp.appendChild(opt);
+  }
 
   document.getElementById('adminEditJobId').value = job.id;
   selEmp.value = job.employeeUserId || '';
@@ -3404,6 +3442,12 @@ document.getElementById('confirmClientEditJobButton')?.addEventListener('click',
 // --- RESTORED CODE ---
 async function loadJobs() {
   try {
+    if (!state.users || state.users.length === 0) {
+      try {
+        const uData = await api('/api/users');
+        state.users = uData.users || [];
+      } catch (e) {}
+    }
     const data = await api('/api/jobs');
     state.jobs = data.jobs || [];
     renderJobs();
@@ -3420,6 +3464,7 @@ function renderJobs() {
   
   const statusFilterEl = document.getElementById('jobsStatusFilter');
   const clientFilterEl = document.getElementById('jobsClientFilter');
+  const cleanerFilterEl = document.getElementById('jobsCleanerFilter');
   
   if (clientFilterEl && state.jobs) {
     const clients = {};
@@ -3439,15 +3484,50 @@ function renderJobs() {
       clientFilterEl.value = currentVal;
     }
   }
+
+  if (cleanerFilterEl) {
+    const cleanersMap = {};
+    if (state.users && Array.isArray(state.users)) {
+      state.users.forEach(u => {
+        if (isEligibleCleaner(u)) {
+          let roleSuffix = '';
+          if (u.role === 'manager') roleSuffix = ' (Gerente)';
+          else if (['admin', 'superadmin'].includes(u.role)) roleSuffix = ' (Admin)';
+          cleanersMap[u.id] = `${u.name}${roleSuffix}`;
+        }
+      });
+    }
+    if (state.jobs && Array.isArray(state.jobs)) {
+      state.jobs.forEach(j => {
+        if (j.employeeUserId && j.employeeName && !cleanersMap[j.employeeUserId]) {
+          cleanersMap[j.employeeUserId] = j.employeeName;
+        }
+      });
+    }
+
+    const currentCleanerVal = cleanerFilterEl.value;
+    const currentOptions = Array.from(cleanerFilterEl.options).map(o => o.value);
+    const newCleanerIds = Object.keys(cleanersMap);
+
+    if (newCleanerIds.some(id => !currentOptions.includes(id)) || currentOptions.length <= 1) {
+      cleanerFilterEl.innerHTML = '<option value="">Todos os cleaners</option>' + 
+        '<option value="unassigned">⚠️ Sem profissional</option>' +
+        newCleanerIds.sort((a,b) => cleanersMap[a].localeCompare(cleanersMap[b])).map(id => `<option value="${id}">${escapeHtml(cleanersMap[id])}</option>`).join('');
+      cleanerFilterEl.value = currentCleanerVal;
+    }
+  }
   
   const statusFilter = statusFilterEl?.value;
   const clientFilter = clientFilterEl?.value;
+  const cleanerFilter = cleanerFilterEl?.value;
   const dateFrom = document.getElementById('jobsDateFrom')?.value;
   const dateTo   = document.getElementById('jobsDateTo')?.value;
   
   let filtered = state.jobs || [];
   if (statusFilter) filtered = filtered.filter(j => j.status === statusFilter);
   if (clientFilter) filtered = filtered.filter(j => String(j.clientUserId) === String(clientFilter));
+  if (cleanerFilter === 'unassigned') filtered = filtered.filter(j => !j.employeeUserId);
+  else if (cleanerFilter) filtered = filtered.filter(j => String(j.employeeUserId) === String(cleanerFilter));
   if (dateFrom) filtered = filtered.filter(j => (j.requestedDate || '').slice(0, 10) >= dateFrom);
   if (dateTo)   filtered = filtered.filter(j => (j.requestedDate || '').slice(0, 10) <= dateTo);
   
@@ -3623,6 +3703,7 @@ window.clearJobsDateFilter = function() {
 // Wire up filter change events
 document.getElementById('jobsStatusFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsClientFilter')?.addEventListener('change', renderJobs);
+document.getElementById('jobsCleanerFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsDateFrom')?.addEventListener('change', renderJobs);
 document.getElementById('jobsDateTo')?.addEventListener('change', renderJobs);
 
@@ -3636,8 +3717,13 @@ window.openAssignEmployeeModal = async function(jobId) {
   select.innerHTML = '<option value="">Carregando...</option>';
   try {
     const data = await api('/api/users');
-    const emps = (data.users || []).filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
-    select.innerHTML = '<option value="">Selecione...</option>' + emps.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+    const emps = (data.users || []).filter(u => isEligibleCleaner(u));
+    select.innerHTML = '<option value="">Selecione...</option>' + emps.map(e => {
+      let label = e.name;
+      if (e.role === 'manager') label += ' (Gerente)';
+      else if (['admin', 'superadmin'].includes(e.role)) label += ' (Admin)';
+      return `<option value="${e.id}">${escapeHtml(label)}</option>`;
+    }).join('');
   } catch (err) {
     console.error(err);
     select.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -5099,8 +5185,13 @@ async function openManualJobForFinance() {
     if (isInvoice) {
       const empSel = document.getElementById('manualJobEmployee');
       if (!empSel) throw new Error("Select de Employee não encontrado no HTML");
-      const employees = (state.users || []).filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
-      empSel.innerHTML = employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('') || '<option value="">Nenhum funcionário</option>';
+      const employees = (state.users || []).filter(u => isEligibleCleaner(u));
+      empSel.innerHTML = employees.map(e => {
+        let label = e.name;
+        if (e.role === 'manager') label += ' (Gerente)';
+        else if (['admin', 'superadmin'].includes(e.role)) label += ' (Admin)';
+        return `<option value="${e.id}">${escapeHtml(label)}</option>`;
+      }).join('') || '<option value="">Nenhum funcionário</option>';
     }
 
     document.getElementById('manualJobDate').value = new Date().toISOString().split('T')[0];
@@ -5139,8 +5230,13 @@ async function openAdminRequestJobModal() {
   updateAdminReqJobFlats();
   
   // Load Employees
-  const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
-  employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => `<option value="${e.id}">${escapeHtml(e.name || e.email)}</option>`).join('');
+  const employees = state.users.filter(u => isEligibleCleaner(u));
+  employeeSelect.innerHTML = `<option value="">Deixar pendente (Sem funcionario)</option>` + employees.map(e => {
+    let label = e.name || e.email;
+    if (e.role === 'manager') label += ' (Gerente)';
+    else if (['admin', 'superadmin'].includes(e.role)) label += ' (Admin)';
+    return `<option value="${e.id}">${escapeHtml(label)}</option>`;
+  }).join('');
   
   // Reset other fields
   document.getElementById('adminReqJobDate').value = new Date().toISOString().slice(0, 10);
@@ -5507,7 +5603,7 @@ function processSmartVoiceCommand(text) {
   // 2. Employee Parsing
   let foundEmployeeId = '';
   let foundEmployeeName = '';
-  const employees = state.users.filter(u => u.role === 'employee' || (u.role === 'manager' && u.is_cleaner) || ['admin', 'superadmin'].includes(u.role));
+  const employees = state.users.filter(u => isEligibleCleaner(u));
   for (const emp of employees) {
     const empNameNorm = emp.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const first = empNameNorm.split(' ')[0];

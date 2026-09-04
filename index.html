@@ -233,11 +233,12 @@
                   <label style="display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" name="perm_manage_clients_flats" id="perm_manage_clients_flats"> Cadastrar Clientes e Flats
                   </label>
-                  <hr style="border:0; border-top:1px solid var(--line); margin:4px 0;" />
-                  <label style="display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" name="is_cleaner" id="is_cleaner"> <strong>É também um Cleaner?</strong> (Aparecerá para designação)
-                  </label>
                 </div>
+              </div>
+              <div id="userIsCleanerContainer" style="display:none; margin-top:12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 14px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem; cursor:pointer;">
+                  <input type="checkbox" name="is_cleaner" id="is_cleaner"> <strong>É também um Cleaner?</strong> (Aparecerá para designação e filtros)
+                </label>
               </div>
               <div id="userParentClientContainer" style="display:none; margin-top:10px;">
                 <label style="font-size:0.85rem;margin-bottom:4px;display:block;">Vincular a qual Empresa?</label>
@@ -698,6 +699,9 @@
               </select>
               <select id="jobsClientFilter" class="filter-select">
                 <option value="">Todos os clientes</option>
+              </select>
+              <select id="jobsCleanerFilter" class="filter-select">
+                <option value="">Todos os cleaners</option>
               </select>
               <input type="date" id="jobsDateFrom" class="filter-select" placeholder="De" title="Data inicial" />
               <input type="date" id="jobsDateTo" class="filter-select" placeholder="Até" title="Data final" />

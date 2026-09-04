@@ -907,6 +907,7 @@ async function handleApi(req, res, requestUrl) {
     if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const statusFilter = requestUrl.searchParams.get('status') || '';
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
+    const cleanerFilter = requestUrl.searchParams.get('cleaner_id') || '';
     let sql = `
       SELECT j.*,
         f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
@@ -921,6 +922,12 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
+    if (cleanerFilter === 'unassigned') {
+      sql += ' AND j.employee_user_id IS NULL';
+    } else if (cleanerFilter) {
+      sql += ' AND j.employee_user_id = ?';
+      params.push(Number(cleanerFilter));
+    }
     // Managers see: jobs they designated + undesignated pending + jobs created by admins
     if (session.user.role === 'manager') {
       sql += ` AND (j.designated_by_user_id = ? OR (j.designated_by_user_id IS NULL AND j.status = 'pending') OR j.created_by_user_id IN (SELECT id FROM users WHERE role IN ('admin','superadmin')))`;
@@ -2821,7 +2828,7 @@ function canManageClientsFlats(u) { return isAdminRole(u.role) || (u.role === 'm
 function canCreateJobs(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_create_jobs); }
 function canGenInvoices(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_invoices); }
 function canGenPayrolls(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_payrolls); }
-function isCleanerRole(u) { return u.role === 'employee' || (u.role === 'manager' && u.is_cleaner); }
+function isCleanerRole(u) { return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && u.is_cleaner); }
 
 function isAdminRole(role) { return ['superadmin', 'admin'].includes(role); }
 function normalizeFieldType(fieldType) { return ['text', 'number', 'date', 'status', 'textarea'].includes(fieldType) ? fieldType : 'text'; }
