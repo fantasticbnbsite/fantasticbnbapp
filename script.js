@@ -4277,7 +4277,11 @@ function renderJobs() {
               ${job.status.startsWith('cancelled') ? `
                 <span style="color:var(--muted); font-size:11px; font-weight:500; background:rgba(0,0,0,0.04); padding:2px 6px; border-radius:4px; white-space:nowrap;">Sem cobrança / pagamento (£0.00)</span>
               ` : `
-                ${job.clientAmount != null ? `<span style="color:var(--primary); font-size:13px; font-weight:700;">+${formatCurrencyGBP(job.clientAmount)}</span>` : ''}
+                ${job.clientAmount != null ? (
+                  job.clientAmount === 0 && job.flatBillingType === 'project' ?
+                    `<span style="color:var(--muted); font-size:12px; font-weight:600; opacity:0.85;" title="Cobrança única de projeto já lançada no serviço principal deste imóvel na mesma data">+£0.00 <span style="font-size:10px; font-weight:normal;">(projeto já cobrado)</span></span>` :
+                    `<span style="color:var(--primary); font-size:13px; font-weight:700;">+${formatCurrencyGBP(job.clientAmount)}</span>`
+                ) : ''}
                 ${job.employeeAmount != null ? `<span style="color:#ea580c; font-size:13px; font-weight:700;">-${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
               `}
             </div>

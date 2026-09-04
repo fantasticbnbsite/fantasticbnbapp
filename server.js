@@ -458,6 +458,83 @@ function cleanupCancelledJobs() {
   }
 }
 cleanupCancelledJobs();
+
+function cleanupDuplicateProjectJobCharges() {
+  try {
+    const duplicateProjectDays = db.prepare(`
+      SELECT j.flat_id, 
+             substr(COALESCE(j.requested_date, j.finished_at, j.created_at), 1, 10) as day, 
+             COUNT(*) as cnt
+      FROM jobs j
+      JOIN flats f ON f.id = j.flat_id
+      WHERE f.billing_type = 'project'
+        AND j.client_amount > 0
+        AND j.status NOT LIKE 'cancelled%'
+      GROUP BY j.flat_id, day
+      HAVING cnt > 1
+    `).all();
+
+    for (const dup of duplicateProjectDays) {
+      const jobs = db.prepare(`
+        SELECT id, client_amount, invoice_id, payroll_id 
+        FROM jobs 
+        WHERE flat_id = ? 
+          AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ?
+          AND client_amount > 0
+          AND status NOT LIKE 'cancelled%'
+        ORDER BY (CASE WHEN invoice_id IS NOT NULL THEN 0 ELSE 1 END) ASC, id ASC
+      `).all(dup.flat_id, dup.day);
+
+      for (let i = 1; i < jobs.length; i++) {
+        const extra = jobs[i];
+        console.log(`[Project Integrity] Zerando cobrança duplicada no job #${extra.id} (Flat ${dup.flat_id}, Data ${dup.day})`);
+        db.prepare('UPDATE jobs SET client_amount = 0.00 WHERE id = ?').run(extra.id);
+        if (extra.invoice_id) recalculateFinancialTotals(extra.invoice_id, null);
+      }
+    }
+  } catch (e) {
+    console.error('[Project Integrity Migration Error]:', e);
+  }
+}
+
+function enforceProjectFlatIntegrity(flatId, dateStr) {
+  if (!flatId || !dateStr) return;
+  try {
+    const flat = db.prepare('SELECT id, billing_type, project_rate FROM flats WHERE id = ?').get(flatId);
+    if (!flat || flat.billing_type !== 'project') return;
+
+    const day = String(dateStr).slice(0, 10);
+    const sameDayJobs = db.prepare(`
+      SELECT id, client_amount, status, invoice_id, payroll_id 
+      FROM jobs 
+      WHERE flat_id = ? 
+        AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ?
+        AND status NOT LIKE 'cancelled%'
+      ORDER BY (CASE WHEN invoice_id IS NOT NULL THEN 0 ELSE 1 END) ASC, 
+               (CASE WHEN client_amount > 0 THEN 0 ELSE 1 END) ASC, 
+               id ASC
+    `).all(flatId, day);
+
+    if (sameDayJobs.length <= 1) return;
+
+    let keptCharged = false;
+    for (const j of sameDayJobs) {
+      if (Number(j.client_amount) > 0) {
+        if (!keptCharged) {
+          keptCharged = true;
+        } else {
+          console.log(`[Project Integrity] Zerando cobrança duplicada no job #${j.id} (Flat ${flatId}, Data ${day})`);
+          db.prepare('UPDATE jobs SET client_amount = 0.00 WHERE id = ?').run(j.id);
+          if (j.invoice_id) recalculateFinancialTotals(j.invoice_id, null);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[enforceProjectFlatIntegrity Error]:', err);
+  }
+}
+
+cleanupDuplicateProjectJobCharges();
 // syncClientCatalog();
 // seedCollaboratorModule();
 // seedCleanOps();
@@ -945,6 +1022,7 @@ async function handleApi(req, res, requestUrl) {
   // ── Jobs ──
   if (requestUrl.pathname === '/api/jobs' && req.method === 'GET') {
     if (!canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    cleanupDuplicateProjectJobCharges();
     const statusFilter = requestUrl.searchParams.get('status') || '';
     const clientFilter = requestUrl.searchParams.get('client_id') || '';
     const cleanerFilter = requestUrl.searchParams.get('cleaner_id') || '';
@@ -1073,8 +1151,15 @@ async function handleApi(req, res, requestUrl) {
       } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
         finalProjectRate = Number(flat.project_weekend_rate);
       }
-      const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND client_amount > 0 AND status NOT LIKE ?').get(flatId, body.requestedDate, 'cancelled%');
-      clientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
+      const targetDateStr = (body.requestedDate || now).slice(0, 10);
+      const existingJob = db.prepare(`
+        SELECT id FROM jobs 
+        WHERE flat_id = ? 
+          AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ? 
+          AND client_amount > 0 
+          AND status NOT LIKE 'cancelled%'
+      `).get(flatId, targetDateStr);
+      clientAmount = existingJob ? 0.00 : roundCurrency(finalProjectRate);
     } else {
       clientAmount = roundCurrency(durationHours * clientRate);
     }
@@ -1088,6 +1173,8 @@ async function handleApi(req, res, requestUrl) {
     const notes = (body.notes && body.notes.trim()) ? body.notes.trim() : 'Serviço lançado manualmente pelo admin';
     const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, notes, invoiceId, payrollId, session.user.id, now, now, now);
+
+    enforceProjectFlatIntegrity(flatId, body.requestedDate);
 
     // If attached to invoice or payroll, we must recount totals
     if (invoiceId || payrollId) {
@@ -1193,8 +1280,16 @@ async function handleApi(req, res, requestUrl) {
         } else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) {
           finalProjectRate = Number(flat.project_weekend_rate);
         }
-        const existingJob = db.prepare('SELECT id FROM jobs WHERE flat_id = ? AND substr(requested_date, 1, 10) = substr(?, 1, 10) AND id != ? AND client_amount > 0 AND status NOT LIKE ?').get(job.flat_id, updatedRequestedDate, jobId, 'cancelled%');
-        updatedClientAmount = existingJob ? 0 : roundCurrency(finalProjectRate);
+        const targetDateStr = (updatedRequestedDate || job.requested_date || now).slice(0, 10);
+        const existingJob = db.prepare(`
+          SELECT id FROM jobs 
+          WHERE flat_id = ? 
+            AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ? 
+            AND id != ? 
+            AND client_amount > 0 
+            AND status NOT LIKE 'cancelled%'
+        `).get(job.flat_id, targetDateStr, jobId);
+        updatedClientAmount = existingJob ? 0.00 : roundCurrency(finalProjectRate);
       } else {
         updatedClientAmount = roundCurrency(updatedDurationHours * clientRate);
       }
@@ -1232,6 +1327,8 @@ async function handleApi(req, res, requestUrl) {
 
     db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, employee_notes=?, finished_at=?, updated_at=? WHERE id=?`)
       .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedEmployeeNotes, updatedFinishedAt, now, jobId);
+    
+    enforceProjectFlatIntegrity(job.flat_id, updatedRequestedDate || job.requested_date);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
@@ -1352,15 +1449,30 @@ async function handleApi(req, res, requestUrl) {
       } else {
         clientRate = Number(flat.hourly_rate || 0);
       }
-      let finalProjectRate = Number(flat.project_rate || 0);
+      let clientAmount = 0;
       if (flat.billing_type === 'project') {
+        let finalProjectRate = Number(flat.project_rate || 0);
         if (job.is_holiday && Number(flat.project_holiday_rate || 0) > 0) finalProjectRate = Number(flat.project_holiday_rate);
         else if (isWeekend && Number(flat.project_weekend_rate || 0) > 0) finalProjectRate = Number(flat.project_weekend_rate);
+
+        const targetDateStr = (job.requested_date || now).slice(0, 10);
+        const existingJob = db.prepare(`
+          SELECT id FROM jobs 
+          WHERE flat_id = ? 
+            AND id != ? 
+            AND substr(COALESCE(requested_date, finished_at, created_at), 1, 10) = ?
+            AND client_amount > 0 
+            AND status NOT LIKE 'cancelled%'
+        `).get(job.flat_id, jobId, targetDateStr);
+
+        clientAmount = existingJob ? 0.00 : roundCurrency(finalProjectRate);
+      } else {
+        clientAmount = roundCurrency(durationHours * clientRate);
       }
-      const clientAmount = flat.billing_type === 'project' ? roundCurrency(finalProjectRate) : roundCurrency(durationHours * clientRate);
 
       const isUrgent = body.isUrgent === true ? 1 : 0;
       db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, is_urgent=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', isUrgent, now, jobId);
+      enforceProjectFlatIntegrity(job.flat_id, job.requested_date || now);
       logSystemActivity(session.user.id, 'FINISH', 'job', jobId, `Serviço concluído no flat ${flat.address} (${durationHours}h)`);
 
       // Send invoice email (fire and forget)
@@ -1671,8 +1783,9 @@ async function handleApi(req, res, requestUrl) {
     if (!periodFrom || !periodTo || !type) return sendJson(res, 400, { error: 'Periodo ou tipo invalido.' });
     const now = new Date().toISOString();
 
+    cleanupDuplicateProjectJobCharges();
     const jobs = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.city AS city, cu.name AS client_name, eu.name AS employee_name
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.city AS city, f.billing_type AS flat_billing_type, cu.name AS client_name, eu.name AS employee_name
       FROM jobs j
       LEFT JOIN flats f ON f.id = j.flat_id
       LEFT JOIN users cu ON cu.id = j.client_user_id
@@ -1699,6 +1812,23 @@ async function handleApi(req, res, requestUrl) {
       for (const [groupKey, clientJobs] of Object.entries(jobsByClientGroup)) {
         const [clientId, cityGroup] = groupKey.split('::');
         const invoiceGroup = cityGroup === 'Automático' ? 'Automático' : cityGroup;
+
+        // Double safeguard: ensure no same-day duplicate project flat charges inside this invoice
+        const seenProjectDays = new Set();
+        for (const j of clientJobs) {
+          if (j.flat_billing_type === 'project' || j.billing_type === 'project') {
+            const dayKey = `${j.flat_id}::${(j.requested_date || j.finished_at || '').slice(0, 10)}`;
+            if (seenProjectDays.has(dayKey)) {
+              if (Number(j.client_amount) > 0) {
+                j.client_amount = 0.00;
+                db.prepare('UPDATE jobs SET client_amount = 0.00 WHERE id = ?').run(j.id);
+              }
+            } else if (Number(j.client_amount) > 0) {
+              seenProjectDays.add(dayKey);
+            }
+          }
+        }
+
         const totalAmount = roundCurrency(clientJobs.reduce((s, j) => s + (j.client_amount || 0), 0));
         if (totalAmount <= 0) continue;
         
@@ -1829,6 +1959,7 @@ async function handleApi(req, res, requestUrl) {
     const jobsToFix = db.prepare('SELECT j.*, f.hourly_rate, f.hourly_weekend_rate, f.hourly_holiday_rate, f.project_rate, f.project_weekend_rate, f.project_holiday_rate, f.billing_type FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE invoice_id = ?').all(invoiceId);
     
     let totalUpdated = 0;
+    const seenProjectInvoiceDays = new Set();
     db.exec('BEGIN TRANSACTION');
     try {
       for (const j of jobsToFix) {
@@ -1840,7 +1971,12 @@ async function handleApi(req, res, requestUrl) {
           if (j.is_holiday && Number(j.project_holiday_rate || 0) > 0) finalProjectRate = Number(j.project_holiday_rate);
           else if (isWeekend && Number(j.project_weekend_rate || 0) > 0) finalProjectRate = Number(j.project_weekend_rate);
           
-          const newClientAmount = roundCurrency(finalProjectRate);
+          const dayKey = `${j.flat_id}::${(j.requested_date || j.finished_at || '').slice(0, 10)}`;
+          let newClientAmount = 0.00;
+          if (!seenProjectInvoiceDays.has(dayKey)) {
+            seenProjectInvoiceDays.add(dayKey);
+            newClientAmount = roundCurrency(finalProjectRate);
+          }
           db.prepare('UPDATE jobs SET client_amount = ? WHERE id = ?').run(newClientAmount, j.id);
           totalUpdated++;
           continue;
@@ -2572,6 +2708,7 @@ function escapeXml(str) {
 }
 
 function generateMonthlyClosingData(month) {
+  cleanupDuplicateProjectJobCharges();
   const sql = `
     SELECT j.*, 
            f.address AS flat_address, 
@@ -3788,7 +3925,7 @@ function listRecords(clientId, filters) {
 
 function recalculateFinancialTotals(invoiceId, payrollId) {
   if (invoiceId) {
-    const jData = db.prepare('SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ? AND status != ?').get(invoiceId, 'cancelled');
+    const jData = db.prepare("SELECT SUM(client_amount) as s FROM jobs WHERE invoice_id = ? AND status NOT LIKE 'cancelled%'").get(invoiceId);
     const inv = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
     let ex = 0;
     if (inv) {
@@ -3798,7 +3935,7 @@ function recalculateFinancialTotals(invoiceId, payrollId) {
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(roundCurrency((jData.s || 0) + ex), invoiceId);
   }
   if (payrollId) {
-    const pData = db.prepare('SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ? AND status != ?').get(payrollId, 'cancelled');
+    const pData = db.prepare("SELECT SUM(employee_amount) as s FROM jobs WHERE payroll_id = ? AND status NOT LIKE 'cancelled%'").get(payrollId);
     const p = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
     let px = 0;
     if (p) {
