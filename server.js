@@ -384,6 +384,16 @@ try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_invoices INTEGER NOT NULL D
 try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_payrolls INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try {
+  db.exec(`
+    UPDATE users SET is_cleaner = 1 
+    WHERE role IN ('admin', 'superadmin') 
+      AND (
+        id IN (SELECT DISTINCT employee_user_id FROM jobs WHERE employee_user_id IS NOT NULL)
+        OR hourly_rate > 0
+      );
+  `);
+} catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN designated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN guesty_listing_id TEXT DEFAULT "";'); } catch {}
@@ -825,6 +835,18 @@ async function handleApi(req, res, requestUrl) {
     const { salt, hash } = hashPassword(body.password);
     db.prepare('UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?').run(hash, salt, userId);
     return sendJson(res, 200, { ok: true, message: 'Senha atualizada com sucesso.' });
+  }
+
+  const userToggleCleanerMatch = requestUrl.pathname.match(/^\/api\/users\/(\d+)\/toggle-cleaner$/);
+  if (userToggleCleanerMatch && req.method === 'PATCH') {
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
+    const userId = Number(userToggleCleanerMatch[1]);
+    const user = db.prepare('SELECT id, name, role, is_cleaner FROM users WHERE id = ?').get(userId);
+    if (!user) return sendJson(res, 404, { error: 'Usuario nao encontrado.' });
+    const newStatus = user.is_cleaner ? 0 : 1;
+    db.prepare('UPDATE users SET is_cleaner = ? WHERE id = ?').run(newStatus, userId);
+    logSystemActivity(session.user.id, 'UPDATE', 'user', userId, `Status cleaner de ${user.name} alterado para ${newStatus ? 'SIM' : 'NÃO'}`);
+    return sendJson(res, 200, { ok: true, is_cleaner: newStatus, name: user.name });
   }
 
   // ── Flats ──

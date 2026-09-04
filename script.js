@@ -1618,7 +1618,8 @@ function renderUsers() {
   const filter = document.getElementById('userRoleFilter')?.value || 'all';
   const filteredUsers = state.users.filter((user) => {
     if (filter === 'all') return true;
-    if (filter === 'gerencia') return user.role === 'superadmin' || user.role === 'manager';
+    if (filter === 'gerencia') return user.role === 'superadmin' || user.role === 'admin' || user.role === 'manager';
+    if (filter === 'employee') return user.role === 'employee' || isEligibleCleaner(user);
     return user.role === filter;
   });
 
@@ -1626,8 +1627,8 @@ function renderUsers() {
   if (hubEl) {
     const total = state.users.length;
     const clients = state.users.filter(u => u.role === 'client' || u.role === 'client_user').length;
-    const cleaners = state.users.filter(u => u.role === 'employee').length;
-    const gerencia = state.users.filter(u => u.role === 'superadmin' || u.role === 'manager').length;
+    const cleaners = state.users.filter(u => isEligibleCleaner(u)).length;
+    const gerencia = state.users.filter(u => u.role === 'superadmin' || u.role === 'admin' || u.role === 'manager').length;
     
     hubEl.innerHTML = `
       <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='all'; renderUsers();">
@@ -1637,7 +1638,7 @@ function renderUsers() {
         <strong>${clients}</strong><span>Clientes</span>
       </article>
       <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='employee'; renderUsers();">
-        <strong>${cleaners}</strong><span>Cleaners</span>
+        <strong>${cleaners}</strong><span>Cleaners Ativos</span>
       </article>
       <article class="stat-card glass-card" style="cursor:pointer;" onclick="document.getElementById('userRoleFilter').value='gerencia'; renderUsers();">
         <strong>${gerencia}</strong><span>Gerência</span>
@@ -1648,11 +1649,11 @@ function renderUsers() {
   els.usersList.innerHTML = filteredUsers.map((user) => {
     let roleLabel = user.role;
     let icon = 'user';
-    if (user.role === 'superadmin') { roleLabel = 'Administrador'; icon = 'shield'; }
+    if (user.role === 'superadmin' || user.role === 'admin') { roleLabel = 'Administrador'; icon = 'shield'; }
     if (user.role === 'manager') { roleLabel = 'Gerente'; icon = 'shield-check'; }
     if (user.role === 'client') { roleLabel = 'Cliente Principal'; icon = 'briefcase'; }
     if (user.role === 'client_user') { roleLabel = 'Login de Cliente'; icon = 'briefcase'; }
-    if (user.role === 'employee') { roleLabel = 'Colaborador'; icon = 'users'; }
+    if (user.role === 'employee') { roleLabel = 'Colaborador (Cleaner)'; icon = 'users'; }
     
     let parentCompanyName = '';
     if (user.role === 'client_user' && user.parent_client_id) {
@@ -1660,28 +1661,47 @@ function renderUsers() {
       if (parent) parentCompanyName = `<div style="margin-top:8px; font-size:0.85rem; color:var(--muted);"><i data-lucide="link" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> Vinculado a: <strong>${escapeHtml(parent.name)}</strong></div>`;
     }
 
+    const isManagerOrAdmin = ['manager', 'admin', 'superadmin'].includes(user.role);
+    const isCleanerUser = user.role === 'employee' || (isManagerOrAdmin && (Number(user.is_cleaner) === 1 || user.is_cleaner === true));
+
+    let cleanerBadge = '';
+    let cleanerToggleBtn = '';
+    if (isManagerOrAdmin) {
+      if (isCleanerUser) {
+        cleanerBadge = `<span class="badge" style="background:#dcfce7; color:#166534; font-weight:700; display:inline-flex; align-items:center; gap:4px; margin-top:4px;"><i data-lucide="sparkles" style="width:11px;height:11px;"></i> Cleaner Ativo</span>`;
+        cleanerToggleBtn = `<button class="button" type="button" onclick="toggleUserCleaner(${user.id})" style="padding:6px 10px; font-size:0.8rem; background:#fee2e2; color:#b91c1c; border:none; border-radius:6px; cursor:pointer; font-weight:600; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px;" title="Remover da lista de cleaners"><i data-lucide="user-x" style="width:13px;height:13px;"></i> Desativar Cleaner</button>`;
+      } else {
+        cleanerBadge = `<span class="badge badge-neutral" style="color:var(--muted); display:inline-flex; align-items:center; gap:4px; margin-top:4px;"><i data-lucide="user" style="width:11px;height:11px;"></i> Apenas Gestão</span>`;
+        cleanerToggleBtn = `<button class="button" type="button" onclick="toggleUserCleaner(${user.id})" style="padding:6px 10px; font-size:0.8rem; background:#dcfce7; color:#166534; border:none; border-radius:6px; cursor:pointer; font-weight:700; width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px;" title="Ativar como cleaner para fazer serviços"><i data-lucide="sparkles" style="width:13px;height:13px;"></i> 🧹 Ativar como Cleaner</button>`;
+      }
+    }
+
     return `
     <div class="panel glass-card" style="display:flex; flex-direction:column; padding:16px;">
-      <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:16px;">
+      <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:12px;">
         <div style="width:40px;height:40px;border-radius:10px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;">
           <i data-lucide="${icon}"></i>
         </div>
         <div style="overflow:hidden;">
           <strong style="display:block; font-size:1.05rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(user.name)}</strong>
-          <span class="badge badge-neutral" style="margin-top:4px; display:inline-block;">${roleLabel}</span>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+            <span class="badge badge-neutral" style="margin-top:4px; display:inline-block;">${roleLabel}</span>
+            ${cleanerBadge}
+          </div>
         </div>
       </div>
       <div style="font-size:0.85rem; color:var(--muted); margin-bottom:8px;">
         <i data-lucide="mail" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i> ${escapeHtml(user.email)}
       </div>
       ${parentCompanyName}
-      ${user.role === 'employee' ? `
+      ${isCleanerUser ? `
         <div style="margin-top:8px; padding:8px; background:var(--surface-alt); border-radius:8px; font-size:0.8rem; color:var(--muted);">
-          <strong>Taxas:</strong><br/>
+          <strong>Taxas de Limpeza:</strong><br/>
           Normal: £${Number(user.hourly_rate || 0).toFixed(2)} | FDS: £${Number(user.weekend_rate || 0).toFixed(2)} | Fer: £${Number(user.holiday_rate || 0).toFixed(2)}
         </div>
       ` : ''}
-      <div style="margin-top:auto; padding-top:16px; display:flex; gap:8px;">
+      ${cleanerToggleBtn}
+      <div style="margin-top:auto; padding-top:14px; display:flex; gap:8px;">
         <button class="ghost-button" style="flex:1; justify-content:center;" type="button" onclick="startEditUser(${user.id})" title="Editar"><i data-lucide="edit-3"></i></button>
         <button class="ghost-button" style="flex:1; justify-content:center; color:var(--primary);" type="button" data-user-password="${user.id}" title="Redefinir Senha"><i data-lucide="key"></i></button>
         <button class="ghost-button" style="flex:1; justify-content:center; color:var(--danger);" type="button" data-user-delete="${user.id}" title="Excluir"><i data-lucide="trash-2"></i></button>
@@ -1696,6 +1716,17 @@ function renderUsers() {
     button.addEventListener('click', () => onChangeUserPassword(Number(button.dataset.userPassword)));
   });
 }
+
+window.toggleUserCleaner = async function(userId) {
+  try {
+    const res = await api(`/api/users/${userId}/toggle-cleaner`, { method: 'PATCH' });
+    toast(res.is_cleaner ? `${res.name} agora está ativo como Cleaner!` : `${res.name} não é mais Cleaner.`, 'success');
+    await loadUsers();
+    if (typeof loadFlats === 'function') await loadFlats();
+  } catch (err) {
+    toast(err.message || 'Erro ao alterar status de cleaner.', 'error');
+  }
+};
 
 function renderCleaners() {
   if (!els.cleanersList) return;
@@ -2267,9 +2298,9 @@ function isCollaborator() { return !!state.user?.collaborator; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
 function isEligibleCleaner(u) {
   if (!u) return false;
-  return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && !!u.is_cleaner);
+  return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && (Number(u.is_cleaner) === 1 || u.is_cleaner === true));
 }
-function isCleanerRole() { return state.user?.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(state.user?.role) && !!state.user?.is_cleaner); }
+function isCleanerRole() { return state.user?.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(state.user?.role) && (Number(state.user?.is_cleaner) === 1 || state.user?.is_cleaner === true)); }
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -5229,6 +5260,12 @@ function closeManualJobModal() {
 // --- Admin Request Job (CleanOps) ---
 async function openAdminRequestJobModal() {
   if (!canCreateJobs()) { alert('Permissão insuficiente.'); return; }
+  try {
+    const data = await api('/api/users');
+    if (data && data.users) state.users = data.users;
+  } catch (e) {
+    console.error('Erro ao atualizar usuários:', e);
+  }
   if (!state.flats || state.flats.length === 0) {
     if (typeof loadFlats === 'function') await loadFlats();
   }
