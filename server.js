@@ -1105,6 +1105,7 @@ async function handleApi(req, res, requestUrl) {
     let updatedClientAmount = job.client_amount;
     let updatedEmployeeAmount = job.employee_amount;
     const updatedNotes = body.notes !== undefined ? body.notes : job.notes;
+    const updatedEmployeeNotes = body.employeeNotes !== undefined ? body.employeeNotes : job.employee_notes;
 
     let updatedIsHoliday = job.is_holiday;
     if (body.isHoliday !== undefined) {
@@ -1183,8 +1184,8 @@ async function handleApi(req, res, requestUrl) {
       updatedFinishedAt = null;
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, finished_at=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedFinishedAt, now, jobId);
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, employee_notes=?, finished_at=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedEmployeeNotes, updatedFinishedAt, now, jobId);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
@@ -2392,6 +2393,7 @@ async function sendInvoiceEmail(job, durationHours, clientAmount) {
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Data</td><td style="padding:8px;border-bottom:1px solid #eee;">${job.finished_at ? job.finished_at.slice(0, 10) : ''}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Flat</td><td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(job.flat_address || '')}</td></tr>
         <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Dura&ccedil;&atilde;o</td><td style="padding:8px;border-bottom:1px solid #eee;">${formatHours(durationHours)}</td></tr>
+        ${job.employee_notes ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;">Observa&ccedil;&otilde;es da Limpeza</td><td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(job.employee_notes)}</td></tr>` : ''}
         <tr><td style="padding:8px;font-weight:bold;color:#080058;">Total</td><td style="padding:8px;font-weight:bold;color:#080058;">${formatCurrencyGBP(clientAmount)}</td></tr>
       </table>
       <p style="color:#666;font-size:0.9em;">Obrigado por usar os servi&ccedil;os Fantastic BnB!</p>

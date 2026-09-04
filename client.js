@@ -627,15 +627,29 @@ function jobCardHTML(job) {
     }
   }
 
-  let notesHTML = job.notes
-    ? `<div class="job-meta-item" style="width:100%;margin-top:2px;"><span>📝</span> <em style="color:var(--muted);font-style:normal;font-size:0.83rem;">${escHtml(job.notes)}</em></div>`
-    : '';
+  let notesHTML = '';
+  if (job.notes) {
+    notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:4px;"><span>📝</span> <em style="color:var(--muted);font-style:normal;font-size:0.84rem;">${escHtml(job.notes)}</em></div>`;
+  }
   
-  if (job.is_urgent) {
-    notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:8px;padding:8px;background:#fffcfc;border:1px solid #d45555;border-radius:8px;">
-      <div style="font-weight:bold;color:#d45555;margin-bottom:4px;font-size:0.85rem;">🚨 ALERTA IMPORTANTE DA EQUIPE</div>
-      <div style="color:#d45555;font-size:0.85rem;">${escHtml(job.employeeNotes)}</div>
-    </div>`;
+  if (job.employeeNotes) {
+    if (job.is_urgent || job.isUrgent) {
+      notesHTML += `
+        <div class="job-meta-item" style="width:100%;margin-top:8px;padding:10px 14px;background:#fffcfc;border:1.5px solid #d45555;border-radius:10px;">
+          <div style="font-weight:bold;color:#d45555;margin-bottom:4px;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+            🚨 ALERTA IMPORTANTE DA EQUIPE
+          </div>
+          <div style="color:#d45555;font-size:0.86rem;white-space:pre-wrap;line-height:1.5;">${escHtml(job.employeeNotes)}</div>
+        </div>`;
+    } else {
+      notesHTML += `
+        <div class="job-meta-item" style="width:100%;margin-top:8px;padding:10px 14px;background:rgba(16,185,129,0.08);border-left:3.5px solid #059669;border-radius:0 10px 10px 0;">
+          <div style="font-weight:bold;color:#059669;margin-bottom:4px;font-size:0.83rem;display:flex;align-items:center;gap:6px;">
+            🧹 Observação da Limpeza:
+          </div>
+          <div style="color:var(--text);font-size:0.86rem;white-space:pre-wrap;line-height:1.5;">${escHtml(job.employeeNotes)}</div>
+        </div>`;
+    }
   }
     
   if (job.status === 'cancelled') {
@@ -1019,6 +1033,18 @@ window.openEditJobModal = function(jobId) {
   document.getElementById('clientEditJobDate').value = job.requestedDate || (job.requested_date ? job.requested_date.slice(0,10) : '');
   document.getElementById('clientEditJobNotes').value = job.notes || '';
   
+  const cleanerNotesBox = document.getElementById('clientEditJobCleanerNotesContainer');
+  const cleanerNotesText = document.getElementById('clientEditJobCleanerNotes');
+  if (cleanerNotesBox && cleanerNotesText) {
+    if (job.employeeNotes) {
+      cleanerNotesText.textContent = job.employeeNotes;
+      cleanerNotesBox.style.display = 'block';
+    } else {
+      cleanerNotesBox.style.display = 'none';
+      cleanerNotesText.textContent = '';
+    }
+  }
+
   const modal = document.getElementById('clientEditJobModal');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('active'), 10);

@@ -687,10 +687,14 @@ const App = (() => {
 
     if (job.status === 'in_progress') {
       actionsHtml = `
-        <div class="employee-notes-wrapper" style="margin-bottom: 12px;">
-          <textarea id="obs-${job.id}" class="form-input" rows="2" placeholder="Alguma observação sobre a limpeza? (Opcional)"></textarea>
-          <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:600; color:#d45555;">
-            <input type="checkbox" id="urgent-${job.id}" style="width:20px;height:20px;"> 🚨 Marcar observação como URGENTE
+        <div class="employee-notes-wrapper">
+          <label class="employee-notes-label" for="obs-${job.id}">
+            <span>📝</span> Observações da Limpeza (Visível ao cliente)
+          </label>
+          <textarea id="obs-${job.id}" class="employee-notes-textarea" rows="3" placeholder="Alguma observação sobre a limpeza? (Ex: itens repostos, avarias, etc.)"></textarea>
+          <label class="employee-notes-urgent">
+            <input type="checkbox" id="urgent-${job.id}">
+            <span>🚨 Marcar observação como URGENTE</span>
           </label>
         </div>
         <div class="job-actions one-btn">
@@ -737,6 +741,11 @@ const App = (() => {
           <div class="completed-stat">
             <div class="cs-label">${job.status === 'completed' ? 'Concluído em' : 'Finalizado em'}</div>
             <div class="cs-value" style="font-size:0.85rem">${formatDate(job.finishedAt)}</div>
+          </div>` : ''}
+          ${job.employeeNotes ? `
+          <div style="width:100%; margin-top:10px; padding:10px 14px; background:rgba(16,185,129,0.08); border-left:3px solid #059669; border-radius:0 8px 8px 0; font-size:0.88rem; text-align:left;">
+            <strong style="color:#059669; font-size:0.8rem; display:block; margin-bottom:3px;">📝 Observações enviadas ao cliente:</strong>
+            <span style="color:var(--text); white-space:pre-wrap; line-height:1.4;">${escapeHtml(job.employeeNotes)}</span>
           </div>` : ''}
         </div>
         ${job.status === 'completed' ? `

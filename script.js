@@ -3272,6 +3272,8 @@ window.openAdminEditJobModal = async function(jobId) {
   document.getElementById('adminEditJobStatus').value = job.status || 'pending';
   document.getElementById('adminEditJobIsHoliday').checked = job.isHoliday ? true : false;
   document.getElementById('adminEditJobNotes').value = job.notes || '';
+  const empNotesEl = document.getElementById('adminEditJobEmployeeNotes');
+  if (empNotesEl) empNotesEl.value = job.employeeNotes || '';
   
   const durContainer = document.getElementById('adminEditJobDurationContainer');
   const durInput = document.getElementById('adminEditJobDuration');
@@ -3307,6 +3309,7 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
   const durationStr = document.getElementById('adminEditJobDuration').value;
   const isHoliday = document.getElementById('adminEditJobIsHoliday').checked;
   const notes = document.getElementById('adminEditJobNotes').value;
+  const employeeNotes = document.getElementById('adminEditJobEmployeeNotes')?.value;
   
   const payload = { 
     status, 
@@ -3314,6 +3317,7 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
     requestedDate, 
     isHoliday,
     notes,
+    employeeNotes: employeeNotes !== undefined ? employeeNotes : undefined,
     durationHours: ['completed', 'cancelled_late', 'cancelled_company'].includes(status) ? (durationStr ? timeStrToDecimal(durationStr) : 0) : undefined
   };
 
@@ -3344,6 +3348,19 @@ window.openClientEditJobModal = function(jobId) {
   document.getElementById('clientEditJobId').value = job.id;
   document.getElementById('clientEditJobDate').value = job.requestedDate || (job.requested_date ? job.requested_date.slice(0,10) : '');
   document.getElementById('clientEditJobNotes').value = job.notes || '';
+  
+  const cleanerNotesBox = document.getElementById('clientEditJobCleanerNotesContainer');
+  const cleanerNotesText = document.getElementById('clientEditJobCleanerNotes');
+  if (cleanerNotesBox && cleanerNotesText) {
+    if (job.employeeNotes) {
+      cleanerNotesText.textContent = job.employeeNotes;
+      cleanerNotesBox.style.display = 'block';
+    } else {
+      cleanerNotesBox.style.display = 'none';
+      cleanerNotesText.textContent = '';
+    }
+  }
+
   document.getElementById('clientEditJobModal').classList.remove('hidden');
 };
 
@@ -3536,7 +3553,10 @@ function renderJobs() {
             ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:14px; margin-bottom:8px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${job.flatAccessCode ? `<div style="color:var(--primary); font-size:14px; font-weight:600; margin-bottom:8px;"><i data-lucide="key" style="width:16px;height:16px;display:inline;vertical-align:-3px;"></i> Código ${escapeHtml(job.flatAccessCode)}</div>` : ''}
             ${job.notes ? `<div style="margin-top:6px; font-size:13px; color:var(--text); background:rgba(0,0,0,0.03); border-left:3px solid var(--primary); padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;"><strong style="color:var(--primary); font-size:12px;"><i data-lucide="message-square" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Obs:</strong> ${escapeHtml(job.notes)}</div>` : ''}
-            ${job.employeeNotes ? `<div style="margin-top:4px; font-size:13px; color:#059669; background:rgba(16,185,129,0.06); border-left:3px solid #059669; padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;"><strong style="font-size:12px;"><i data-lucide="user-check" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> Cleaner:</strong> ${escapeHtml(job.employeeNotes)}</div>` : ''}
+            ${job.employeeNotes ? `
+              <div style="margin-top:4px; font-size:13px; color:${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; background:${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.08)' : 'rgba(16,185,129,0.06)'}; border-left:3px solid ${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; padding:4px 8px; border-radius:0 6px 6px 0; word-break:break-word;">
+                <strong style="font-size:12px;"><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:12px;height:12px;display:inline;vertical-align:-2px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
+              </div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
             <div style="display:flex; flex-direction:column; gap:4px; font-size:15px; color:var(--muted); margin-bottom:8px; white-space: nowrap;">

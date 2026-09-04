@@ -1225,8 +1225,12 @@
           <input type="time" id="adminEditJobDuration" style="width:100%;" />
         </div>
         <div>
-          <label for="adminEditJobNotes">Observações</label>
-          <textarea id="adminEditJobNotes" rows="3" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Adicione observações sobre o serviço..."></textarea>
+          <label for="adminEditJobNotes">Observações do Serviço (Admin / Gerente)</label>
+          <textarea id="adminEditJobNotes" rows="2" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Adicione observações sobre o serviço..."></textarea>
+        </div>
+        <div>
+          <label for="adminEditJobEmployeeNotes">Observações da Limpeza / Cleaner (Visível ao Cliente)</label>
+          <textarea id="adminEditJobEmployeeNotes" rows="2" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Observações deixadas pelo cleaner..."></textarea>
         </div>
         <button class="button button-primary" id="confirmAdminEditJobButton" style="margin-top:8px;">Salvar Alteracoes</button>
       </div>
@@ -1316,6 +1320,10 @@
         <div>
           <label for="clientEditJobNotes">Observacoes (O que precisa ser feito?)</label>
           <textarea id="clientEditJobNotes" rows="3" style="width:100%;" placeholder="Informacoes extras, senhas, etc..."></textarea>
+        </div>
+        <div id="clientEditJobCleanerNotesContainer" style="display:none; padding:10px 14px; background:rgba(16,185,129,0.08); border-left:3px solid #059669; border-radius:0 8px 8px 0;">
+          <strong style="color:#059669; font-size:12px; display:block; margin-bottom:2px;">🧹 Observações do Cleaner:</strong>
+          <span id="clientEditJobCleanerNotes" style="font-size:13px; color:var(--text); white-space:pre-wrap;"></span>
         </div>
         <button class="button button-primary" id="confirmClientEditJobButton" style="margin-top:8px;">Salvar Alteracoes</button>
       </div>
