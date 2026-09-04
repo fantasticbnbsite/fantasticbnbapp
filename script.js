@@ -3070,9 +3070,11 @@ document.addEventListener('click', async (e) => {
 
 // ── FINANCE DOCUMENTS TABLE (Abas + Filtros + Tabela + Paginação) ────────────
 const finState = {
-  tab: 'invoices',       // 'invoices' | 'payrolls'
+  tab: 'invoices',       // 'invoices' | 'payrolls' | 'reports'
   invoices: [],
   payrolls: [],
+  monthlyReports: [],
+  currentPreviewData: null,
   filtered: [],
   sortCol: 'num',
   sortDir: 'desc',
@@ -3118,6 +3120,15 @@ window.renderFinanceSummary = async function() {
     if (bi) bi.textContent = finState.invoices.length;
     if (bp) bp.textContent = finState.payrolls.length;
 
+    try {
+      const repRes = await api('/api/monthly-reports');
+      finState.monthlyReports = repRes.reports || [];
+      const br = document.getElementById('finBadgeReports');
+      if (br) br.textContent = finState.monthlyReports.length;
+    } catch (e) {
+      console.warn('Could not load monthly reports badge', e);
+    }
+
     // Populate month filter
     _finBuildMonthFilter();
 
@@ -3129,6 +3140,7 @@ window.renderFinanceSummary = async function() {
     console.error(err);
   }
 };
+window.loadFinanceDocuments = window.renderFinanceSummary;
 
 function _finBuildMonthFilter() {
   const sel = document.getElementById('finMonthFilter');
@@ -3136,17 +3148,15 @@ function _finBuildMonthFilter() {
   const docs = finState.tab === 'invoices' ? finState.invoices : finState.payrolls;
   const months = new Set();
   docs.forEach(d => {
-    const from = d.period_from || '';
-    if (from) {
-      const parts = from.split('-');
-      if (parts.length >= 2) months.add(`${parts[0]}-${parts[1]}`);
+    if (d.period_from && d.period_from.length >= 7) {
+      months.add(d.period_from.slice(0, 7));
     }
   });
-  const sorted = [...months].sort().reverse();
+  const sorted = Array.from(months).sort().reverse();
   const current = sel.value;
   sel.innerHTML = '<option value="">Todos os meses</option>' + sorted.map(m => {
-    const [y, mo] = m.split('-');
-    const label = new Date(+y, +mo - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const [y, mon] = m.split('-');
+    const label = new Date(Number(y), Number(mon) - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
     return `<option value="${m}"${current === m ? ' selected' : ''}>${label.charAt(0).toUpperCase() + label.slice(1)}</option>`;
   }).join('');
 }
@@ -3155,8 +3165,33 @@ window.switchFinTab = function(tab) {
   finState.tab = tab;
   finState.page = 1;
   finState.target = null;
-  document.getElementById('finTabInvoices').classList.toggle('active', tab === 'invoices');
-  document.getElementById('finTabPayrolls').classList.toggle('active', tab === 'payrolls');
+  document.getElementById('finTabInvoices')?.classList.toggle('active', tab === 'invoices');
+  document.getElementById('finTabPayrolls')?.classList.toggle('active', tab === 'payrolls');
+  document.getElementById('finTabReports')?.classList.toggle('active', tab === 'reports');
+
+  const finFilters = document.getElementById('finFilters');
+  const finGroupContainer = document.getElementById('finGroupContainer');
+  const finTableWrap = document.getElementById('finTableWrap');
+  const finPagination = document.getElementById('finPagination');
+  const finDetailHeader = document.getElementById('finDetailHeader');
+  const finReportsSection = document.getElementById('finReportsSection');
+
+  if (tab === 'reports') {
+    document.getElementById('finDocsSubtitle').textContent = 'Fechamento financeiro mensal consolidado com download em planilha Excel e CSV';
+    if (finFilters) finFilters.style.display = 'none';
+    if (finGroupContainer) finGroupContainer.style.display = 'none';
+    if (finTableWrap) finTableWrap.style.display = 'none';
+    if (finPagination) finPagination.style.display = 'none';
+    if (finDetailHeader) finDetailHeader.classList.add('hidden');
+    if (finReportsSection) finReportsSection.classList.remove('hidden');
+
+    initMonthlyReportsTab();
+    return;
+  }
+
+  // Restore regular docs view
+  if (finReportsSection) finReportsSection.classList.add('hidden');
+  if (finFilters) finFilters.style.display = 'flex';
   document.getElementById('finDocsSubtitle').textContent = tab === 'invoices' ? 'Faturas oficiais para os clientes' : 'Custos e pagamentos para a equipe';
   // Rebuild month filter for new tab
   document.getElementById('finMonthFilter').value = '';
@@ -3410,6 +3445,421 @@ window.deletePayroll = async function(id) {
       loadFinanceDocuments();
     }
   } catch (err) { alert('Erro ao excluir: ' + err.message); }
+};
+
+// ── MONTHLY CLOSING & REPORTS (Fechamento Mensal) ───────────────────────────
+function _formatMonthLabel(monthStr) {
+  if (!monthStr) return '';
+  const [y, m] = monthStr.split('-');
+  const names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const idx = parseInt(m, 10) - 1;
+  return `${names[idx] || m} / ${y}`;
+}
+
+function _getPreviousMonthString() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+window.initMonthlyReportsTab = async function() {
+  const picker = document.getElementById('monthlyReportMonthPicker');
+  if (picker && !picker.value) {
+    picker.value = _getPreviousMonthString();
+  }
+  await loadMonthlyReports();
+  if (picker && picker.value && !finState.currentPreviewData) {
+    previewMonthlyClosing(false);
+  }
+};
+
+window.loadMonthlyReports = async function() {
+  const tbody = document.getElementById('monthlyReportsTableBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:28px;">Carregando histórico...</td></tr>';
+  try {
+    const res = await api('/api/monthly-reports');
+    finState.monthlyReports = res.reports || [];
+    const badge = document.getElementById('finBadgeReports');
+    if (badge) badge.textContent = finState.monthlyReports.length;
+    renderMonthlyReportsTable(finState.monthlyReports);
+  } catch (err) {
+    console.error('Erro ao carregar fechamentos mensais:', err);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#EF4444; padding:20px;">Erro ao carregar histórico: ${escapeHtml(err.message)}</td></tr>`;
+  }
+};
+
+function renderMonthlyReportsTable(reports) {
+  const tbody = document.getElementById('monthlyReportsTableBody');
+  if (!tbody) return;
+  if (!reports || reports.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; color:var(--muted); padding:36px 16px;">
+          <div style="font-size:2rem; margin-bottom:8px;">📁</div>
+          <strong>Nenhum mês fechado ainda</strong>
+          <p style="margin:4px 0 0 0; font-size:0.85rem;">Selecione o mês acima e clique em <b>Fechar Mês &amp; Salvar</b> para consolidar o relatório.</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = reports.map(r => {
+    const closedDate = r.closed_at ? new Date(r.closed_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+    const margin = r.total_revenue > 0 ? ((r.total_profit / r.total_revenue) * 100).toFixed(1) : '0.0';
+    return `
+      <tr>
+        <td>
+          <strong style="font-size:0.95rem;">${escapeHtml(r.period_label || r.period_month)}</strong>
+          <div style="font-size:0.75rem; color:var(--muted);">${escapeHtml(r.period_month)}</div>
+        </td>
+        <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(r.total_revenue || 0).toFixed(2)}</td>
+        <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(r.total_expenses || 0).toFixed(2)}</td>
+        <td style="text-align:right; font-weight:700; color:#3B82F6;">
+          £${Number(r.total_profit || 0).toFixed(2)}
+          <span style="font-size:0.75rem; color:var(--muted); display:block; font-weight:normal;">${margin}%</span>
+        </td>
+        <td style="text-align:center; font-weight:600;">${r.total_jobs || 0}</td>
+        <td>
+          <div style="font-size:0.82rem;">${closedDate}</div>
+          <div style="font-size:0.75rem; color:var(--muted);">${escapeHtml(r.closed_by_name ? `por ${r.closed_by_name}` : '')}</div>
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="button button-secondary report-action-btn" title="Baixar Planilha Excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
+              📥 Excel
+            </button>
+            <button type="button" class="button button-secondary report-action-btn" title="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
+              📄 CSV
+            </button>
+            <button type="button" class="button button-secondary report-action-btn" title="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
+              👁️ Ver
+            </button>
+            <button type="button" class="button button-secondary report-action-btn" title="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
+              🔄 Recalcular
+            </button>
+            ${isAdmin() ? `
+              <button type="button" class="button button-danger report-action-btn" title="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
+                🗑️
+              </button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.previewMonthlyClosing = async function(showFeedback = true) {
+  const picker = document.getElementById('monthlyReportMonthPicker');
+  const month = picker?.value;
+  if (!month) {
+    if (showFeedback) alert('Selecione um mês de referência.');
+    return;
+  }
+
+  const prevBox = document.getElementById('monthlyClosingPreview');
+  try {
+    const data = await api(`/api/monthly-reports/preview?month=${encodeURIComponent(month)}`);
+    finState.currentPreviewData = data;
+    if (prevBox) prevBox.classList.remove('hidden');
+
+    const title = document.getElementById('previewPeriodTitle');
+    if (title) title.textContent = `Prévia: ${data.period_label || data.period_month}`;
+
+    const badge = document.getElementById('previewStatusBadge');
+    if (badge) {
+      if (data.already_closed) {
+        badge.textContent = '🔒 Mês já fechado no histórico (clicar em Fechar atualizará o arquivo)';
+        badge.style.background = 'rgba(59, 130, 246, 0.15)';
+        badge.style.color = '#3B82F6';
+      } else {
+        badge.textContent = '⚠️ Mês ainda em aberto / Não fechado';
+        badge.style.background = 'rgba(234, 179, 8, 0.15)';
+        badge.style.color = '#EAB308';
+      }
+    }
+
+    document.getElementById('prevKpiRevenue').textContent = `£${Number(data.total_revenue || 0).toFixed(2)}`;
+    document.getElementById('prevKpiExpenses').textContent = `£${Number(data.total_expenses || 0).toFixed(2)}`;
+    document.getElementById('prevKpiProfit').textContent = `£${Number(data.total_profit || 0).toFixed(2)}`;
+    document.getElementById('prevKpiMargin').textContent = `${Number(data.margin_pct || 0).toFixed(1)}%`;
+    document.getElementById('prevKpiJobs').textContent = data.total_jobs || 0;
+    document.getElementById('prevKpiHours').textContent = `${Number(data.total_hours || 0).toFixed(1)}h`;
+
+    const cBody = document.getElementById('prevClientsTableBody');
+    if (cBody) {
+      if (!data.by_client || data.by_client.length === 0) {
+        cBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum serviço faturado neste mês</td></tr>';
+      } else {
+        cBody.innerHTML = data.by_client.map(c => `
+          <tr>
+            <td><strong>${escapeHtml(c.name)}</strong></td>
+            <td style="text-align:center;">${c.jobs_count}</td>
+            <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(c.revenue || 0).toFixed(2)}</td>
+            <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(c.expenses || 0).toFixed(2)}</td>
+            <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(c.profit || 0).toFixed(2)}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    const eBody = document.getElementById('prevEmployeesTableBody');
+    if (eBody) {
+      if (!data.by_employee || data.by_employee.length === 0) {
+        eBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted);">Nenhum cleaner designado neste mês</td></tr>';
+      } else {
+        eBody.innerHTML = data.by_employee.map(e => `
+          <tr>
+            <td><strong>${escapeHtml(e.name)}</strong></td>
+            <td style="text-align:center;">${e.jobs_count}</td>
+            <td style="text-align:center;">${Number(e.hours_worked || 0).toFixed(1)}h</td>
+            <td style="text-align:right; font-weight:700; color:#EF4444;">£${Number(e.total_paid || 0).toFixed(2)}</td>
+          </tr>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Erro na prévia:', err);
+    if (showFeedback) alert('Erro ao carregar prévia: ' + err.message);
+  }
+};
+
+window.closeMonthlyReport = async function(customMonth = null) {
+  const picker = document.getElementById('monthlyReportMonthPicker');
+  const month = customMonth || picker?.value;
+  if (!month) {
+    alert('Selecione um mês de referência.');
+    return;
+  }
+
+  const label = _formatMonthLabel(month);
+  const confirmMsg = `Deseja fechar o mês de ${label}?\n\nIsso calculará todos os faturamentos, despesas e lucros e salvará o relatório permanentemente no histórico da empresa para download em planilha.`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await api('/api/monthly-reports/close', {
+      method: 'POST',
+      body: JSON.stringify({ month })
+    });
+    alert(`Fechamento de ${res.report?.period_label || label} salvo com sucesso!`);
+    await loadMonthlyReports();
+    await previewMonthlyClosing(false);
+  } catch (err) {
+    console.error('Erro ao fechar mês:', err);
+    alert('Erro ao fechar mês: ' + err.message);
+  }
+};
+
+window.recalculateMonthlyClosing = async function(month) {
+  const label = _formatMonthLabel(month);
+  if (!confirm(`Deseja recalcular e atualizar o fechamento de ${label} com os dados mais recentes?`)) return;
+  await closeMonthlyReport(month);
+};
+
+window.downloadMonthlyReport = function(id, format = 'excel') {
+  const url = `/api/monthly-reports/${id}/download?format=${format}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.setAttribute('download', '');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+window.downloadPreviewReport = async function(format = 'excel') {
+  if (!finState.currentPreviewData) {
+    alert('Carregue a prévia primeiro.');
+    return;
+  }
+  if (finState.currentPreviewData.report_id) {
+    downloadMonthlyReport(finState.currentPreviewData.report_id, format);
+  } else {
+    if (confirm('Este mês ainda não foi salvo no histórico. Deseja fechar o mês agora para salvar e baixar a planilha?')) {
+      await closeMonthlyReport(finState.currentPreviewData.period_month);
+      const rep = finState.monthlyReports.find(r => r.period_month === finState.currentPreviewData.period_month);
+      if (rep) downloadMonthlyReport(rep.id, format);
+    }
+  }
+};
+
+window.deleteMonthlyReport = async function(id, label) {
+  if (!confirm(`Tem certeza que deseja excluir o fechamento de ${label}? Esta ação é permanente.`)) return;
+  try {
+    await api(`/api/monthly-reports/${id}`, { method: 'DELETE' });
+    alert(`Relatório de ${label} excluído.`);
+    await loadMonthlyReports();
+  } catch (err) {
+    alert('Erro ao excluir relatório: ' + err.message);
+  }
+};
+
+window.viewMonthlyReportModal = async function(id) {
+  const modal = document.getElementById('monthlyReportModal');
+  const body = document.getElementById('monthlyReportModalBody');
+  const title = document.getElementById('monthlyReportModalTitle');
+  const subtitle = document.getElementById('monthlyReportModalSubtitle');
+  const btnExcel = document.getElementById('modalBtnDownloadExcel');
+  const btnCsv = document.getElementById('modalBtnDownloadCsv');
+
+  if (!modal || !body) return;
+  modal.classList.remove('hidden');
+  body.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Carregando relatório...</div>';
+
+  try {
+    const rep = await api(`/api/monthly-reports/${id}`);
+    const data = rep.data || {};
+
+    if (title) title.innerHTML = `<span>📊</span> Fechamento: ${escapeHtml(rep.period_label || rep.period_month)}`;
+    if (subtitle) {
+      const closedDate = rep.closed_at ? new Date(rep.closed_at).toLocaleString('pt-BR') : '-';
+      subtitle.textContent = `Fechado em ${closedDate}${rep.closed_by_name ? ` por ${rep.closed_by_name}` : ''}`;
+    }
+
+    if (btnExcel) btnExcel.onclick = () => downloadMonthlyReport(rep.id, 'excel');
+    if (btnCsv) btnCsv.onclick = () => downloadMonthlyReport(rep.id, 'csv');
+
+    body.innerHTML = `
+      <!-- KPI Cards -->
+      <div class="report-kpi-grid" style="margin-bottom:24px;">
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #10B981;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Faturamento Bruto</div>
+          <div style="font-size:1.35rem; font-weight:700; color:#10B981; margin-top:4px;">£${Number(data.total_revenue || 0).toFixed(2)}</div>
+        </div>
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #EF4444;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Despesas Equipe</div>
+          <div style="font-size:1.35rem; font-weight:700; color:#EF4444; margin-top:4px;">£${Number(data.total_expenses || 0).toFixed(2)}</div>
+        </div>
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #3B82F6;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Lucro Líquido</div>
+          <div style="font-size:1.35rem; font-weight:700; color:#3B82F6; margin-top:4px;">£${Number(data.total_profit || 0).toFixed(2)}</div>
+        </div>
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #8B5CF6;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Margem (%)</div>
+          <div style="font-size:1.35rem; font-weight:700; color:#8B5CF6; margin-top:4px;">${Number(data.margin_pct || 0).toFixed(1)}%</div>
+        </div>
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #64748B;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Total Serviços</div>
+          <div style="font-size:1.35rem; font-weight:700; color:var(--text); margin-top:4px;">${data.total_jobs || 0}</div>
+        </div>
+        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #64748B;">
+          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Horas Trabalhadas</div>
+          <div style="font-size:1.35rem; font-weight:700; color:var(--text); margin-top:4px;">${Number(data.total_hours || 0).toFixed(1)}h</div>
+        </div>
+      </div>
+
+      <!-- Subtables -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;" class="report-preview-subtables">
+        <!-- Por Cliente -->
+        <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
+          <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
+            <span>🏢</span> Desempenho por Cliente
+          </h4>
+          <table class="fin-table" style="font-size:0.83rem;">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th style="text-align:center;">Jobs</th>
+                <th style="text-align:right;">Fat. (£)</th>
+                <th style="text-align:right;">Desp. (£)</th>
+                <th style="text-align:right;">Lucro (£)</th>
+                <th style="text-align:right;">Margem</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(data.by_client || []).map(c => `
+                <tr>
+                  <td><strong>${escapeHtml(c.name)}</strong></td>
+                  <td style="text-align:center;">${c.jobs_count}</td>
+                  <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(c.revenue || 0).toFixed(2)}</td>
+                  <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(c.expenses || 0).toFixed(2)}</td>
+                  <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(c.profit || 0).toFixed(2)}</td>
+                  <td style="text-align:right; color:var(--muted);">${Number(c.margin_pct || 0).toFixed(1)}%</td>
+                </tr>
+              `).join('') || '<tr><td colspan="6" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Por Cleaner -->
+        <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
+          <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
+            <span>🧹</span> Despesas por Cleaner / Equipe
+          </h4>
+          <table class="fin-table" style="font-size:0.83rem;">
+            <thead>
+              <tr>
+                <th>Profissional</th>
+                <th style="text-align:center;">Papel</th>
+                <th style="text-align:center;">Jobs</th>
+                <th style="text-align:center;">Horas</th>
+                <th style="text-align:right;">Total Pago (£)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(data.by_employee || []).map(e => `
+                <tr>
+                  <td><strong>${escapeHtml(e.name)}</strong></td>
+                  <td style="text-align:center; font-size:0.78rem; color:var(--muted);">${escapeHtml(e.role)}</td>
+                  <td style="text-align:center;">${e.jobs_count}</td>
+                  <td style="text-align:center;">${Number(e.hours_worked || 0).toFixed(1)}h</td>
+                  <td style="text-align:right; font-weight:700; color:#EF4444;">£${Number(e.total_paid || 0).toFixed(2)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detalhamento de Serviços do Mês -->
+      <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
+        <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
+          <span>📋</span> Detalhamento Completo de Serviços (${(data.jobs || []).length})
+        </h4>
+        <table class="fin-table" style="font-size:0.8rem;">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Data</th>
+              <th>Imóvel</th>
+              <th>Cliente</th>
+              <th>Cleaner</th>
+              <th style="text-align:center;">Horas</th>
+              <th style="text-align:right;">Cliente (£)</th>
+              <th style="text-align:right;">Cleaner (£)</th>
+              <th style="text-align:right;">Lucro (£)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(data.jobs || []).slice(0, 100).map(j => `
+              <tr>
+                <td>${j.id}</td>
+                <td>${escapeHtml(j.date)}</td>
+                <td>${escapeHtml(j.flat_address)}</td>
+                <td>${escapeHtml(j.client_name)}</td>
+                <td>${escapeHtml(j.employee_name)}</td>
+                <td style="text-align:center;">${Number(j.duration_hours || 0).toFixed(1)}h</td>
+                <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(j.client_amount || 0).toFixed(2)}</td>
+                <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(j.employee_amount || 0).toFixed(2)}</td>
+                <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(j.profit || 0).toFixed(2)}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="9" style="text-align:center; color:var(--muted);">Nenhum serviço detalhado</td></tr>'}
+            ${(data.jobs || []).length > 100 ? `<tr><td colspan="9" style="text-align:center; color:var(--muted); font-style:italic;">Mostrando os primeiros 100 serviços. Baixe o arquivo Excel para ver a totalidade.</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    console.error('Erro ao abrir relatório:', err);
+    body.innerHTML = `<div style="text-align:center; padding:30px; color:#EF4444;">Erro ao carregar detalhes: ${escapeHtml(err.message)}</div>`;
+  }
+};
+
+window.closeMonthlyReportModal = function() {
+  document.getElementById('monthlyReportModal')?.classList.add('hidden');
 };
 
 

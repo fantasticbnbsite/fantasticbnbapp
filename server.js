@@ -347,6 +347,23 @@ CREATE TABLE IF NOT EXISTS system_logs (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS monthly_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  period_month TEXT NOT NULL UNIQUE,
+  period_label TEXT NOT NULL,
+  total_revenue REAL NOT NULL DEFAULT 0,
+  total_expenses REAL NOT NULL DEFAULT 0,
+  total_profit REAL NOT NULL DEFAULT 0,
+  total_jobs INTEGER NOT NULL DEFAULT 0,
+  total_hours REAL NOT NULL DEFAULT 0,
+  data_json TEXT NOT NULL,
+  closed_by_user_id INTEGER,
+  closed_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (closed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_monthly_reports_month ON monthly_reports(period_month DESC);
 CREATE INDEX IF NOT EXISTS idx_records_client_updated ON records(client_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_records_client_status ON records(client_id, status_key);
 CREATE INDEX IF NOT EXISTS idx_logs_client_record ON audit_logs(client_id, record_id, created_at DESC);
@@ -2032,6 +2049,144 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { success: true });
   }
 
+  // ── Monthly Reports / Fechamento Mensal ──
+  if (requestUrl.pathname === '/api/monthly-reports' && req.method === 'GET') {
+    if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const reports = db.prepare(`
+      SELECT r.id, r.period_month, r.period_label, r.total_revenue, r.total_expenses, 
+             r.total_profit, r.total_jobs, r.total_hours, r.closed_by_user_id, r.closed_at, r.created_at,
+             u.name AS closed_by_name
+      FROM monthly_reports r
+      LEFT JOIN users u ON u.id = r.closed_by_user_id
+      ORDER BY r.period_month DESC
+    `).all();
+    return sendJson(res, 200, { reports });
+  }
+
+  if (requestUrl.pathname === '/api/monthly-reports/preview' && req.method === 'GET') {
+    if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const month = requestUrl.searchParams.get('month');
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return sendJson(res, 400, { error: 'Mês inválido. Formato esperado: AAAA-MM' });
+    }
+    const data = generateMonthlyClosingData(month);
+    const existing = db.prepare('SELECT id, closed_at FROM monthly_reports WHERE period_month = ?').get(month);
+    return sendJson(res, 200, {
+      ...data,
+      already_closed: !!existing,
+      report_id: existing?.id || null,
+      closed_at: existing?.closed_at || null
+    });
+  }
+
+  if (requestUrl.pathname === '/api/monthly-reports/close' && req.method === 'POST') {
+    if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const body = await parseBody(req);
+    const month = body.month;
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return sendJson(res, 400, { error: 'Mês inválido. Formato esperado: AAAA-MM' });
+    }
+    const data = generateMonthlyClosingData(month);
+    const jsonStr = JSON.stringify(data);
+    const nowIso = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT INTO monthly_reports (
+        period_month, period_label, total_revenue, total_expenses, total_profit,
+        total_jobs, total_hours, data_json, closed_by_user_id, closed_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(period_month) DO UPDATE SET
+        period_label = excluded.period_label,
+        total_revenue = excluded.total_revenue,
+        total_expenses = excluded.total_expenses,
+        total_profit = excluded.total_profit,
+        total_jobs = excluded.total_jobs,
+        total_hours = excluded.total_hours,
+        data_json = excluded.data_json,
+        closed_by_user_id = excluded.closed_by_user_id,
+        closed_at = excluded.closed_at
+    `);
+
+    stmt.run(
+      data.period_month,
+      data.period_label,
+      data.total_revenue,
+      data.total_expenses,
+      data.total_profit,
+      data.total_jobs,
+      data.total_hours,
+      jsonStr,
+      session.user.id,
+      nowIso,
+      nowIso
+    );
+
+    const saved = db.prepare('SELECT id, period_month, period_label, total_revenue, total_expenses, total_profit, total_jobs, closed_at FROM monthly_reports WHERE period_month = ?').get(month);
+
+    logSystemActivity(session.user.id, 'CLOSE_MONTH', 'monthly_reports', saved.id, `Fechamento do mês ${data.period_label} registrado`);
+    return sendJson(res, 200, { success: true, report: saved, data });
+  }
+
+  const matchMonthlyReportDownload = requestUrl.pathname.match(/^\/api\/monthly-reports\/(\d+)\/download$/);
+  if (matchMonthlyReportDownload && req.method === 'GET') {
+    if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const repId = Number(matchMonthlyReportDownload[1]);
+    const report = db.prepare('SELECT * FROM monthly_reports WHERE id = ?').get(repId);
+    if (!report) return sendJson(res, 404, { error: 'Relatório não encontrado.' });
+
+    const data = safeJsonParse(report.data_json);
+    if (!data) return sendJson(res, 500, { error: 'Dados do relatório corrompidos.' });
+
+    const format = (requestUrl.searchParams.get('format') || 'excel').toLowerCase();
+    if (format === 'csv') {
+      const csv = buildMonthlyReportCsv(data);
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="fechamento_${report.period_month}.csv"`,
+        'Cache-Control': 'no-store'
+      });
+      res.end(csv);
+      return;
+    } else {
+      const xml = buildMonthlyReportExcelXml(data);
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
+        'Content-Disposition': `attachment; filename="fechamento_${report.period_month}.xls"`,
+        'Cache-Control': 'no-store'
+      });
+      res.end(xml);
+      return;
+    }
+  }
+
+  const matchMonthlyReportById = requestUrl.pathname.match(/^\/api\/monthly-reports\/(\d+)$/);
+  if (matchMonthlyReportById && req.method === 'GET') {
+    if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const repId = Number(matchMonthlyReportById[1]);
+    const report = db.prepare(`
+      SELECT r.*, u.name AS closed_by_name 
+      FROM monthly_reports r
+      LEFT JOIN users u ON u.id = r.closed_by_user_id
+      WHERE r.id = ?
+    `).get(repId);
+    if (!report) return sendJson(res, 404, { error: 'Relatório não encontrado.' });
+    return sendJson(res, 200, {
+      ...report,
+      data: safeJsonParse(report.data_json)
+    });
+  }
+
+  if (matchMonthlyReportById && req.method === 'DELETE') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Apenas administradores podem excluir relatórios.' });
+    const repId = Number(matchMonthlyReportById[1]);
+    const report = db.prepare('SELECT id, period_label FROM monthly_reports WHERE id = ?').get(repId);
+    if (!report) return sendJson(res, 404, { error: 'Relatório não encontrado.' });
+
+    db.prepare('DELETE FROM monthly_reports WHERE id = ?').run(repId);
+    logSystemActivity(session.user.id, 'DELETE_REPORT', 'monthly_reports', repId, `Relatório ${report.period_label} excluído`);
+    return sendJson(res, 200, { success: true });
+  }
+
   // ── Operations State ──
   if (requestUrl.pathname === '/api/operations/state' && req.method === 'GET') {
     return sendJson(res, 200, getOperationsState());
@@ -2392,6 +2547,523 @@ function buildFinancialReport(from, to) {
     byClient: Object.values(byClient).sort((a, b) => b.revenue - a.revenue),
     jobCount: jobs.length,
   };
+}
+
+const MONTH_NAMES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+function getPeriodLabel(monthStr) {
+  if (!monthStr || typeof monthStr !== 'string') return '';
+  const [year, m] = monthStr.split('-');
+  const idx = parseInt(m, 10) - 1;
+  return `${MONTH_NAMES_PT[idx] || m} / ${year}`;
+}
+
+function escapeXml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function generateMonthlyClosingData(month) {
+  const sql = `
+    SELECT j.*, 
+           f.address AS flat_address, 
+           f.full_address AS flat_full_address, 
+           cu.name AS client_name, 
+           cu.email AS client_email,
+           eu.name AS employee_name,
+           eu.role AS employee_role
+    FROM jobs j
+    LEFT JOIN flats f ON f.id = j.flat_id
+    LEFT JOIN users cu ON cu.id = j.client_user_id
+    LEFT JOIN users eu ON eu.id = j.employee_user_id
+    WHERE (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
+      AND substr(COALESCE(j.requested_date, j.finished_at), 1, 7) = ?
+    ORDER BY j.requested_date ASC, j.id ASC
+  `;
+  const jobs = db.prepare(sql).all(month);
+
+  let totalRevenue = 0;
+  let totalExpenses = 0;
+  let totalHours = 0;
+
+  const clientsMap = {};
+  const employeesMap = {};
+  const jobsList = [];
+
+  for (const j of jobs) {
+    const rev = Number(j.client_amount || 0);
+    const exp = Number(j.employee_amount || 0);
+    const profit = roundCurrency(rev - exp);
+    const hours = Number(j.duration_hours || 0);
+
+    totalRevenue += rev;
+    totalExpenses += exp;
+    totalHours += hours;
+
+    // Client grouping
+    const clientId = j.client_user_id || 0;
+    const clientName = j.client_name || 'Cliente Desconhecido';
+    if (!clientsMap[clientId]) {
+      clientsMap[clientId] = {
+        id: clientId,
+        name: clientName,
+        email: j.client_email || '',
+        jobs_count: 0,
+        revenue: 0,
+        expenses: 0,
+        profit: 0,
+        margin_pct: 0
+      };
+    }
+    clientsMap[clientId].jobs_count += 1;
+    clientsMap[clientId].revenue = roundCurrency(clientsMap[clientId].revenue + rev);
+    clientsMap[clientId].expenses = roundCurrency(clientsMap[clientId].expenses + exp);
+    clientsMap[clientId].profit = roundCurrency(clientsMap[clientId].revenue - clientsMap[clientId].expenses);
+    clientsMap[clientId].margin_pct = clientsMap[clientId].revenue > 0
+      ? roundCurrency((clientsMap[clientId].profit / clientsMap[clientId].revenue) * 100)
+      : 0;
+
+    // Employee grouping
+    if (j.employee_user_id) {
+      const empId = j.employee_user_id;
+      const empName = j.employee_name || 'Sem Nome';
+      if (!employeesMap[empId]) {
+        employeesMap[empId] = {
+          id: empId,
+          name: empName,
+          role: j.employee_role || 'employee',
+          jobs_count: 0,
+          hours_worked: 0,
+          total_paid: 0
+        };
+      }
+      employeesMap[empId].jobs_count += 1;
+      employeesMap[empId].hours_worked = roundCurrency(employeesMap[empId].hours_worked + hours);
+      employeesMap[empId].total_paid = roundCurrency(employeesMap[empId].total_paid + exp);
+    }
+
+    jobsList.push({
+      id: j.id,
+      date: (j.requested_date || '').slice(0, 10),
+      flat_address: j.flat_address || `Flat #${j.flat_id}`,
+      flat_full_address: j.flat_full_address || '',
+      client_name: clientName,
+      employee_name: j.employee_name || 'Não atribuído',
+      status: j.status,
+      duration_hours: hours,
+      client_amount: rev,
+      employee_amount: exp,
+      profit: profit
+    });
+  }
+
+  totalRevenue = roundCurrency(totalRevenue);
+  totalExpenses = roundCurrency(totalExpenses);
+  const totalProfit = roundCurrency(totalRevenue - totalExpenses);
+  const marginPct = totalRevenue > 0 ? roundCurrency((totalProfit / totalRevenue) * 100) : 0;
+  totalHours = roundCurrency(totalHours);
+
+  const byClient = Object.values(clientsMap).sort((a, b) => b.revenue - a.revenue);
+  const byEmployee = Object.values(employeesMap).sort((a, b) => b.total_paid - a.total_paid);
+
+  return {
+    period_month: month,
+    period_label: getPeriodLabel(month),
+    total_revenue: totalRevenue,
+    total_expenses: totalExpenses,
+    total_profit: totalProfit,
+    margin_pct: marginPct,
+    total_jobs: jobs.length,
+    total_hours: totalHours,
+    by_client: byClient,
+    by_employee: byEmployee,
+    jobs: jobsList
+  };
+}
+
+function buildMonthlyReportExcelXml(data) {
+  const label = escapeXml(data.period_label || data.period_month);
+  const generatedAt = new Date().toLocaleString('pt-BR', { timeZone: 'Europe/London' });
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+    <Title>Fechamento Mensal - FantasticBnB</Title>
+    <Subject>${label}</Subject>
+    <Author>Fantastic BnB Operations</Author>
+    <Created>${new Date().toISOString()}</Created>
+  </DocumentProperties>
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal">
+      <Alignment ss:Vertical="Center"/>
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#1E293B"/>
+    </Style>
+    <Style ss:ID="DocTitle">
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Font ss:FontName="Segoe UI" ss:Size="16" ss:Bold="1" ss:Color="#0F172A"/>
+    </Style>
+    <Style ss:ID="DocSubtitle">
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Italic="1" ss:Color="#64748B"/>
+    </Style>
+    <Style ss:ID="Header">
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+      <Interior ss:Color="#0F172A" ss:Pattern="Solid"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#334155"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="HeaderLeft">
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+      <Interior ss:Color="#0F172A" ss:Pattern="Solid"/>
+    </Style>
+    <Style ss:ID="HeaderRight">
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+      <Interior ss:Color="#0F172A" ss:Pattern="Solid"/>
+    </Style>
+    <Style ss:ID="CellLeft">
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="CellCenter">
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="CellCurrency">
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <NumberFormat ss:Format="&quot;£&quot;#,##0.00"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="CellPercent">
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <NumberFormat ss:Format="0.0%"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="CellInteger">
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <NumberFormat ss:Format="#,##0"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="KpiLabel">
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#334155"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="KpiValCurrency">
+      <Font ss:FontName="Segoe UI" ss:Size="12" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+      <NumberFormat ss:Format="&quot;£&quot;#,##0.00"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="KpiValInt">
+      <Font ss:FontName="Segoe UI" ss:Size="12" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+      <NumberFormat ss:Format="#,##0"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="TotalRowLabel">
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0F172A"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="TotalRowCurrency">
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <NumberFormat ss:Format="&quot;£&quot;#,##0.00"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0F172A"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="TotalRowInteger">
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <NumberFormat ss:Format="#,##0"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0F172A"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="TotalRowPercent">
+      <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <NumberFormat ss:Format="0.0%"/>
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+        <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0F172A"/>
+      </Borders>
+    </Style>
+  </Styles>
+`;
+
+  // ── Sheet 1: Resumo Geral ──
+  xml += `
+  <Worksheet ss:Name="Resumo Geral">
+    <Table ss:DefaultRowHeight="20">
+      <Column ss:Width="220"/>
+      <Column ss:Width="160"/>
+      <Row ss:Height="30">
+        <Cell ss:MergeAcross="1" ss:StyleID="DocTitle"><Data ss:Type="String">FANTASTIC BNB - FECHAMENTO MENSAL</Data></Cell>
+      </Row>
+      <Row ss:Height="18">
+        <Cell ss:MergeAcross="1" ss:StyleID="DocSubtitle"><Data ss:Type="String">Mês de Referência: ${label}  |  Gerado em: ${escapeXml(generatedAt)}</Data></Cell>
+      </Row>
+      <Row ss:Height="12"></Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Faturamento Bruto Total</Data></Cell>
+        <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_revenue}</Data></Cell>
+      </Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Despesas Totais com Equipe</Data></Cell>
+        <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_expenses}</Data></Cell>
+      </Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Lucro Líquido Operacional</Data></Cell>
+        <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_profit}</Data></Cell>
+      </Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Margem Operacional (%)</Data></Cell>
+        <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_revenue > 0 ? (data.margin_pct / 100) : 0}</Data></Cell>
+      </Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total de Serviços Executados</Data></Cell>
+        <Cell ss:StyleID="KpiValInt"><Data ss:Type="Number">${data.total_jobs}</Data></Cell>
+      </Row>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total de Horas Trabalhadas</Data></Cell>
+        <Cell ss:StyleID="KpiValInt"><Data ss:Type="Number">${data.total_hours}</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+`;
+
+  // ── Sheet 2: Por Cliente ──
+  xml += `
+  <Worksheet ss:Name="Por Cliente">
+    <Table ss:DefaultRowHeight="20">
+      <Column ss:Width="240"/>
+      <Column ss:Width="100"/>
+      <Column ss:Width="130"/>
+      <Column ss:Width="130"/>
+      <Column ss:Width="130"/>
+      <Column ss:Width="100"/>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Cliente</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Qtd Serviços</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Faturamento (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Despesas Equipe (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Lucro Líquido (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Margem (%)</Data></Cell>
+      </Row>
+`;
+  let sumClientJobs = 0;
+  let sumClientRev = 0;
+  let sumClientExp = 0;
+  let sumClientProfit = 0;
+
+  for (const c of (data.by_client || [])) {
+    sumClientJobs += c.jobs_count;
+    sumClientRev += c.revenue;
+    sumClientExp += c.expenses;
+    sumClientProfit += c.profit;
+
+    xml += `      <Row>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(c.name)}</Data></Cell>
+        <Cell ss:StyleID="CellInteger"><Data ss:Type="Number">${c.jobs_count}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.revenue}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.expenses}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.profit}</Data></Cell>
+        <Cell ss:StyleID="CellPercent"><Data ss:Type="Number">${c.revenue > 0 ? (c.margin_pct / 100) : 0}</Data></Cell>
+      </Row>\n`;
+  }
+
+  const overallClientMargin = sumClientRev > 0 ? (sumClientProfit / sumClientRev) : 0;
+  xml += `      <Row ss:Height="22">
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String">TOTAL GERAL</Data></Cell>
+        <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${sumClientJobs}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientRev)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientExp)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientProfit)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowPercent"><Data ss:Type="Number">${overallClientMargin}</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+`;
+
+  // ── Sheet 3: Por Funcionário ──
+  xml += `
+  <Worksheet ss:Name="Por Funcionário">
+    <Table ss:DefaultRowHeight="20">
+      <Column ss:Width="220"/>
+      <Column ss:Width="130"/>
+      <Column ss:Width="100"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="140"/>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Profissional / Cleaner</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Papel</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Qtd Serviços</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Horas Trab.</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Total Pago (£)</Data></Cell>
+      </Row>
+`;
+  let sumEmpJobs = 0;
+  let sumEmpHours = 0;
+  let sumEmpPaid = 0;
+
+  for (const e of (data.by_employee || [])) {
+    sumEmpJobs += e.jobs_count;
+    sumEmpHours += e.hours_worked;
+    sumEmpPaid += e.total_paid;
+
+    xml += `      <Row>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(e.name)}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(e.role === 'manager' ? 'Gerente (Cleaner)' : (['admin', 'superadmin'].includes(e.role) ? 'Admin (Cleaner)' : 'Cleaner'))}</Data></Cell>
+        <Cell ss:StyleID="CellInteger"><Data ss:Type="Number">${e.jobs_count}</Data></Cell>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="Number">${e.hours_worked}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${e.total_paid}</Data></Cell>
+      </Row>\n`;
+  }
+
+  xml += `      <Row ss:Height="22">
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String">TOTAL GERAL</Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${sumEmpJobs}</Data></Cell>
+        <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${roundCurrency(sumEmpHours)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumEmpPaid)}</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+`;
+
+  // ── Sheet 4: Detalhamento Serviços ──
+  xml += `
+  <Worksheet ss:Name="Detalhamento Serviços">
+    <Table ss:DefaultRowHeight="20">
+      <Column ss:Width="60"/>
+      <Column ss:Width="90"/>
+      <Column ss:Width="160"/>
+      <Column ss:Width="160"/>
+      <Column ss:Width="160"/>
+      <Column ss:Width="90"/>
+      <Column ss:Width="60"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="110"/>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="Header"><Data ss:Type="String"># ID</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Data</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Imóvel / Flat</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Cliente</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Cleaner</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Status</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Horas</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Valor Cliente (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Valor Cleaner (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Lucro (£)</Data></Cell>
+      </Row>
+`;
+
+  for (const j of (data.jobs || [])) {
+    xml += `      <Row>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="Number">${j.id}</Data></Cell>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(j.date)}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(j.flat_address)}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(j.client_name)}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(j.employee_name)}</Data></Cell>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(j.status)}</Data></Cell>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="Number">${j.duration_hours || 0}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${j.client_amount || 0}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${j.employee_amount || 0}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${j.profit || 0}</Data></Cell>
+      </Row>\n`;
+  }
+
+  xml += `    </Table>
+  </Worksheet>
+</Workbook>`;
+
+  return xml;
+}
+
+function buildMonthlyReportCsv(data) {
+  let csv = '\uFEFF'; // UTF-8 BOM for Excel
+  csv += `FECHAMENTO MENSAL - FANTASTIC BNB\n`;
+  csv += `Período;${data.period_label || data.period_month}\n`;
+  csv += `Faturamento Total (£);${(data.total_revenue || 0).toFixed(2)}\n`;
+  csv += `Despesas Totais (£);${(data.total_expenses || 0).toFixed(2)}\n`;
+  csv += `Lucro Líquido (£);${(data.total_profit || 0).toFixed(2)}\n`;
+  csv += `Margem (%);${(data.margin_pct || 0).toFixed(1)}%\n`;
+  csv += `Total de Serviços;${data.total_jobs || 0}\n`;
+  csv += `Total de Horas;${(data.total_hours || 0).toFixed(1)}\n\n`;
+
+  csv += `=== POR CLIENTE ===\n`;
+  csv += `Cliente;Qtd Serviços;Faturamento (£);Despesas (£);Lucro (£);Margem (%)\n`;
+  for (const c of (data.by_client || [])) {
+    csv += `"${c.name}";${c.jobs_count};${c.revenue.toFixed(2)};${c.expenses.toFixed(2)};${c.profit.toFixed(2)};${c.margin_pct.toFixed(1)}%\n`;
+  }
+  csv += `\n=== POR FUNCIONÁRIO ===\n`;
+  csv += `Profissional;Papel;Qtd Serviços;Horas Trabalhadas;Total Pago (£)\n`;
+  for (const e of (data.by_employee || [])) {
+    csv += `"${e.name}";"${e.role}";${e.jobs_count};${e.hours_worked.toFixed(1)};${e.total_paid.toFixed(2)}\n`;
+  }
+  csv += `\n=== DETALHAMENTO DE SERVIÇOS ===\n`;
+  csv += `ID;Data;Imóvel;Cliente;Cleaner;Status;Horas;Valor Cliente (£);Valor Cleaner (£);Lucro (£)\n`;
+  for (const j of (data.jobs || [])) {
+    csv += `${j.id};"${j.date}";"${j.flat_address}";"${j.client_name}";"${j.employee_name}";"${j.status}";${(j.duration_hours || 0).toFixed(1)};${(j.client_amount || 0).toFixed(2)};${(j.employee_amount || 0).toFixed(2)};${(j.profit || 0).toFixed(2)}\n`;
+  }
+  return csv;
 }
 
 function hydrateJob(row) {
@@ -3013,6 +3685,7 @@ function canManageClientsFlats(u) { return isAdminRole(u.role) || (u.role === 'm
 function canCreateJobs(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_create_jobs); }
 function canGenInvoices(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_invoices); }
 function canGenPayrolls(u) { return isAdminRole(u.role) || (u.role === 'manager' && u.perm_gen_payrolls); }
+function canAccessMonthlyReports(u) { return canGenInvoices(u) || canGenPayrolls(u); }
 function isCleanerRole(u) { return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && u.is_cleaner); }
 
 function isAdminRole(role) { return ['superadmin', 'admin'].includes(role); }
