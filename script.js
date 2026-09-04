@@ -5319,6 +5319,7 @@ function updateAdminReqJobFlats() {
 
 async function submitAdminRequestJob(e) {
   e.preventDefault();
+  const clientId = document.getElementById('adminReqJobClient')?.value;
   const flatId = document.getElementById('adminReqJobFlat').value;
   const requestedDate = document.getElementById('adminReqJobDate').value;
   const isHoliday = document.getElementById('adminReqJobIsHoliday').checked;
@@ -5334,7 +5335,8 @@ async function submitAdminRequestJob(e) {
   
   try {
     const payload = {
-      flatId,
+      clientId: clientId ? Number(clientId) : undefined,
+      flatId: Number(flatId),
       requestedDate,
       isHoliday,
       employeeUserId: employeeUserId ? Number(employeeUserId) : null,

@@ -995,8 +995,10 @@ async function handleApi(req, res, requestUrl) {
     let flat;
     
     if (canCreateJobs(session.user)) {
-       targetClientId = Number(body.clientId);
-       flat = db.prepare('SELECT * FROM flats WHERE id = ? AND client_user_id = ?').get(Number(body.flatId), targetClientId);
+       flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(Number(body.flatId));
+       if (flat) {
+         targetClientId = (body.clientId ? Number(body.clientId) : null) || flat.client_user_id;
+       }
        if (body.employeeUserId) {
          empId = Number(body.employeeUserId);
          status = 'assigned';
