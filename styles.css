@@ -2704,7 +2704,8 @@ input[type="radio"] {
 .subtable-scroll {
   max-height: 380px;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden !important;
+  width: 100%;
 }
 
 .subtable-scroll::-webkit-scrollbar {
@@ -2720,7 +2721,8 @@ input[type="radio"] {
 .report-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.84rem;
+  font-size: 0.83rem;
+  table-layout: fixed;
 }
 
 .report-table thead th {
@@ -2731,11 +2733,13 @@ input[type="radio"] {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 10px 14px;
+  letter-spacing: 0.03em;
+  padding: 8px 6px;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   z-index: 1;
 }
 
@@ -2756,16 +2760,19 @@ input[type="radio"] {
 }
 
 .report-table tbody td {
-  padding: 11px 14px;
+  padding: 8px 6px;
   vertical-align: middle;
   color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .report-table td.td-empty {
   text-align: center;
   color: #94a3b8;
-  padding: 36px 14px;
-  font-size: 0.88rem;
+  padding: 28px 10px;
+  font-size: 0.85rem;
 }
 
 .entity-cell {
@@ -2798,40 +2805,40 @@ input[type="radio"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 .pill-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 6px;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
   background: #f1f5f9;
   color: #475569;
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 .num-cell-revenue {
   font-weight: 600;
-  color: #059669;
+  color: #10B981 !important;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .num-cell-expense {
   font-weight: 600;
-  color: #dc2626;
+  color: #EF4444 !important;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .num-cell-profit {
   font-weight: 700;
-  color: #2563eb;
+  color: #3B82F6 !important;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

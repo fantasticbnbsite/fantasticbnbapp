@@ -3632,16 +3632,13 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
       } else {
         cBody.innerHTML = data.by_client.map(c => `
           <tr>
-            <td>
-              <div class="entity-cell">
-                <span class="entity-avatar">🏢</span>
-                <span class="entity-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
-              </div>
+            <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <strong>${escapeHtml(c.name)}</strong>
             </td>
-            <td style="text-align:center;"><span class="pill-count">${c.jobs_count}</span></td>
-            <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(c.revenue)}</td>
-            <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(c.expenses)}</td>
-            <td style="text-align:right;" class="num-cell-profit">${_formatCurrencyPounds(c.profit)}</td>
+            <td style="text-align:center; font-weight:600; color:var(--text);">${c.jobs_count}</td>
+            <td style="text-align:right; font-weight:600; color:#10B981; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.revenue)}</td>
+            <td style="text-align:right; font-weight:600; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.expenses)}</td>
+            <td style="text-align:right; font-weight:700; color:#3B82F6; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.profit)}</td>
           </tr>
         `).join('');
       }
@@ -3654,15 +3651,12 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
       } else {
         eBody.innerHTML = data.by_employee.map(e => `
           <tr>
-            <td>
-              <div class="entity-cell">
-                <span class="entity-avatar cleaner">🧹</span>
-                <span class="entity-name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
-              </div>
+            <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <strong>${escapeHtml(e.name)}</strong>
             </td>
-            <td style="text-align:center;"><span class="pill-count">${e.jobs_count}</span></td>
-            <td style="text-align:center;"><span class="pill-count">${Number(e.hours_worked || 0).toFixed(1)}h</span></td>
-            <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(e.total_paid)}</td>
+            <td style="text-align:center; font-weight:600; color:var(--text);">${e.jobs_count}</td>
+            <td style="text-align:center; color:var(--muted);">${Number(e.hours_worked || 0).toFixed(1)}h</td>
+            <td style="text-align:right; font-weight:700; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(e.total_paid)}</td>
           </tr>
         `).join('');
       }
@@ -3832,30 +3826,27 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="subtable-badge">${(data.by_client || []).length} clientes</span>
           </div>
           <div class="subtable-scroll">
-            <table class="report-table">
+            <table class="report-table" style="table-layout:fixed; width:100%;">
               <thead>
                 <tr>
-                  <th>Cliente</th>
-                  <th class="th-center">Jobs</th>
-                  <th class="th-right">Fat. (£)</th>
-                  <th class="th-right">Desp. (£)</th>
-                  <th class="th-right">Lucro (£)</th>
-                  <th class="th-right">Margem</th>
+                  <th style="width:30%;">Cliente</th>
+                  <th class="th-center" style="width:10%;">Jobs</th>
+                  <th class="th-right" style="width:18%;">Fat. (£)</th>
+                  <th class="th-right" style="width:18%;">Desp. (£)</th>
+                  <th class="th-right" style="width:18%;">Lucro (£)</th>
+                  <th class="th-right" style="width:14%;">Margem</th>
                 </tr>
               </thead>
               <tbody>
                 ${(data.by_client || []).map(c => `
                   <tr>
-                    <td>
-                      <div class="entity-cell">
-                        <span class="entity-avatar">🏢</span>
-                        <span class="entity-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
-                      </div>
+                    <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                      <strong>${escapeHtml(c.name)}</strong>
                     </td>
-                    <td style="text-align:center;"><span class="pill-count">${c.jobs_count}</span></td>
-                    <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(c.revenue)}</td>
-                    <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(c.expenses)}</td>
-                    <td style="text-align:right;" class="num-cell-profit">${_formatCurrencyPounds(c.profit)}</td>
+                    <td style="text-align:center; font-weight:600; color:var(--text);">${c.jobs_count}</td>
+                    <td style="text-align:right; font-weight:600; color:#10B981; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.revenue)}</td>
+                    <td style="text-align:right; font-weight:600; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.expenses)}</td>
+                    <td style="text-align:right; font-weight:700; color:#3B82F6; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.profit)}</td>
                     <td style="text-align:right;"><span class="margin-pill">${Number(c.margin_pct || 0).toFixed(1)}%</span></td>
                   </tr>
                 `).join('') || '<tr><td colspan="6" class="td-empty">Nenhum dado</td></tr>'}
@@ -3874,29 +3865,26 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="subtable-badge">${(data.by_employee || []).length} cleaners</span>
           </div>
           <div class="subtable-scroll">
-            <table class="report-table">
+            <table class="report-table" style="table-layout:fixed; width:100%;">
               <thead>
                 <tr>
-                  <th>Profissional</th>
-                  <th class="th-center">Papel</th>
-                  <th class="th-center">Jobs</th>
-                  <th class="th-center">Horas</th>
-                  <th class="th-right">Total Pago (£)</th>
+                  <th style="width:36%;">Profissional</th>
+                  <th class="th-center" style="width:16%;">Papel</th>
+                  <th class="th-center" style="width:10%;">Jobs</th>
+                  <th class="th-center" style="width:14%;">Horas</th>
+                  <th class="th-right" style="width:24%;">Total Pago (£)</th>
                 </tr>
               </thead>
               <tbody>
                 ${(data.by_employee || []).map(e => `
                   <tr>
-                    <td>
-                      <div class="entity-cell">
-                        <span class="entity-avatar cleaner">🧹</span>
-                        <span class="entity-name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
-                      </div>
+                    <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                      <strong>${escapeHtml(e.name)}</strong>
                     </td>
-                    <td style="text-align:center;"><span class="pill-count" style="font-size:0.72rem;">${escapeHtml(e.role)}</span></td>
-                    <td style="text-align:center;"><span class="pill-count">${e.jobs_count}</span></td>
-                    <td style="text-align:center;"><span class="pill-count">${Number(e.hours_worked || 0).toFixed(1)}h</span></td>
-                    <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(e.total_paid)}</td>
+                    <td style="text-align:center; font-size:0.75rem; color:var(--muted);">${escapeHtml(e.role)}</td>
+                    <td style="text-align:center; font-weight:600; color:var(--text);">${e.jobs_count}</td>
+                    <td style="text-align:center; color:var(--muted);">${Number(e.hours_worked || 0).toFixed(1)}h</td>
+                    <td style="text-align:right; font-weight:700; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(e.total_paid)}</td>
                   </tr>
                 `).join('') || '<tr><td colspan="5" class="td-empty">Nenhum dado</td></tr>'}
               </tbody>
