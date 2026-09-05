@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import nodemailer from 'nodemailer';
 import { DatabaseSync } from 'node:sqlite';
 import { renderInvoiceHtml, renderPayslipHtml } from './templates.js';
 import { processGuestyReservation } from './guesty.js';
@@ -395,6 +396,8 @@ try { db.exec('ALTER TABLE flats ADD COLUMN full_address TEXT NOT NULL DEFAULT "
 try { db.exec('ALTER TABLE flats ADD COLUMN access_code TEXT NOT NULL DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN show_project_hours INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN invoice_number TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN due_date TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN is_paid INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN is_urgent INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN perm_create_jobs INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_invoices INTEGER NOT NULL DEFAULT 0;'); } catch {}
@@ -557,6 +560,89 @@ function cleanupOldPhotos() {
 }
 setInterval(cleanupOldPhotos, 1000 * 60 * 60 * 24).unref();
 setTimeout(cleanupOldPhotos, 1000 * 60).unref();
+
+// ── Automated Billing Emails ──
+function checkOverdueInvoices() {
+  try {
+    // Read SMTP config from app_config (same table used by sendInvoiceEmail)
+    const config = {};
+    db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
+
+    const smtpHost = config.smtp_host || SMTP_HOST;
+    const smtpPort = Number(config.smtp_port || SMTP_PORT || 465);
+    const smtpUser = config.smtp_user || SMTP_USER;
+    const smtpPass = config.smtp_pass || SMTP_PASS;
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      // SMTP not configured yet — skip silently
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const invoicesToCharge = db.prepare(`
+      SELECT i.*, u.name as client_name, u.email as client_email 
+      FROM invoices i
+      JOIN users u ON i.client_user_id = u.id
+      WHERE i.is_paid = 0 AND i.due_date = ? AND i.status = 'published'
+        AND (i.overdue_notified_date IS NULL OR i.overdue_notified_date != ?)
+    `).all(yesterday, today);
+
+    if (invoicesToCharge.length === 0) return;
+
+    const billingTransporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+
+    for (const inv of invoicesToCharge) {
+      if (!inv.client_email) continue;
+      const mailOptions = {
+        from: `"Fantastic BNB" <${smtpUser}>`,
+        to: inv.client_email,
+        subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
+        text: `Dear ${inv.client_name},\n\nThis is a friendly reminder that your invoice (period: ${inv.period_from} to ${inv.period_to}) for £${Number(inv.total_amount).toFixed(2)} was due on ${inv.due_date}.\n\nPlease make the payment at your earliest convenience.\n\nKind regards,\nFantastic BNB Team`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto;">
+            <h2 style="color: #10B981;">Payment Reminder</h2>
+            <p>Dear <strong>${inv.client_name}</strong>,</p>
+            <p>This is a friendly reminder that your invoice for <strong>£${Number(inv.total_amount).toFixed(2)}</strong> was due on <strong>${inv.due_date}</strong>.</p>
+            <p><strong>Period:</strong> ${inv.period_from} to ${inv.period_to}</p>
+            <br>
+            <p>Please make the payment at your earliest convenience to avoid any service interruption.</p>
+            <p>Kind regards,<br>Fantastic BNB Team</p>
+          </div>
+        `
+      };
+
+      billingTransporter.sendMail(mailOptions, (error) => {
+        if (error) {
+          console.error('[Billing] Failed to send reminder to:', inv.client_email, error.message);
+        } else {
+          console.log('[Billing] Payment reminder sent to:', inv.client_email, `(Invoice #${inv.invoice_number || inv.id})`);
+          // Mark as notified today so we don't resend on next interval
+          try {
+            db.prepare('UPDATE invoices SET overdue_notified_date = ? WHERE id = ?').run(today, inv.id);
+          } catch (e) { /* column may not exist yet in older DBs */ }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[Billing Error]', err);
+  }
+}
+
+// Add overdue_notified_date column if it doesn't exist (idempotent migration)
+try { db.exec('ALTER TABLE invoices ADD COLUMN overdue_notified_date TEXT;'); } catch {}
+
+// Run billing check every 2 hours; first run 10s after boot
+setInterval(checkOverdueInvoices, 1000 * 60 * 60 * 2).unref();
+setTimeout(checkOverdueInvoices, 10000).unref();
+
+
+
 // ─── HTTP Server ──────────────────────────────────────────────────────────────
 createServer(async (req, res) => {
   try {
@@ -708,8 +794,10 @@ async function handleApi(req, res, requestUrl) {
     if (!body.currentPassword || !body.newPassword) return sendJson(res, 400, { error: 'Senhas atuais e novas sao obrigatorias.' });
     if (body.newPassword.length < 6) return sendJson(res, 400, { error: 'Nova senha deve ter pelo menos 6 caracteres.' });
     
-    // Verify current password
-    if (!verifyPassword(body.currentPassword, session.user.password_salt, session.user.password_hash)) {
+    // Verify current password — fetch from DB because session.user strips these for security
+    const userRow = db.prepare('SELECT password_salt, password_hash FROM users WHERE id = ?').get(session.user.id);
+    if (!userRow) return sendJson(res, 404, { error: 'Usuário não encontrado.' });
+    if (!verifyPassword(body.currentPassword, userRow.password_salt, userRow.password_hash)) {
       return sendJson(res, 401, { error: 'Senha atual incorreta.' });
     }
     
@@ -1834,8 +1922,9 @@ async function handleApi(req, res, requestUrl) {
         
         const maxRow = db.prepare('SELECT MAX(CAST(IFNULL(invoice_number, 0) AS INTEGER)) as max_num FROM invoices WHERE client_user_id = ?').get(clientId);
         const nextNum = maxRow && maxRow.max_num > 0 ? maxRow.max_num + 1 : 1;
+        const dueDate = new Date(new Date().getTime() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         
-        const inv = db.prepare('INSERT INTO invoices (client_user_id, period_from, period_to, total_amount, invoice_group, invoice_number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(clientId, periodFrom, periodTo, totalAmount, invoiceGroup, String(nextNum), now);
+        const inv = db.prepare('INSERT INTO invoices (client_user_id, period_from, period_to, total_amount, invoice_group, invoice_number, created_at, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(clientId, periodFrom, periodTo, totalAmount, invoiceGroup, String(nextNum), now, dueDate);
         clientJobs.forEach(j => {
           db.prepare('UPDATE jobs SET invoice_id = ? WHERE id = ?').run(inv.lastInsertRowid, j.id);
         });
@@ -1893,11 +1982,11 @@ async function handleApi(req, res, requestUrl) {
     
     invoices.forEach(i => {
       i.jobs = db.prepare('SELECT j.*, f.address as flat_address FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ?').all(i.id);
-      i.extras = safeJsonParse(i.extras_json) || [];
+      i.extras = safeJsonParse(i.extras_json, []);
     });
     payrolls.forEach(p => {
       p.jobs = db.prepare('SELECT j.*, f.address as flat_address, cu.name as client_name FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.payroll_id = ?').all(p.id);
-      p.extras = safeJsonParse(p.extras_json) || [];
+      p.extras = safeJsonParse(p.extras_json, []);
     });
 
     return sendJson(res, 200, { invoices, payrolls });
@@ -2038,7 +2127,8 @@ async function handleApi(req, res, requestUrl) {
     const invoiceNumber = body.invoiceNumber || null;
     
     const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
-    let extras = safeJsonParse(invoice?.extras_json) || [];
+    if (!invoice) return sendJson(res, 404, { error: 'Invoice não encontrado.' });
+    let extras = safeJsonParse(invoice?.extras_json, []);
     extras = extras.filter(e => e.type !== '__manualOverrides');
     
     if (body.manualWeekdaysHours || body.manualWeekdaysAmount || body.manualWeekendsHours || body.manualWeekendsAmount) {
@@ -2052,8 +2142,14 @@ async function handleApi(req, res, requestUrl) {
         }
       });
     }
+
+    // Fetch current values to avoid overwriting fields not included in the request
+    const currentInvoice = db.prepare('SELECT due_date, is_paid, invoice_number FROM invoices WHERE id = ?').get(invoiceId);
+    const dueDate = body.due_date !== undefined ? (body.due_date || null) : (currentInvoice?.due_date || null);
+    const isPaid = body.is_paid !== undefined ? (body.is_paid ? 1 : 0) : (currentInvoice?.is_paid ?? 0);
+    const finalInvoiceNumber = body.invoiceNumber !== undefined ? (body.invoiceNumber || null) : (currentInvoice?.invoice_number || null);
     
-    db.prepare('UPDATE invoices SET invoice_number = ?, extras_json = ? WHERE id = ?').run(invoiceNumber, JSON.stringify(extras), invoiceId);
+    db.prepare('UPDATE invoices SET invoice_number = ?, extras_json = ?, due_date = ?, is_paid = ? WHERE id = ?').run(finalInvoiceNumber, JSON.stringify(extras), dueDate, isPaid, invoiceId);
     return sendJson(res, 200, { success: true });
   }
 
@@ -2068,7 +2164,11 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('UPDATE jobs SET client_amount = ?, duration_hours = ? WHERE id = ? AND invoice_id = ?')
       .run(Number(body.clientAmount) || 0, Number(body.durationHours) || 0, jobId, invoiceId);
       
-    const total = roundCurrency(db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0);
+    const totalJobs = roundCurrency(db.prepare("SELECT SUM(client_amount) as total FROM jobs WHERE invoice_id = ? AND status != 'cancelled'").get(invoiceId).total || 0);
+    const invoiceForExtras = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
+    const invoiceExtras = safeJsonParse(invoiceForExtras?.extras_json, []);
+    const totalExtras = invoiceExtras.reduce((sum, e) => sum + Number(e.total || 0), 0);
+    const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(total, invoiceId);
     
     return sendJson(res, 200, { success: true, newTotal: total });
@@ -2086,7 +2186,7 @@ async function handleApi(req, res, requestUrl) {
       
     const totalJobs = db.prepare("SELECT SUM(employee_amount) as total FROM jobs WHERE payroll_id = ? AND status != 'cancelled'").get(payrollId).total || 0;
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
-    const extras = safeJsonParse(payroll.extras_json) || [];
+    const extras = safeJsonParse(payroll.extras_json, []);
     const totalExtras = extras.reduce((sum, e) => sum + Number(e.total || 0), 0);
     const total = roundCurrency(totalJobs + totalExtras);
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(total, payrollId);
@@ -2101,7 +2201,8 @@ async function handleApi(req, res, requestUrl) {
     const invoiceId = Number(matchFinanceInvoiceExtra[1]);
     const body = await parseBody(req);
     const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
-    const extras = safeJsonParse(invoice.extras_json) || [];
+    if (!invoice) return sendJson(res, 404, { error: 'Invoice não encontrado.' });
+    const extras = safeJsonParse(invoice.extras_json, []);
     extras.push({ description: body.description, quantity: Number(body.quantity), unitPrice: Number(body.unitPrice), total: Number(body.total) });
     db.prepare('UPDATE invoices SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), invoiceId);
     
@@ -2118,7 +2219,8 @@ async function handleApi(req, res, requestUrl) {
     const invoiceId = Number(matchFinanceInvoiceExtraDel[1]);
     const index = Number(matchFinanceInvoiceExtraDel[2]);
     const invoice = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
-    const extras = safeJsonParse(invoice.extras_json) || [];
+    if (!invoice) return sendJson(res, 404, { error: 'Invoice não encontrado.' });
+    const extras = safeJsonParse(invoice.extras_json, []);
     extras.splice(index, 1);
     db.prepare('UPDATE invoices SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), invoiceId);
     
@@ -2135,7 +2237,7 @@ async function handleApi(req, res, requestUrl) {
     const payrollId = Number(matchFinancePayrollExtra[1]);
     const body = await parseBody(req);
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
-    const extras = safeJsonParse(payroll.extras_json) || [];
+    const extras = safeJsonParse(payroll.extras_json, []);
     extras.push({ description: body.description, quantity: Number(body.quantity), unitPrice: Number(body.unitPrice), total: Number(body.total) });
     db.prepare('UPDATE payrolls SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), payrollId);
     
@@ -2152,7 +2254,7 @@ async function handleApi(req, res, requestUrl) {
     const payrollId = Number(matchFinancePayrollExtraDel[1]);
     const index = Number(matchFinancePayrollExtraDel[2]);
     const payroll = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
-    const extras = safeJsonParse(payroll.extras_json) || [];
+    const extras = safeJsonParse(payroll.extras_json, []);
     extras.splice(index, 1);
     db.prepare('UPDATE payrolls SET extras_json = ? WHERE id = ?').run(JSON.stringify(extras), payrollId);
     
@@ -2173,6 +2275,17 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('DELETE FROM invoices WHERE id = ?').run(invoiceId);
     return sendJson(res, 200, { success: true });
   }
+
+  const matchFinanceInvoicePut = requestUrl.pathname.match(/^\/api\/finance\/invoices\/(\d+)$/);
+  if (matchFinanceInvoicePut && req.method === 'PUT') {
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(matchFinanceInvoicePut[1]);
+    const body = await parseBody(req);
+    const { due_date, is_paid } = body;
+    db.prepare('UPDATE invoices SET due_date = ?, is_paid = ? WHERE id = ?').run(due_date || null, is_paid ? 1 : 0, invoiceId);
+    return sendJson(res, 200, { success: true });
+  }
+
 
   const matchFinancePayrollDel = requestUrl.pathname.match(/^\/api\/finance\/payrolls\/(\d+)$/);
   if (matchFinancePayrollDel && req.method === 'DELETE') {
@@ -2856,7 +2969,7 @@ function generateMonthlyClosingData(month) {
 
   for (const inv of monthInvoices) {
     if (getInvoiceMonth(inv) !== month) continue;
-    const rawExtras = safeJsonParse(inv.extras_json) || [];
+    const rawExtras = safeJsonParse(inv.extras_json, []);
     const validExtras = rawExtras.filter(e => e && e.type !== '__manualOverrides');
     if (validExtras.length === 0) continue;
 
@@ -2934,7 +3047,7 @@ function generateMonthlyClosingData(month) {
 
   for (const pr of monthPayrolls) {
     if (getPayrollMonth(pr) !== month) continue;
-    const rawExtras = safeJsonParse(pr.extras_json) || [];
+    const rawExtras = safeJsonParse(pr.extras_json, []);
     const validExtras = rawExtras.filter(e => e && e.type !== '__manualOverrides');
     if (validExtras.length === 0) continue;
 
@@ -4179,7 +4292,15 @@ async function sendFile(res, filePath) {
   stream.on('error', (err) => { console.error('Static ReadStream Error:', err); res.end(); });
   stream.pipe(res);
 }
-function safeJsonParse(value) { try { return JSON.parse(value || '{}'); } catch { return {}; } }
+function safeJsonParse(value, fallback) {
+  try {
+    if (!value) return fallback !== undefined ? fallback : {};
+    const parsed = JSON.parse(value);
+    return parsed;
+  } catch {
+    return fallback !== undefined ? fallback : {};
+  }
+}
 function slugify(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || `item-${Date.now()}`; }
 function sanitizeSortColumn(value) { return ['title', 'status_key', 'updated_at', 'created_at'].includes(value) ? value : 'updated_at'; }
 function sanitizeDirection(value) { return value === 'ASC' ? 'ASC' : 'DESC'; }
@@ -4256,7 +4377,7 @@ function recalculateFinancialTotals(invoiceId, payrollId) {
     const inv = db.prepare('SELECT extras_json FROM invoices WHERE id = ?').get(invoiceId);
     let ex = 0;
     if (inv) {
-      const arr = safeJsonParse(inv.extras_json) || [];
+      const arr = safeJsonParse(inv.extras_json, []);
       ex = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
     }
     db.prepare('UPDATE invoices SET total_amount = ? WHERE id = ?').run(roundCurrency((jData.s || 0) + ex), invoiceId);
@@ -4266,7 +4387,7 @@ function recalculateFinancialTotals(invoiceId, payrollId) {
     const p = db.prepare('SELECT extras_json FROM payrolls WHERE id = ?').get(payrollId);
     let px = 0;
     if (p) {
-      const arr = safeJsonParse(p.extras_json) || [];
+      const arr = safeJsonParse(p.extras_json, []);
       px = arr.reduce((acc, x) => acc + (Number(x.total) || 0), 0);
     }
     db.prepare('UPDATE payrolls SET total_amount = ? WHERE id = ?').run(roundCurrency((pData.s || 0) + px), payrollId);

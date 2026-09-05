@@ -3136,7 +3136,7 @@ window.renderFinanceSummary = async function() {
     applyFinFilters();
   } catch (err) {
     const tbody = document.getElementById('finTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:32px;">Erro ao carregar documentos.</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:32px;">Erro ao carregar documentos.</td></tr>`;
     console.error(err);
   }
 };
@@ -3252,6 +3252,8 @@ function _finSort() {
     else if (col === 'created') { av = a.created_at || ''; bv = b.created_at || ''; }
     else if (col === 'jobs') { av = (a.jobs || []).length; bv = (b.jobs || []).length; }
     else if (col === 'amount') { av = Number(a.total_amount || 0); bv = Number(b.total_amount || 0); }
+    else if (col === 'duedate') { av = a.due_date || '9999-99-99'; bv = b.due_date || '9999-99-99'; }
+    else if (col === 'status') { av = a.is_paid ? 1 : 0; bv = b.is_paid ? 1 : 0; }
     else { av = 0; bv = 0; }
     if (av < bv) return -dir;
     if (av > bv) return dir;
@@ -3359,7 +3361,7 @@ function _finRender() {
   if (nextBtn) nextBtn.disabled = finState.page >= totalPages;
 
   if (page.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:40px;">Nenhum documento encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:40px;">Nenhum documento encontrado.</td></tr>`;
     return;
   }
 
@@ -3373,6 +3375,8 @@ function _finRender() {
     const createdStr = createdDate && !isNaN(createdDate.getTime())
       ? createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       : '—';
+    const dueDateStr = isInv && d.due_date ? d.due_date.split('-').reverse().join('/') : '—';
+    const isPaid = isInv ? (d.is_paid ? '<span style="color:var(--success);font-weight:bold;font-size:12px;">PAGO</span>' : '<span style="color:var(--warning);font-weight:bold;font-size:12px;">PENDENTE</span>') : '—';
     const jobs = (d.jobs || []).length;
     const amount = `£${Number(d.total_amount || 0).toFixed(2)}`;
     const editFn = isInv ? `openEditInvoiceModal(${d.id})` : `openEditPayrollModal(${d.id})`;
@@ -3399,6 +3403,10 @@ function _finRender() {
              </div>
              <div style="font-weight:800; font-size:18px; color:var(--text);">${amount}</div>
           </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="color:var(--muted); font-size:12px;">Venc: <strong>${dueDateStr}</strong></div>
+            <div>${isPaid}</div>
+          </div>
           <div style="display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; margin-bottom:16px;">
              <i data-lucide="clock" style="width:13px;height:13px;opacity:0.8;"></i>
              <span>Gerado em: <strong>${createdStr}</strong></span>
@@ -3417,6 +3425,8 @@ function _finRender() {
         <td class="fin-td fin-td-num desktop-only">#${num}</td>
         <td class="fin-td fin-td-name desktop-only">${name}</td>
         <td class="fin-td fin-td-period desktop-only">${period}</td>
+        <td class="fin-td desktop-only">${dueDateStr}</td>
+        <td class="fin-td desktop-only">${isPaid}</td>
         <td class="fin-td fin-td-created desktop-only" style="white-space:nowrap; font-size:13px; color:var(--muted);">
           <span style="display:inline-flex; align-items:center; gap:4px;">
             <i data-lucide="clock" style="width:13px;height:13px;opacity:0.7;"></i>
@@ -4786,20 +4796,30 @@ function renderFinanceSummary() {
   
   if (els.invoiceSummaryList) {
     els.invoiceSummaryList.innerHTML = invoices.map(inv => {
-      // O backend agrupa por client_user_id e invoice_group (que agora e a cidade)
-      const isSent = false; // logic for sent invoices
+      const isPaid = inv.is_paid ? '<span style="color:var(--success); font-weight:bold; font-size:0.8rem; margin-left:8px;">[PAGO]</span>' : '<span style="color:var(--warning); font-weight:bold; font-size:0.8rem; margin-left:8px;">[PENDENTE]</span>';
+      const dueDate = inv.due_date ? `<small style="display:block; color:var(--text-2);">Vencimento: ${inv.due_date}</small>` : '';
       return `
       <div class="stack-item">
-        <strong>${escapeHtml(inv.client_name)} - ${escapeHtml(inv.invoice_group || 'Padrao')}</strong>
-        <small>Total Invoice: ${formatCurrencyGBP(inv.grandTotal)}</small>
-        <div class="invoice-card-actions">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong>${escapeHtml(inv.invoice_number || 'INV')} - ${escapeHtml(inv.client_name)} - ${escapeHtml(inv.invoice_group || 'Padrao')}</strong>
+            ${isPaid}
+            <small style="display:block;">Periodo: ${inv.period_from} a ${inv.period_to}</small>
+            ${dueDate}
+            <small style="display:block; margin-top:4px;">Total Invoice: ${formatCurrencyGBP(inv.total_amount || inv.grandTotal || 0)}</small>
+          </div>
+        </div>
+        <div class="invoice-card-actions" style="margin-top: 8px;">
           <button class="ghost-button" onclick="window.open('/print/invoice/${inv.id}', '_blank')">Ver PDF / Imprimir</button>
+          <button class="ghost-button" onclick="openEditInvoiceModal(${inv.id})">Editar / Ajustes</button>
+          <button class="ghost-button" style="color:var(--danger);" onclick="deleteInvoice(${inv.id})">Excluir</button>
         </div>
       </div>
       `;
     }).join('') || '<div class="stack-item">Nenhum invoice no periodo.</div>';
   }
   
+
   if (els.financePayrollList) {
     els.financePayrollList.innerHTML = payrolls.map(pay => {
       return `
@@ -5148,12 +5168,12 @@ async function addFinanceExtra() {
     
     // Atualiza memoria local
     if (currentFinanceEditType === 'invoice') {
-      const inv = state.finance.invoices.find(i => i.id === currentFinanceEditId);
+      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === currentFinanceEditId);
       inv.extras = res.extras;
       inv.total_amount = res.newTotal;
       renderFinanceExtras('invoice', inv);
     } else {
-      const pay = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
       pay.extras = res.extras;
       pay.total_amount = res.newTotal;
       renderFinanceExtras('payroll', pay);
@@ -5186,12 +5206,12 @@ async function removeFinanceExtra(type, parentId, index) {
     
     // Atualiza memoria local
     if (type === 'invoice') {
-      const inv = state.finance.invoices.find(i => i.id === parentId);
+      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === parentId);
       inv.extras = res.extras;
       inv.total_amount = res.newTotal;
       renderFinanceExtras('invoice', inv);
     } else {
-      const pay = state.finance.payrolls.find(p => p.id === parentId);
+      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === parentId);
       pay.extras = res.extras;
       pay.total_amount = res.newTotal;
       renderFinanceExtras('payroll', pay);
@@ -5217,7 +5237,8 @@ async function fixInvoice(id) {
 }
 
 function openEditInvoiceModal(id) {
-  const invoice = state.finance.invoices.find(i => i.id === id);
+  const invoice = (state.finance?.invoices || []).find(i => i.id === id)
+    || (finState.invoices || []).find(i => i.id === id);
   if (!invoice) return;
   document.getElementById('financeEditTitle').textContent = `Editar Fatura #${invoice.invoice_number || id} - ${invoice.client_name}`;
   document.getElementById('financeEditPrintContainer').innerHTML = `
@@ -5232,6 +5253,8 @@ function openEditInvoiceModal(id) {
   if (invNumberContainer) {
     invNumberContainer.style.display = 'flex';
     document.getElementById('financeEditInvoiceNumber').value = invoice.invoice_number || '';
+    document.getElementById('financeEditDueDate').value = invoice.due_date || '';
+    document.getElementById('financeEditIsPaid').checked = !!invoice.is_paid;
     
     let overrides = {};
     try {
@@ -5295,7 +5318,8 @@ function openEditInvoiceModal(id) {
 }
 
 function openEditPayrollModal(id) {
-  const payroll = state.finance.payrolls.find(p => p.id === id);
+  const payroll = (state.finance?.payrolls || []).find(p => p.id === id)
+    || (finState.payrolls || []).find(p => p.id === id);
   if (!payroll) return;
   document.getElementById('financeEditTitle').textContent = `Editar Holerite #${id} - ${payroll.employee_name}`;
   document.getElementById('financeEditPrintContainer').innerHTML = `<button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/payslip/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>`;
@@ -5349,6 +5373,8 @@ async function saveFinanceInvoiceNumber() {
   const container = document.getElementById('financeInvoiceNumberContainer');
   const invoiceId = Number(container.dataset.invoiceId);
   const invoiceNumber = document.getElementById('financeEditInvoiceNumber').value.trim();
+  const due_date = document.getElementById('financeEditDueDate').value;
+  const is_paid = document.getElementById('financeEditIsPaid').checked;
   
   const manualWeekdaysHours = document.getElementById('financeEditManualWeekdaysHours')?.value.trim();
   const manualWeekdaysAmount = document.getElementById('financeEditManualWeekdaysAmount')?.value.trim();
@@ -5360,14 +5386,22 @@ async function saveFinanceInvoiceNumber() {
   try {
     await api(`/api/finance/invoices/${invoiceId}/number`, {
       method: 'PATCH',
-      body: { invoiceNumber, manualWeekdaysHours, manualWeekdaysAmount, manualWeekendsHours, manualWeekendsAmount }
+      body: { invoiceNumber, due_date, is_paid, manualWeekdaysHours, manualWeekdaysAmount, manualWeekendsHours, manualWeekendsAmount }
     });
     toast('Fatura atualizada com sucesso', 'success');
     
-    const inv = state.finance.invoices.find(i => i.id === invoiceId);
-    if (inv) inv.invoice_number = invoiceNumber || null;
+    // Update in both possible state objects
+    const updateInv = (inv) => {
+      if (!inv) return;
+      inv.invoice_number = invoiceNumber || null;
+      inv.due_date = due_date || null;
+      inv.is_paid = is_paid ? 1 : 0;
+    };
+    updateInv((state.finance?.invoices || []).find(i => i.id === invoiceId));
+    updateInv((finState.invoices || []).find(i => i.id === invoiceId));
     
     renderFinanceSummary();
+    applyFinFilters();
     openEditInvoiceModal(invoiceId);
   } catch(e) {
     toast('Erro: ' + e.message, 'error');
@@ -5394,13 +5428,13 @@ async function saveFinanceJob(type, parentId, jobId) {
     
     // Atualiza memoria local
     if (type === 'invoice') {
-      const inv = state.finance.invoices.find(i => i.id === parentId);
+      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === parentId);
       const j = inv.jobs.find(x => x.id === jobId);
       j.client_amount = payload.clientAmount;
       j.duration_hours = payload.durationHours;
       inv.total_amount = res.newTotal;
     } else {
-      const pay = state.finance.payrolls.find(p => p.id === parentId);
+      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === parentId);
       const j = pay.jobs.find(x => x.id === jobId);
       j.employee_amount = payload.employeeAmount;
       j.duration_hours = payload.durationHours;
@@ -5975,10 +6009,10 @@ async function openManualJobForFinance() {
     let targetPayroll = null;
     
     if (isInvoice) {
-      targetInvoice = state.finance.invoices.find(i => i.id === currentFinanceEditId);
+      targetInvoice = (state.finance?.invoices || finState.invoices || []).find(i => i.id === currentFinanceEditId);
       if (!targetInvoice) throw new Error("targetInvoice não encontrado");
     } else {
-      targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+      targetPayroll = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
       if (!targetPayroll) throw new Error("targetPayroll não encontrado");
     }
     
@@ -6145,7 +6179,7 @@ async function submitManualJob(e) {
   let targetPayroll = null;
   
   if (!isInvoice) {
-    targetPayroll = state.finance.payrolls.find(p => p.id === currentFinanceEditId);
+    targetPayroll = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
   }
   
   let flatId = document.getElementById('manualJobFlat').value;
