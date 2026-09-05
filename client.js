@@ -439,6 +439,7 @@ window.renderInvoices = function() {
           <div>
             <strong style="font-size:1.15rem; color:var(--text);">Invoice</strong>
             <div style="color:var(--muted); font-size:0.9rem; margin-top:4px;">Period: ${fmtDate(i.period_from)} to ${fmtDate(i.period_to)}</div>
+            ${i.created_at ? `<div style="color:var(--muted); font-size:0.8rem; margin-top:2px;">Issued: ${fmtDate(i.created_at)}</div>` : ''}
           </div>
           <div style="text-align:right;">
             <div style="font-weight:700; font-size:1.2rem; color:var(--primary); margin-bottom:4px;">£${Number(i.total_amount).toFixed(2)}</div>

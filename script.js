@@ -3249,6 +3249,7 @@ function _finSort() {
     if (col === 'num') { av = Number(a.invoice_number || a.id || 0); bv = Number(b.invoice_number || b.id || 0); }
     else if (col === 'name') { av = (a.client_name || a.employee_name || '').toLowerCase(); bv = (b.client_name || b.employee_name || '').toLowerCase(); }
     else if (col === 'period') { av = a.period_from || ''; bv = b.period_from || ''; }
+    else if (col === 'created') { av = a.created_at || ''; bv = b.created_at || ''; }
     else if (col === 'jobs') { av = (a.jobs || []).length; bv = (b.jobs || []).length; }
     else if (col === 'amount') { av = Number(a.total_amount || 0); bv = Number(b.total_amount || 0); }
     else { av = 0; bv = 0; }
@@ -3358,7 +3359,7 @@ function _finRender() {
   if (nextBtn) nextBtn.disabled = finState.page >= totalPages;
 
   if (page.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:40px;">Nenhum documento encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:40px;">Nenhum documento encontrado.</td></tr>`;
     return;
   }
 
@@ -3368,6 +3369,10 @@ function _finRender() {
     const from = d.period_from || '—';
     const to = d.period_to || '—';
     const period = from === to ? from : `${from} → ${to}`;
+    const createdDate = d.created_at ? new Date(d.created_at) : null;
+    const createdStr = createdDate && !isNaN(createdDate.getTime())
+      ? createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : '—';
     const jobs = (d.jobs || []).length;
     const amount = `£${Number(d.total_amount || 0).toFixed(2)}`;
     const editFn = isInv ? `openEditInvoiceModal(${d.id})` : `openEditPayrollModal(${d.id})`;
@@ -3388,11 +3393,15 @@ function _finRender() {
             <i data-lucide="${isInv ? 'building-2' : 'user'}" style="width:18px;height:18px;color:var(--primary);"></i>
             ${name}
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
              <div style="display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px;">
                <i data-lucide="calendar" style="width:16px;height:16px;"></i> ${period}
              </div>
              <div style="font-weight:800; font-size:18px; color:var(--text);">${amount}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; margin-bottom:16px;">
+             <i data-lucide="clock" style="width:13px;height:13px;opacity:0.8;"></i>
+             <span>Gerado em: <strong>${createdStr}</strong></span>
           </div>
           <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px;">
             <button type="button" class="ghost-button" onclick="${editFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid var(--line); color:var(--muted); background:transparent;">
@@ -3408,6 +3417,12 @@ function _finRender() {
         <td class="fin-td fin-td-num desktop-only">#${num}</td>
         <td class="fin-td fin-td-name desktop-only">${name}</td>
         <td class="fin-td fin-td-period desktop-only">${period}</td>
+        <td class="fin-td fin-td-created desktop-only" style="white-space:nowrap; font-size:13px; color:var(--muted);">
+          <span style="display:inline-flex; align-items:center; gap:4px;">
+            <i data-lucide="clock" style="width:13px;height:13px;opacity:0.7;"></i>
+            ${createdStr}
+          </span>
+        </td>
         <td class="fin-td fin-td-jobs desktop-only"><span class="fin-jobs-badge">${jobs}</span></td>
         <td class="fin-td fin-td-amount desktop-only">${amount}</td>
         <td class="fin-td desktop-only">

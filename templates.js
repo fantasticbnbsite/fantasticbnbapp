@@ -179,6 +179,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
           <table class="details-table">
             <tr><td>Email:</td><td>fantasticbnbservicss@gmail.com</td></tr>
             <tr><td>Invoice nº:</td><td>#${invoice.invoice_number || invoice.id}</td></tr>
+            <tr><td>Date of Issue:</td><td>${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('en-GB') : '-'}</td></tr>
             <tr><td>Period:</td><td>${new Date(invoice.period_from).toLocaleDateString('en-GB')} - ${new Date(invoice.period_to).toLocaleDateString('en-GB')}</td></tr>
             <tr><td>Bill To:</td><td style="color:#0044cc;">${esc(invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name)}</td></tr>
             <tr><td>Email:</td><td>${esc(client.email)}</td></tr>
@@ -355,7 +356,8 @@ export function renderPayslipHtml(payroll, jobs, employee) {
       </div>
       <div>
         <strong>Period:</strong> ${new Date(payroll.period_from).toLocaleDateString('en-GB')} - ${new Date(payroll.period_to).toLocaleDateString('en-GB')}<br>
-        <strong>Summary nº:</strong> #${payroll.id}
+        <strong>Summary nº:</strong> #${payroll.id}<br>
+        <strong>Date of Issue:</strong> ${payroll.created_at ? new Date(payroll.created_at).toLocaleDateString('en-GB') : '-'}
       </div>
     </div>
     <table class="main-table">
