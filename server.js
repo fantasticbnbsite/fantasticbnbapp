@@ -603,7 +603,7 @@ function checkOverdueInvoices() {
         from: `"Fantastic BNB" <${smtpUser}>`,
         to: inv.client_email,
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
-        text: `Dear ${inv.client_name},\n\nThis is a friendly reminder that your invoice (period: ${inv.period_from} to ${inv.period_to}) for £${Number(inv.total_amount).toFixed(2)} was due on ${inv.due_date}.\n\nPlease make the payment at your earliest convenience.\n\nKind regards,\nFantastic BNB Team`,
+        text: `Dear ${inv.client_name},\n\nThis is a friendly reminder that your invoice (period: ${inv.period_from} to ${inv.period_to}) for £${Number(inv.total_amount).toFixed(2)} was due on ${inv.due_date}.\n\nPlease make the payment at your earliest convenience. If you have already made the payment, please disregard this email.\n\nKind regards,\nFantastic BNB Team`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto;">
             <h2 style="color: #10B981;">Payment Reminder</h2>
@@ -612,6 +612,7 @@ function checkOverdueInvoices() {
             <p><strong>Period:</strong> ${inv.period_from} to ${inv.period_to}</p>
             <br>
             <p>Please make the payment at your earliest convenience to avoid any service interruption.</p>
+            <p><i>If you have already made the payment, please disregard this email.</i></p>
             <p>Kind regards,<br>Fantastic BNB Team</p>
           </div>
         `
