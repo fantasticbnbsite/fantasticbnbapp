@@ -569,7 +569,7 @@
                       <span class="kpi-icon-pill">💰</span>
                     </div>
                     <div id="prevKpiRevenue" class="kpi-value">£0.00</div>
-                    <div class="kpi-sub">Total faturado no mês</div>
+                    <div id="prevKpiRevenueSub" class="kpi-sub">Total faturado no mês</div>
                   </div>
                   <div class="report-kpi-card kpi-expenses">
                     <div class="kpi-head">
@@ -577,7 +577,7 @@
                       <span class="kpi-icon-pill">💸</span>
                     </div>
                     <div id="prevKpiExpenses" class="kpi-value">£0.00</div>
-                    <div class="kpi-sub">Total pago aos cleaners</div>
+                    <div id="prevKpiExpensesSub" class="kpi-sub">Total pago aos cleaners</div>
                   </div>
                   <div class="report-kpi-card kpi-profit">
                     <div class="kpi-head">
@@ -666,6 +666,34 @@
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Subtabela de Lançamentos Extras -->
+                <div id="prevExtrasCard" class="report-subtable-card hidden" style="margin-top:20px;">
+                  <div class="subtable-header">
+                    <div class="subtable-title">
+                      <span class="subtable-icon">✨</span>
+                      <h5>Lançamentos e Serviços Extras do Mês</h5>
+                    </div>
+                    <span class="subtable-badge" id="prevExtrasCountBadge">0 extras</span>
+                  </div>
+                  <div class="subtable-scroll">
+                    <table class="report-table" style="table-layout:fixed; width:100%;">
+                      <thead>
+                        <tr>
+                          <th style="width:18%;">Tipo</th>
+                          <th style="width:18%;">Referência</th>
+                          <th style="width:22%;">Destinatário</th>
+                          <th style="width:24%;">Descrição</th>
+                          <th class="th-center" style="width:8%;">Qtd</th>
+                          <th class="th-right" style="width:10%;">Total (£)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="prevExtrasTableBody">
+                        <tr><td colspan="6" class="td-empty">Nenhum lançamento extra neste mês</td></tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>

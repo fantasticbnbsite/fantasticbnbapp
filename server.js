@@ -2707,6 +2707,32 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
+function getInvoiceMonth(inv) {
+  if (inv.period_from && inv.period_to) {
+    if (inv.period_from.slice(0, 7) === inv.period_to.slice(0, 7)) {
+      return inv.period_from.slice(0, 7);
+    }
+    return inv.period_to.slice(0, 7);
+  }
+  if (inv.period_from) return inv.period_from.slice(0, 7);
+  if (inv.period_to) return inv.period_to.slice(0, 7);
+  if (inv.created_at) return inv.created_at.slice(0, 7);
+  return null;
+}
+
+function getPayrollMonth(p) {
+  if (p.period_from && p.period_to) {
+    if (p.period_from.slice(0, 7) === p.period_to.slice(0, 7)) {
+      return p.period_from.slice(0, 7);
+    }
+    return p.period_to.slice(0, 7);
+  }
+  if (p.period_from) return p.period_from.slice(0, 7);
+  if (p.period_to) return p.period_to.slice(0, 7);
+  if (p.created_at) return p.created_at.slice(0, 7);
+  return null;
+}
+
 function generateMonthlyClosingData(month) {
   cleanupDuplicateProjectJobCharges();
   const sql = `
@@ -2734,6 +2760,7 @@ function generateMonthlyClosingData(month) {
   const clientsMap = {};
   const employeesMap = {};
   const jobsList = [];
+  const extrasList = [];
 
   for (const j of jobs) {
     const rev = Number(j.client_amount || 0);
@@ -2757,7 +2784,9 @@ function generateMonthlyClosingData(month) {
         revenue: 0,
         expenses: 0,
         profit: 0,
-        margin_pct: 0
+        margin_pct: 0,
+        extras_amount: 0,
+        extras_count: 0
       };
     }
     clientsMap[clientId].jobs_count += 1;
@@ -2779,7 +2808,9 @@ function generateMonthlyClosingData(month) {
           role: j.employee_role || 'employee',
           jobs_count: 0,
           hours_worked: 0,
-          total_paid: 0
+          total_paid: 0,
+          extras_amount: 0,
+          extras_count: 0
         };
       }
       employeesMap[empId].jobs_count += 1;
@@ -2802,11 +2833,167 @@ function generateMonthlyClosingData(month) {
     });
   }
 
+  // ── Incorporate Invoice Extras (Receitas Extras por Fatura) ──
+  const invoiceSql = `
+    SELECT i.*, cu.name AS client_name, cu.email AS client_email
+    FROM invoices i
+    LEFT JOIN users cu ON cu.id = i.client_user_id
+    WHERE (i.status IS NULL OR i.status != 'cancelled')
+      AND (
+        substr(i.period_from, 1, 7) = ?
+        OR substr(i.period_to, 1, 7) = ?
+        OR i.id IN (
+          SELECT DISTINCT j.invoice_id 
+          FROM jobs j 
+          WHERE j.invoice_id IS NOT NULL 
+            AND (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
+            AND substr(COALESCE(j.requested_date, j.finished_at), 1, 7) = ?
+        )
+      )
+  `;
+  const monthInvoices = db.prepare(invoiceSql).all(month, month, month);
+  let totalInvoiceExtras = 0;
+
+  for (const inv of monthInvoices) {
+    if (getInvoiceMonth(inv) !== month) continue;
+    const rawExtras = safeJsonParse(inv.extras_json) || [];
+    const validExtras = rawExtras.filter(e => e && e.type !== '__manualOverrides');
+    if (validExtras.length === 0) continue;
+
+    const clientId = inv.client_user_id || 0;
+    const clientName = inv.client_name || 'Cliente Desconhecido';
+    if (!clientsMap[clientId]) {
+      clientsMap[clientId] = {
+        id: clientId,
+        name: clientName,
+        email: inv.client_email || '',
+        jobs_count: 0,
+        revenue: 0,
+        expenses: 0,
+        profit: 0,
+        margin_pct: 0,
+        extras_amount: 0,
+        extras_count: 0
+      };
+    }
+
+    for (let idx = 0; idx < validExtras.length; idx++) {
+      const e = validExtras[idx];
+      const extraTotal = roundCurrency(Number(e.total || 0));
+      const extraQty = Number(e.quantity || 1);
+      const extraUnitPrice = roundCurrency(Number(e.unitPrice != null ? e.unitPrice : extraTotal));
+      const extraDesc = (e.description || 'Serviço Extra').trim();
+
+      totalRevenue += extraTotal;
+      totalInvoiceExtras += extraTotal;
+
+      clientsMap[clientId].revenue = roundCurrency(clientsMap[clientId].revenue + extraTotal);
+      clientsMap[clientId].profit = roundCurrency(clientsMap[clientId].revenue - clientsMap[clientId].expenses);
+      clientsMap[clientId].extras_amount = roundCurrency((clientsMap[clientId].extras_amount || 0) + extraTotal);
+      clientsMap[clientId].extras_count = (clientsMap[clientId].extras_count || 0) + 1;
+      clientsMap[clientId].margin_pct = clientsMap[clientId].revenue > 0
+        ? roundCurrency((clientsMap[clientId].profit / clientsMap[clientId].revenue) * 100)
+        : 0;
+
+      extrasList.push({
+        id: `inv-${inv.id}-${idx + 1}`,
+        type: 'invoice',
+        type_label: 'Fatura (Receita)',
+        ref_id: inv.id,
+        ref_label: `Fatura #${inv.invoice_number || inv.id}`,
+        client_name: clientName,
+        employee_name: '-',
+        description: extraDesc,
+        quantity: extraQty,
+        unit_price: extraUnitPrice,
+        total: extraTotal
+      });
+    }
+  }
+
+  // ── Incorporate Payroll Extras (Despesas Extras / Ajustes por Holerite) ──
+  const payrollSql = `
+    SELECT p.*, eu.name AS employee_name, eu.role AS employee_role
+    FROM payrolls p
+    LEFT JOIN users eu ON eu.id = p.employee_user_id
+    WHERE (p.status IS NULL OR p.status != 'cancelled')
+      AND (
+        substr(p.period_from, 1, 7) = ?
+        OR substr(p.period_to, 1, 7) = ?
+        OR p.id IN (
+          SELECT DISTINCT j.payroll_id 
+          FROM jobs j 
+          WHERE j.payroll_id IS NOT NULL 
+            AND (j.status = 'completed' OR j.status IN ('cancelled_late', 'cancelled_company'))
+            AND substr(COALESCE(j.requested_date, j.finished_at), 1, 7) = ?
+        )
+      )
+  `;
+  const monthPayrolls = db.prepare(payrollSql).all(month, month, month);
+  let totalPayrollExtras = 0;
+
+  for (const pr of monthPayrolls) {
+    if (getPayrollMonth(pr) !== month) continue;
+    const rawExtras = safeJsonParse(pr.extras_json) || [];
+    const validExtras = rawExtras.filter(e => e && e.type !== '__manualOverrides');
+    if (validExtras.length === 0) continue;
+
+    const empId = pr.employee_user_id;
+    const empName = pr.employee_name || 'Sem Nome';
+    if (empId) {
+      if (!employeesMap[empId]) {
+        employeesMap[empId] = {
+          id: empId,
+          name: empName,
+          role: pr.employee_role || 'employee',
+          jobs_count: 0,
+          hours_worked: 0,
+          total_paid: 0,
+          extras_amount: 0,
+          extras_count: 0
+        };
+      }
+    }
+
+    for (let idx = 0; idx < validExtras.length; idx++) {
+      const e = validExtras[idx];
+      const extraTotal = roundCurrency(Number(e.total || 0));
+      const extraQty = Number(e.quantity || 1);
+      const extraUnitPrice = roundCurrency(Number(e.unitPrice != null ? e.unitPrice : extraTotal));
+      const extraDesc = (e.description || 'Lançamento Extra').trim();
+
+      totalExpenses += extraTotal;
+      totalPayrollExtras += extraTotal;
+
+      if (empId && employeesMap[empId]) {
+        employeesMap[empId].total_paid = roundCurrency(employeesMap[empId].total_paid + extraTotal);
+        employeesMap[empId].extras_amount = roundCurrency((employeesMap[empId].extras_amount || 0) + extraTotal);
+        employeesMap[empId].extras_count = (employeesMap[empId].extras_count || 0) + 1;
+      }
+
+      extrasList.push({
+        id: `pay-${pr.id}-${idx + 1}`,
+        type: 'payroll',
+        type_label: 'Holerite (Despesa/Ajuste)',
+        ref_id: pr.id,
+        ref_label: `Holerite #${pr.id}`,
+        client_name: '-',
+        employee_name: empName,
+        description: extraDesc,
+        quantity: extraQty,
+        unit_price: extraUnitPrice,
+        total: extraTotal
+      });
+    }
+  }
+
   totalRevenue = roundCurrency(totalRevenue);
   totalExpenses = roundCurrency(totalExpenses);
   const totalProfit = roundCurrency(totalRevenue - totalExpenses);
   const marginPct = totalRevenue > 0 ? roundCurrency((totalProfit / totalRevenue) * 100) : 0;
   totalHours = roundCurrency(totalHours);
+  totalInvoiceExtras = roundCurrency(totalInvoiceExtras);
+  totalPayrollExtras = roundCurrency(totalPayrollExtras);
 
   const byClient = Object.values(clientsMap).sort((a, b) => b.revenue - a.revenue);
   const byEmployee = Object.values(employeesMap).sort((a, b) => b.total_paid - a.total_paid);
@@ -2820,9 +3007,12 @@ function generateMonthlyClosingData(month) {
     margin_pct: marginPct,
     total_jobs: jobs.length,
     total_hours: totalHours,
+    total_invoice_extras: totalInvoiceExtras,
+    total_payroll_extras: totalPayrollExtras,
     by_client: byClient,
     by_employee: byEmployee,
-    jobs: jobsList
+    jobs: jobsList,
+    extras: extrasList
   };
 }
 
@@ -2988,7 +3178,7 @@ function buildMonthlyReportExcelXml(data) {
   xml += `
   <Worksheet ss:Name="Resumo Geral">
     <Table ss:DefaultRowHeight="20">
-      <Column ss:Width="220"/>
+      <Column ss:Width="250"/>
       <Column ss:Width="160"/>
       <Row ss:Height="30">
         <Cell ss:MergeAcross="1" ss:StyleID="DocTitle"><Data ss:Type="String">FANTASTIC BNB - FECHAMENTO MENSAL</Data></Cell>
@@ -3001,10 +3191,20 @@ function buildMonthlyReportExcelXml(data) {
         <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Faturamento Bruto Total</Data></Cell>
         <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_revenue}</Data></Cell>
       </Row>
+      ${Number(data.total_invoice_extras || 0) > 0 ? `
+      <Row ss:Height="20">
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">  ↳ dos quais Serviços Extras</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${data.total_invoice_extras}</Data></Cell>
+      </Row>` : ''}
       <Row ss:Height="24">
         <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Despesas Totais com Equipe</Data></Cell>
         <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_expenses}</Data></Cell>
       </Row>
+      ${Number(data.total_payroll_extras || 0) !== 0 ? `
+      <Row ss:Height="20">
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">  ↳ dos quais Extras/Ajustes Holerite</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${data.total_payroll_extras}</Data></Cell>
+      </Row>` : ''}
       <Row ss:Height="24">
         <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Lucro Líquido Operacional</Data></Cell>
         <Cell ss:StyleID="KpiValCurrency"><Data ss:Type="Number">${data.total_profit}</Data></Cell>
@@ -3021,6 +3221,11 @@ function buildMonthlyReportExcelXml(data) {
         <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total de Horas Trabalhadas</Data></Cell>
         <Cell ss:StyleID="KpiValInt"><Data ss:Type="Number">${data.total_hours}</Data></Cell>
       </Row>
+      ${(data.extras && data.extras.length > 0) ? `
+      <Row ss:Height="24">
+        <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Lançamentos Extras</Data></Cell>
+        <Cell ss:StyleID="KpiValInt"><Data ss:Type="Number">${data.extras.length}</Data></Cell>
+      </Row>` : ''}
     </Table>
   </Worksheet>
 `;
@@ -3029,28 +3234,38 @@ function buildMonthlyReportExcelXml(data) {
   xml += `
   <Worksheet ss:Name="Por Cliente">
     <Table ss:DefaultRowHeight="20">
-      <Column ss:Width="240"/>
-      <Column ss:Width="100"/>
-      <Column ss:Width="130"/>
-      <Column ss:Width="130"/>
-      <Column ss:Width="130"/>
-      <Column ss:Width="100"/>
+      <Column ss:Width="230"/>
+      <Column ss:Width="80"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="120"/>
+      <Column ss:Width="120"/>
+      <Column ss:Width="120"/>
+      <Column ss:Width="90"/>
       <Row ss:Height="24">
         <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Cliente</Data></Cell>
         <Cell ss:StyleID="Header"><Data ss:Type="String">Qtd Serviços</Data></Cell>
-        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Faturamento (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Serviços (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Extras (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Fat. Total (£)</Data></Cell>
         <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Despesas Equipe (£)</Data></Cell>
         <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Lucro Líquido (£)</Data></Cell>
         <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Margem (%)</Data></Cell>
       </Row>
 `;
   let sumClientJobs = 0;
+  let sumClientServicesRev = 0;
+  let sumClientExtrasRev = 0;
   let sumClientRev = 0;
   let sumClientExp = 0;
   let sumClientProfit = 0;
 
   for (const c of (data.by_client || [])) {
+    const extrasAmount = c.extras_amount || 0;
+    const servicesAmount = roundCurrency(c.revenue - extrasAmount);
     sumClientJobs += c.jobs_count;
+    sumClientServicesRev += servicesAmount;
+    sumClientExtrasRev += extrasAmount;
     sumClientRev += c.revenue;
     sumClientExp += c.expenses;
     sumClientProfit += c.profit;
@@ -3058,6 +3273,8 @@ function buildMonthlyReportExcelXml(data) {
     xml += `      <Row>
         <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(c.name)}</Data></Cell>
         <Cell ss:StyleID="CellInteger"><Data ss:Type="Number">${c.jobs_count}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${servicesAmount}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${extrasAmount}</Data></Cell>
         <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.revenue}</Data></Cell>
         <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.expenses}</Data></Cell>
         <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${c.profit}</Data></Cell>
@@ -3069,6 +3286,8 @@ function buildMonthlyReportExcelXml(data) {
   xml += `      <Row ss:Height="22">
         <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String">TOTAL GERAL</Data></Cell>
         <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${sumClientJobs}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientServicesRev)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientExtrasRev)}</Data></Cell>
         <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientRev)}</Data></Cell>
         <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientExp)}</Data></Cell>
         <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumClientProfit)}</Data></Cell>
@@ -3082,26 +3301,36 @@ function buildMonthlyReportExcelXml(data) {
   xml += `
   <Worksheet ss:Name="Por Funcionário">
     <Table ss:DefaultRowHeight="20">
-      <Column ss:Width="220"/>
-      <Column ss:Width="130"/>
-      <Column ss:Width="100"/>
+      <Column ss:Width="210"/>
+      <Column ss:Width="120"/>
+      <Column ss:Width="80"/>
+      <Column ss:Width="90"/>
       <Column ss:Width="110"/>
-      <Column ss:Width="140"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="120"/>
       <Row ss:Height="24">
         <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Profissional / Cleaner</Data></Cell>
         <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Papel</Data></Cell>
         <Cell ss:StyleID="Header"><Data ss:Type="String">Qtd Serviços</Data></Cell>
         <Cell ss:StyleID="Header"><Data ss:Type="String">Horas Trab.</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Serviços (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Extras/Ajustes (£)</Data></Cell>
         <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Total Pago (£)</Data></Cell>
       </Row>
 `;
   let sumEmpJobs = 0;
   let sumEmpHours = 0;
+  let sumEmpServicesPaid = 0;
+  let sumEmpExtrasPaid = 0;
   let sumEmpPaid = 0;
 
   for (const e of (data.by_employee || [])) {
+    const extrasAmount = e.extras_amount || 0;
+    const servicesAmount = roundCurrency(e.total_paid - extrasAmount);
     sumEmpJobs += e.jobs_count;
     sumEmpHours += e.hours_worked;
+    sumEmpServicesPaid += servicesAmount;
+    sumEmpExtrasPaid += extrasAmount;
     sumEmpPaid += e.total_paid;
 
     xml += `      <Row>
@@ -3109,6 +3338,8 @@ function buildMonthlyReportExcelXml(data) {
         <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(e.role === 'manager' ? 'Gerente (Cleaner)' : (['admin', 'superadmin'].includes(e.role) ? 'Admin (Cleaner)' : 'Cleaner'))}</Data></Cell>
         <Cell ss:StyleID="CellInteger"><Data ss:Type="Number">${e.jobs_count}</Data></Cell>
         <Cell ss:StyleID="CellCenter"><Data ss:Type="Number">${e.hours_worked}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${servicesAmount}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${extrasAmount}</Data></Cell>
         <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${e.total_paid}</Data></Cell>
       </Row>\n`;
   }
@@ -3118,6 +3349,8 @@ function buildMonthlyReportExcelXml(data) {
         <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
         <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${sumEmpJobs}</Data></Cell>
         <Cell ss:StyleID="TotalRowInteger"><Data ss:Type="Number">${roundCurrency(sumEmpHours)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumEmpServicesPaid)}</Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumEmpExtrasPaid)}</Data></Cell>
         <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${roundCurrency(sumEmpPaid)}</Data></Cell>
       </Row>
     </Table>
@@ -3169,8 +3402,68 @@ function buildMonthlyReportExcelXml(data) {
 
   xml += `    </Table>
   </Worksheet>
-</Workbook>`;
+`;
 
+  // ── Sheet 5: Lançamentos Extras (se houver) ──
+  if (data.extras && data.extras.length > 0) {
+    xml += `
+  <Worksheet ss:Name="Lançamentos Extras">
+    <Table ss:DefaultRowHeight="20">
+      <Column ss:Width="140"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="180"/>
+      <Column ss:Width="230"/>
+      <Column ss:Width="60"/>
+      <Column ss:Width="110"/>
+      <Column ss:Width="110"/>
+      <Row ss:Height="24">
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Tipo</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Referência</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Destinatário</Data></Cell>
+        <Cell ss:StyleID="HeaderLeft"><Data ss:Type="String">Descrição do Serviço Extra</Data></Cell>
+        <Cell ss:StyleID="Header"><Data ss:Type="String">Qtd</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Valor Unit. (£)</Data></Cell>
+        <Cell ss:StyleID="HeaderRight"><Data ss:Type="String">Total (£)</Data></Cell>
+      </Row>
+`;
+
+    for (const ex of data.extras) {
+      const dest = ex.client_name !== '-' ? ex.client_name : ex.employee_name;
+      xml += `      <Row>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(ex.type_label || ex.type)}</Data></Cell>
+        <Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(ex.ref_label || '')}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(dest)}</Data></Cell>
+        <Cell ss:StyleID="CellLeft"><Data ss:Type="String">${escapeXml(ex.description)}</Data></Cell>
+        <Cell ss:StyleID="CellInteger"><Data ss:Type="Number">${ex.quantity || 1}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${ex.unit_price || 0}</Data></Cell>
+        <Cell ss:StyleID="CellCurrency"><Data ss:Type="Number">${ex.total || 0}</Data></Cell>
+      </Row>\n`;
+    }
+
+    xml += `      <Row ss:Height="22">
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String">TOTAL EXTRAS FATURAS</Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${data.total_invoice_extras || 0}</Data></Cell>
+      </Row>
+      <Row ss:Height="22">
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String">TOTAL EXTRAS HOLERITES</Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowLabel"><Data ss:Type="String"></Data></Cell>
+        <Cell ss:StyleID="TotalRowCurrency"><Data ss:Type="Number">${data.total_payroll_extras || 0}</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+`;
+  }
+
+  xml += `</Workbook>`;
   return xml;
 }
 
@@ -3179,27 +3472,53 @@ function buildMonthlyReportCsv(data) {
   csv += `FECHAMENTO MENSAL - FANTASTIC BNB\n`;
   csv += `Período;${data.period_label || data.period_month}\n`;
   csv += `Faturamento Total (£);${(data.total_revenue || 0).toFixed(2)}\n`;
+  if (Number(data.total_invoice_extras || 0) > 0) {
+    csv += `  ↳ dos quais Serviços Extras (£);${Number(data.total_invoice_extras).toFixed(2)}\n`;
+  }
   csv += `Despesas Totais (£);${(data.total_expenses || 0).toFixed(2)}\n`;
+  if (Number(data.total_payroll_extras || 0) !== 0) {
+    csv += `  ↳ dos quais Extras/Ajustes Holerite (£);${Number(data.total_payroll_extras).toFixed(2)}\n`;
+  }
   csv += `Lucro Líquido (£);${(data.total_profit || 0).toFixed(2)}\n`;
   csv += `Margem (%);${(data.margin_pct || 0).toFixed(1)}%\n`;
   csv += `Total de Serviços;${data.total_jobs || 0}\n`;
-  csv += `Total de Horas;${(data.total_hours || 0).toFixed(1)}\n\n`;
+  csv += `Total de Horas;${(data.total_hours || 0).toFixed(1)}\n`;
+  if (data.extras && data.extras.length > 0) {
+    csv += `Total Lançamentos Extras;${data.extras.length}\n`;
+  }
+  csv += `\n`;
 
   csv += `=== POR CLIENTE ===\n`;
-  csv += `Cliente;Qtd Serviços;Faturamento (£);Despesas (£);Lucro (£);Margem (%)\n`;
+  csv += `Cliente;Qtd Serviços;Serviços (£);Extras (£);Fat. Total (£);Despesas Equipe (£);Lucro (£);Margem (%)\n`;
   for (const c of (data.by_client || [])) {
-    csv += `"${c.name}";${c.jobs_count};${c.revenue.toFixed(2)};${c.expenses.toFixed(2)};${c.profit.toFixed(2)};${c.margin_pct.toFixed(1)}%\n`;
+    const extrasAmount = c.extras_amount || 0;
+    const servicesAmount = roundCurrency(c.revenue - extrasAmount);
+    csv += `"${c.name}";${c.jobs_count};${servicesAmount.toFixed(2)};${extrasAmount.toFixed(2)};${c.revenue.toFixed(2)};${c.expenses.toFixed(2)};${c.profit.toFixed(2)};${c.margin_pct.toFixed(1)}%\n`;
   }
+
   csv += `\n=== POR FUNCIONÁRIO ===\n`;
-  csv += `Profissional;Papel;Qtd Serviços;Horas Trabalhadas;Total Pago (£)\n`;
+  csv += `Profissional;Papel;Qtd Serviços;Horas Trabalhadas;Serviços (£);Extras/Ajustes (£);Total Pago (£)\n`;
   for (const e of (data.by_employee || [])) {
-    csv += `"${e.name}";"${e.role}";${e.jobs_count};${e.hours_worked.toFixed(1)};${e.total_paid.toFixed(2)}\n`;
+    const extrasAmount = e.extras_amount || 0;
+    const servicesAmount = roundCurrency(e.total_paid - extrasAmount);
+    csv += `"${e.name}";"${e.role}";${e.jobs_count};${e.hours_worked.toFixed(1)};${servicesAmount.toFixed(2)};${extrasAmount.toFixed(2)};${e.total_paid.toFixed(2)}\n`;
   }
+
   csv += `\n=== DETALHAMENTO DE SERVIÇOS ===\n`;
   csv += `ID;Data;Imóvel;Cliente;Cleaner;Status;Horas;Valor Cliente (£);Valor Cleaner (£);Lucro (£)\n`;
   for (const j of (data.jobs || [])) {
     csv += `${j.id};"${j.date}";"${j.flat_address}";"${j.client_name}";"${j.employee_name}";"${j.status}";${(j.duration_hours || 0).toFixed(1)};${(j.client_amount || 0).toFixed(2)};${(j.employee_amount || 0).toFixed(2)};${(j.profit || 0).toFixed(2)}\n`;
   }
+
+  if (data.extras && data.extras.length > 0) {
+    csv += `\n=== LANÇAMENTOS E SERVIÇOS EXTRAS ===\n`;
+    csv += `Tipo;Referência;Destinatário;Descrição;Qtd;Valor Unit. (£);Total (£)\n`;
+    for (const ex of data.extras) {
+      const dest = ex.client_name !== '-' ? ex.client_name : ex.employee_name;
+      csv += `"${ex.type_label || ex.type}";"${ex.ref_label || ''}";"${dest}";"${ex.description}";${ex.quantity || 1};${(ex.unit_price || 0).toFixed(2)};${(ex.total || 0).toFixed(2)}\n`;
+    }
+  }
+
   return csv;
 }
 

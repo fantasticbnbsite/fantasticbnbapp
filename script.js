@@ -3616,6 +3616,20 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
     document.getElementById('prevKpiJobs').textContent = data.total_jobs || 0;
     document.getElementById('prevKpiHours').textContent = `${Number(data.total_hours || 0).toFixed(1)}h`;
 
+    const revSub = document.getElementById('prevKpiRevenueSub');
+    if (revSub) {
+      revSub.textContent = Number(data.total_invoice_extras || 0) > 0
+        ? `Inclui ${_formatCurrencyPounds(data.total_invoice_extras)} em serviços extras`
+        : 'Total faturado no mês';
+    }
+
+    const expSub = document.getElementById('prevKpiExpensesSub');
+    if (expSub) {
+      expSub.textContent = Number(data.total_payroll_extras || 0) !== 0
+        ? `Inclui ${_formatCurrencyPounds(data.total_payroll_extras)} em extras/ajustes`
+        : 'Total pago aos cleaners';
+    }
+
     const cCountBadge = document.getElementById('prevClientsCountBadge');
     if (cCountBadge) {
       cCountBadge.textContent = `${(data.by_client || []).length} clientes`;
@@ -3630,17 +3644,21 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
       if (!data.by_client || data.by_client.length === 0) {
         cBody.innerHTML = '<tr><td colspan="5" class="td-empty">Nenhum serviço faturado neste mês</td></tr>';
       } else {
-        cBody.innerHTML = data.by_client.map(c => `
+        cBody.innerHTML = data.by_client.map(c => {
+          const hasExtras = Number(c.extras_amount || 0) > 0;
+          return `
           <tr>
             <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               <strong>${escapeHtml(c.name)}</strong>
+              ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(c.extras_amount)} em serviços extras">+${_formatCurrencyPounds(c.extras_amount)} extras</span>` : ''}
             </td>
             <td style="text-align:center; font-weight:600; color:var(--text);">${c.jobs_count}</td>
             <td style="text-align:right; font-weight:600; color:#10B981; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.revenue)}</td>
             <td style="text-align:right; font-weight:600; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.expenses)}</td>
             <td style="text-align:right; font-weight:700; color:#3B82F6; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.profit)}</td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
@@ -3649,16 +3667,54 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
       if (!data.by_employee || data.by_employee.length === 0) {
         eBody.innerHTML = '<tr><td colspan="4" class="td-empty">Nenhum cleaner designado neste mês</td></tr>';
       } else {
-        eBody.innerHTML = data.by_employee.map(e => `
+        eBody.innerHTML = data.by_employee.map(e => {
+          const hasExtras = Number(e.extras_amount || 0) !== 0;
+          return `
           <tr>
             <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               <strong>${escapeHtml(e.name)}</strong>
+              ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(e.extras_amount)} em lançamentos/ajustes extras">${e.extras_amount > 0 ? '+' : ''}${_formatCurrencyPounds(e.extras_amount)} extra</span>` : ''}
             </td>
             <td style="text-align:center; font-weight:600; color:var(--text);">${e.jobs_count}</td>
             <td style="text-align:center; color:var(--muted);">${Number(e.hours_worked || 0).toFixed(1)}h</td>
             <td style="text-align:right; font-weight:700; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(e.total_paid)}</td>
           </tr>
+        `;
+        }).join('');
+      }
+    }
+
+    // Subtabela de Lançamentos Extras na Prévia
+    const exCard = document.getElementById('prevExtrasCard');
+    const exCountBadge = document.getElementById('prevExtrasCountBadge');
+    const exBody = document.getElementById('prevExtrasTableBody');
+    if (exCard && exBody) {
+      const extras = data.extras || [];
+      if (extras.length > 0) {
+        exCard.classList.remove('hidden');
+        if (exCountBadge) exCountBadge.textContent = `${extras.length} lançamentos`;
+        exBody.innerHTML = extras.map(ex => `
+          <tr>
+            <td>
+              <span class="report-badge" style="font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600; ${ex.type === 'invoice' ? 'background:#ECFDF5; color:#059669;' : 'background:#FEF2F2; color:#DC2626;'}">
+                ${escapeHtml(ex.type_label || ex.type)}
+              </span>
+            </td>
+            <td style="font-weight:600; color:var(--text); font-size:0.82rem;">${escapeHtml(ex.ref_label || '')}</td>
+            <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem;">
+              <strong>${escapeHtml(ex.client_name !== '-' ? ex.client_name : ex.employee_name)}</strong>
+            </td>
+            <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem;" title="${escapeHtml(ex.description)}">
+              ${escapeHtml(ex.description)}
+            </td>
+            <td style="text-align:center; font-weight:600; font-size:0.82rem;">${ex.quantity || 1}</td>
+            <td style="text-align:right; font-weight:700; font-size:0.82rem; font-variant-numeric:tabular-nums; ${ex.type === 'invoice' ? 'color:#10B981;' : 'color:#EF4444;'}">
+              ${_formatCurrencyPounds(ex.total)}
+            </td>
+          </tr>
         `).join('');
+      } else {
+        exCard.classList.add('hidden');
       }
     }
   } catch (err) {
@@ -3770,7 +3826,7 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="kpi-icon-pill">💰</span>
           </div>
           <div class="kpi-value">${_formatCurrencyPounds(data.total_revenue)}</div>
-          <div class="kpi-sub">Total faturado no mês</div>
+          <div class="kpi-sub">${Number(data.total_invoice_extras || 0) > 0 ? `Inclui ${_formatCurrencyPounds(data.total_invoice_extras)} em serviços extras` : 'Total faturado no mês'}</div>
         </div>
         <div class="report-kpi-card kpi-expenses">
           <div class="kpi-head">
@@ -3778,7 +3834,7 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="kpi-icon-pill">💸</span>
           </div>
           <div class="kpi-value">${_formatCurrencyPounds(data.total_expenses)}</div>
-          <div class="kpi-sub">Total pago aos cleaners</div>
+          <div class="kpi-sub">${Number(data.total_payroll_extras || 0) !== 0 ? `Inclui ${_formatCurrencyPounds(data.total_payroll_extras)} em extras/ajustes` : 'Total pago aos cleaners'}</div>
         </div>
         <div class="report-kpi-card kpi-profit">
           <div class="kpi-head">
@@ -3838,10 +3894,13 @@ window.viewMonthlyReportModal = async function(id) {
                 </tr>
               </thead>
               <tbody>
-                ${(data.by_client || []).map(c => `
+                ${(data.by_client || []).map(c => {
+                  const hasExtras = Number(c.extras_amount || 0) > 0;
+                  return `
                   <tr>
                     <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                       <strong>${escapeHtml(c.name)}</strong>
+                      ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(c.extras_amount)} em serviços extras">+${_formatCurrencyPounds(c.extras_amount)} extras</span>` : ''}
                     </td>
                     <td style="text-align:center; font-weight:600; color:var(--text);">${c.jobs_count}</td>
                     <td style="text-align:right; font-weight:600; color:#10B981; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.revenue)}</td>
@@ -3849,7 +3908,8 @@ window.viewMonthlyReportModal = async function(id) {
                     <td style="text-align:right; font-weight:700; color:#3B82F6; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(c.profit)}</td>
                     <td style="text-align:right;"><span class="margin-pill">${Number(c.margin_pct || 0).toFixed(1)}%</span></td>
                   </tr>
-                `).join('') || '<tr><td colspan="6" class="td-empty">Nenhum dado</td></tr>'}
+                `;
+                }).join('') || '<tr><td colspan="6" class="td-empty">Nenhum dado</td></tr>'}
               </tbody>
             </table>
           </div>
@@ -3876,22 +3936,75 @@ window.viewMonthlyReportModal = async function(id) {
                 </tr>
               </thead>
               <tbody>
-                ${(data.by_employee || []).map(e => `
+                ${(data.by_employee || []).map(e => {
+                  const hasExtras = Number(e.extras_amount || 0) !== 0;
+                  return `
                   <tr>
                     <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                       <strong>${escapeHtml(e.name)}</strong>
+                      ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(e.extras_amount)} em lançamentos/ajustes extras">${e.extras_amount > 0 ? '+' : ''}${_formatCurrencyPounds(e.extras_amount)} extra</span>` : ''}
                     </td>
                     <td style="text-align:center; font-size:0.75rem; color:var(--muted);">${escapeHtml(e.role)}</td>
                     <td style="text-align:center; font-weight:600; color:var(--text);">${e.jobs_count}</td>
                     <td style="text-align:center; color:var(--muted);">${Number(e.hours_worked || 0).toFixed(1)}h</td>
                     <td style="text-align:right; font-weight:700; color:#EF4444; font-variant-numeric:tabular-nums;">${_formatCurrencyPounds(e.total_paid)}</td>
                   </tr>
-                `).join('') || '<tr><td colspan="5" class="td-empty">Nenhum dado</td></tr>'}
+                `;
+                }).join('') || '<tr><td colspan="5" class="td-empty">Nenhum dado</td></tr>'}
               </tbody>
             </table>
           </div>
         </div>
       </div>
+
+      ${(data.extras && data.extras.length > 0) ? `
+      <!-- Lançamentos e Serviços Extras do Mês -->
+      <div class="report-subtable-card" style="margin-bottom:24px;">
+        <div class="subtable-header">
+          <div class="subtable-title">
+            <span class="subtable-icon">✨</span>
+            <h5>Lançamentos e Serviços Extras do Mês (${data.extras.length})</h5>
+          </div>
+          <span class="subtable-badge">${_formatCurrencyPounds(data.total_invoice_extras || 0)} faturas / ${_formatCurrencyPounds(data.total_payroll_extras || 0)} holerites</span>
+        </div>
+        <div class="subtable-scroll" style="max-height:350px;">
+          <table class="report-table" style="font-size:0.82rem; table-layout:fixed; width:100%;">
+            <thead>
+              <tr>
+                <th style="width:18%;">Tipo</th>
+                <th style="width:16%;">Referência</th>
+                <th style="width:22%;">Destinatário</th>
+                <th style="width:26%;">Descrição</th>
+                <th class="th-center" style="width:8%;">Qtd</th>
+                <th class="th-right" style="width:10%;">Total (£)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.extras.map(ex => `
+                <tr>
+                  <td>
+                    <span class="report-badge" style="font-size:0.72rem; padding:3px 8px; border-radius:6px; font-weight:600; ${ex.type === 'invoice' ? 'background:#ECFDF5; color:#059669;' : 'background:#FEF2F2; color:#DC2626;'}">
+                      ${escapeHtml(ex.type_label || ex.type)}
+                    </span>
+                  </td>
+                  <td style="font-weight:600; color:var(--text);">${escapeHtml(ex.ref_label || '')}</td>
+                  <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <strong>${escapeHtml(ex.client_name !== '-' ? ex.client_name : ex.employee_name)}</strong>
+                  </td>
+                  <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(ex.description)}">
+                    ${escapeHtml(ex.description)}
+                  </td>
+                  <td style="text-align:center; font-weight:600;">${ex.quantity || 1}</td>
+                  <td style="text-align:right; font-weight:700; font-variant-numeric:tabular-nums; ${ex.type === 'invoice' ? 'color:#10B981;' : 'color:#EF4444;'}">
+                    ${_formatCurrencyPounds(ex.total)}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ''}
 
       <!-- Detalhamento de Serviços do Mês -->
       <div class="report-subtable-card">
