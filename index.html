@@ -516,152 +516,193 @@
           <!-- Seção de Fechamento Mensal (Aba 'reports') -->
           <div id="finReportsSection" class="hidden" style="margin-top: 16px;">
             <!-- Card de Fechamento e Geração -->
-            <div class="report-close-box glass-card" style="padding:20px; border-radius:14px; margin-bottom:24px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
-                <div>
-                  <h3 style="margin:0 0 6px 0; font-size:1.15rem; display:flex; align-items:center; gap:8px;">
-                    <span>📊</span> Fechamento de Mês &amp; Planilha Geral
-                  </h3>
-                  <p style="margin:0; font-size:0.88rem; color:var(--muted); max-width:650px;">
-                    Consolida todo o faturamento, despesas de equipe, lucro operacional, detalhamento por cliente e despesas por cleaner do mês. Os relatórios ficam salvos permanentemente no sistema.
-                  </p>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                  <div style="display:flex; flex-direction:column; gap:4px;">
-                    <label for="monthlyReportMonthPicker" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:600;">Mês de Referência</label>
-                    <input type="month" id="monthlyReportMonthPicker" class="input" style="padding:7px 12px; font-size:0.95rem; border-radius:8px;" />
+            <div class="report-close-box">
+              <div class="report-header-banner">
+                <div class="report-header-info">
+                  <div class="report-header-icon-box">📊</div>
+                  <div>
+                    <h3 class="report-header-title">Fechamento de Mês &amp; Planilha Geral</h3>
+                    <p class="report-header-desc">
+                      Consolidação financeira mensal: faturamento bruto, despesas de equipe, lucro operacional e detalhamento por cliente e cleaner. Os relatórios ficam arquivados com segurança para download imediato em Excel (.xls) ou CSV.
+                    </p>
                   </div>
-                  <button type="button" class="button button-secondary" onclick="previewMonthlyClosing()" style="align-self:flex-end; height:38px; display:flex; align-items:center; gap:6px;">
+                </div>
+                <div class="report-header-controls">
+                  <div class="report-control-group">
+                    <label for="monthlyReportMonthPicker" class="report-control-label">Mês de Referência</label>
+                    <input type="month" id="monthlyReportMonthPicker" class="input report-month-input" />
+                  </div>
+                  <button type="button" class="button button-secondary report-header-btn" onclick="previewMonthlyClosing()">
                     <span>👁️</span> Prévia
                   </button>
-                  <button type="button" class="button button-primary" onclick="closeMonthlyReport()" style="align-self:flex-end; height:38px; display:flex; align-items:center; gap:6px; font-weight:600;">
+                  <button type="button" class="report-header-btn-primary" onclick="closeMonthlyReport()">
                     <span>🔒</span> Fechar Mês &amp; Salvar
                   </button>
                 </div>
               </div>
 
               <!-- Prévia Dinâmica -->
-              <div id="monthlyClosingPreview" class="hidden" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.08);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
-                  <div>
-                    <h4 id="previewPeriodTitle" style="margin:0; font-size:1.05rem; color:var(--text);">Prévia do Mês</h4>
-                    <span id="previewStatusBadge" style="font-size:0.75rem; padding:2px 8px; border-radius:12px; margin-top:4px; display:inline-block;"></span>
+              <div id="monthlyClosingPreview" class="report-preview-panel hidden">
+                <div class="report-preview-topbar">
+                  <div class="report-preview-title-area">
+                    <div class="report-preview-title-row">
+                      <span class="report-cal-icon">📅</span>
+                      <h4 id="previewPeriodTitle" class="report-preview-title">Prévia do Mês</h4>
+                    </div>
+                    <span id="previewStatusBadge" class="report-status-pill"></span>
                   </div>
-                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button type="button" class="button button-secondary" id="previewBtnDownloadExcel" onclick="downloadPreviewReport('excel')" style="font-size:0.85rem; padding:6px 12px; display:flex; align-items:center; gap:6px;">
-                      <span>📥</span> Baixar Excel (.xls)
+                  <div class="report-preview-actions">
+                    <button type="button" class="report-btn-export report-btn-excel" id="previewBtnDownloadExcel" onclick="downloadPreviewReport('excel')">
+                      <span>📗</span> Baixar Excel (.xls)
                     </button>
-                    <button type="button" class="button button-secondary" id="previewBtnDownloadCsv" onclick="downloadPreviewReport('csv')" style="font-size:0.85rem; padding:6px 12px; display:flex; align-items:center; gap:6px;">
+                    <button type="button" class="report-btn-export report-btn-csv" id="previewBtnDownloadCsv" onclick="downloadPreviewReport('csv')">
                       <span>📄</span> Baixar CSV
                     </button>
                   </div>
                 </div>
 
                 <!-- KPI Grid -->
-                <div class="report-kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px;">
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #10B981;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Faturamento</div>
-                    <div id="prevKpiRevenue" style="font-size:1.25rem; font-weight:700; color:#10B981; margin-top:4px;">£0.00</div>
+                <div class="report-kpi-grid">
+                  <div class="report-kpi-card kpi-revenue">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Faturamento</span>
+                      <span class="kpi-icon-pill">💰</span>
+                    </div>
+                    <div id="prevKpiRevenue" class="kpi-value">£0.00</div>
+                    <div class="kpi-sub">Total faturado no mês</div>
                   </div>
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #EF4444;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Despesas</div>
-                    <div id="prevKpiExpenses" style="font-size:1.25rem; font-weight:700; color:#EF4444; margin-top:4px;">£0.00</div>
+                  <div class="report-kpi-card kpi-expenses">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Despesas</span>
+                      <span class="kpi-icon-pill">💸</span>
+                    </div>
+                    <div id="prevKpiExpenses" class="kpi-value">£0.00</div>
+                    <div class="kpi-sub">Total pago aos cleaners</div>
                   </div>
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #3B82F6;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Lucro Líquido</div>
-                    <div id="prevKpiProfit" style="font-size:1.25rem; font-weight:700; color:#3B82F6; margin-top:4px;">£0.00</div>
+                  <div class="report-kpi-card kpi-profit">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Lucro Líquido</span>
+                      <span class="kpi-icon-pill">📈</span>
+                    </div>
+                    <div id="prevKpiProfit" class="kpi-value">£0.00</div>
+                    <div class="kpi-sub">Receita menos despesas</div>
                   </div>
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #8B5CF6;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Margem</div>
-                    <div id="prevKpiMargin" style="font-size:1.25rem; font-weight:700; color:#8B5CF6; margin-top:4px;">0.0%</div>
+                  <div class="report-kpi-card kpi-margin">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Margem</span>
+                      <span class="kpi-icon-pill">🎯</span>
+                    </div>
+                    <div id="prevKpiMargin" class="kpi-value">0.0%</div>
+                    <div class="kpi-sub">Rentabilidade da operação</div>
                   </div>
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #64748B;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Serviços</div>
-                    <div id="prevKpiJobs" style="font-size:1.25rem; font-weight:700; color:var(--text); margin-top:4px;">0</div>
+                  <div class="report-kpi-card kpi-jobs">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Serviços</span>
+                      <span class="kpi-icon-pill">🧹</span>
+                    </div>
+                    <div id="prevKpiJobs" class="kpi-value">0</div>
+                    <div class="kpi-sub">Limpezas no período</div>
                   </div>
-                  <div class="report-kpi-card glass-card" style="padding:12px 14px; border-radius:10px; border-left:3px solid #64748B;">
-                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Total Horas</div>
-                    <div id="prevKpiHours" style="font-size:1.25rem; font-weight:700; color:var(--text); margin-top:4px;">0.0h</div>
+                  <div class="report-kpi-card kpi-hours">
+                    <div class="kpi-head">
+                      <span class="kpi-label">Total Horas</span>
+                      <span class="kpi-icon-pill">⏱️</span>
+                    </div>
+                    <div id="prevKpiHours" class="kpi-value">0.0h</div>
+                    <div class="kpi-sub">Duração total registrada</div>
                   </div>
                 </div>
 
-                <!-- Accordion / Tabs de detalhes da prévia -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="report-preview-subtables">
+                <!-- Subtables de detalhes da prévia -->
+                <div class="report-subtables-grid">
                   <!-- Por Cliente -->
-                  <div class="glass-card" style="padding:14px; border-radius:10px; overflow-x:auto;">
-                    <h5 style="margin:0 0 10px 0; font-size:0.9rem; color:var(--text); display:flex; align-items:center; gap:6px;">
-                      <span>🏢</span> Faturamento &amp; Lucro por Cliente
-                    </h5>
-                    <table class="fin-table" style="font-size:0.82rem;">
-                      <thead>
-                        <tr>
-                          <th>Cliente</th>
-                          <th style="text-align:center;">Jobs</th>
-                          <th style="text-align:right;">Fat. (£)</th>
-                          <th style="text-align:right;">Desp. (£)</th>
-                          <th style="text-align:right;">Lucro (£)</th>
-                        </tr>
-                      </thead>
-                      <tbody id="prevClientsTableBody">
-                        <tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>
-                      </tbody>
-                    </table>
+                  <div class="report-subtable-card">
+                    <div class="subtable-header">
+                      <div class="subtable-title">
+                        <span class="subtable-icon">🏢</span>
+                        <h5>Faturamento &amp; Lucro por Cliente</h5>
+                      </div>
+                      <span class="subtable-badge" id="prevClientsCountBadge">0 clientes</span>
+                    </div>
+                    <div class="subtable-scroll">
+                      <table class="report-table">
+                        <thead>
+                          <tr>
+                            <th>Cliente</th>
+                            <th class="th-center">Jobs</th>
+                            <th class="th-right">Fat. (£)</th>
+                            <th class="th-right">Desp. (£)</th>
+                            <th class="th-right">Lucro (£)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="prevClientsTableBody">
+                          <tr><td colspan="5" class="td-empty">Nenhum dado</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   <!-- Por Funcionário -->
-                  <div class="glass-card" style="padding:14px; border-radius:10px; overflow-x:auto;">
-                    <h5 style="margin:0 0 10px 0; font-size:0.9rem; color:var(--text); display:flex; align-items:center; gap:6px;">
-                      <span>🧹</span> Despesas por Cleaner / Equipe
-                    </h5>
-                    <table class="fin-table" style="font-size:0.82rem;">
-                      <thead>
-                        <tr>
-                          <th>Profissional</th>
-                          <th style="text-align:center;">Jobs</th>
-                          <th style="text-align:center;">Horas</th>
-                          <th style="text-align:right;">Total Pago (£)</th>
-                        </tr>
-                      </thead>
-                      <tbody id="prevEmployeesTableBody">
-                        <tr><td colspan="4" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>
-                      </tbody>
-                    </table>
+                  <div class="report-subtable-card">
+                    <div class="subtable-header">
+                      <div class="subtable-title">
+                        <span class="subtable-icon">🧹</span>
+                        <h5>Despesas por Cleaner / Equipe</h5>
+                      </div>
+                      <span class="subtable-badge" id="prevEmployeesCountBadge">0 cleaners</span>
+                    </div>
+                    <div class="subtable-scroll">
+                      <table class="report-table">
+                        <thead>
+                          <tr>
+                            <th>Profissional</th>
+                            <th class="th-center">Jobs</th>
+                            <th class="th-center">Horas</th>
+                            <th class="th-right">Total Pago (£)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="prevEmployeesTableBody">
+                          <tr><td colspan="4" class="td-empty">Nenhum dado</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- Tabela de Histórico de Relatórios Guardados -->
-            <div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                <div>
-                  <h4 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
-                    <span>📁</span> Arquivo Histórico de Fechamentos
-                  </h4>
-                  <p style="margin:2px 0 0 0; font-size:0.82rem; color:var(--muted);">
-                    Todos os meses fechados ficam arquivados com segurança para re-download imediato a qualquer momento.
-                  </p>
+            <div class="report-history-card">
+              <div class="report-history-header">
+                <div class="report-history-info">
+                  <div class="report-history-icon-box">📁</div>
+                  <div>
+                    <h4 class="report-history-title">Arquivo Histórico de Fechamentos</h4>
+                    <p class="report-history-desc">
+                      Todos os meses fechados ficam arquivados com segurança para re-download imediato a qualquer momento.
+                    </p>
+                  </div>
                 </div>
-                <button type="button" class="button button-secondary" onclick="loadMonthlyReports()" style="font-size:0.85rem; padding:5px 12px; display:flex; align-items:center; gap:6px;">
+                <button type="button" class="button button-secondary report-btn-refresh" onclick="loadMonthlyReports()">
                   <span>🔄</span> Atualizar Histórico
                 </button>
               </div>
 
-              <div class="fin-table-wrap" style="display:block; overflow-x:auto;">
-                <table class="fin-table" id="monthlyReportsTable">
+              <div class="report-history-table-wrap">
+                <table class="report-table report-table-history" id="monthlyReportsTable">
                   <thead>
                     <tr>
                       <th>Período</th>
-                      <th style="text-align:right;">Faturamento</th>
-                      <th style="text-align:right;">Despesas</th>
-                      <th style="text-align:right;">Lucro Líquido</th>
-                      <th style="text-align:center;">Serviços</th>
+                      <th class="th-right">Faturamento</th>
+                      <th class="th-right">Despesas</th>
+                      <th class="th-right">Lucro Líquido</th>
+                      <th class="th-center">Serviços</th>
                       <th>Fechado em</th>
-                      <th style="text-align:center;">Ações &amp; Downloads</th>
+                      <th class="th-center">Ações &amp; Downloads</th>
                     </tr>
                   </thead>
                   <tbody id="monthlyReportsTableBody">
-                    <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">Carregando histórico de fechamentos...</td></tr>
+                    <tr><td colspan="7" class="td-empty">Carregando histórico de fechamentos...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1720,13 +1761,13 @@
           <p id="monthlyReportModalSubtitle" class="panel-kicker" style="margin:4px 0 0 0; font-size:0.85rem; color:var(--muted);"></p>
         </div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button type="button" class="button button-secondary" id="modalBtnDownloadExcel" style="font-size:0.85rem; padding:6px 12px; display:flex; align-items:center; gap:6px;">
-            <span>📥</span> Baixar Excel (.xls)
+          <button type="button" class="report-btn-export report-btn-excel" id="modalBtnDownloadExcel">
+            <span>📗</span> Baixar Excel (.xls)
           </button>
-          <button type="button" class="button button-secondary" id="modalBtnDownloadCsv" style="font-size:0.85rem; padding:6px 12px; display:flex; align-items:center; gap:6px;">
+          <button type="button" class="report-btn-export report-btn-csv" id="modalBtnDownloadCsv">
             <span>📄</span> Baixar CSV
           </button>
-          <button type="button" class="button-icon" onclick="closeMonthlyReportModal()" style="font-size:1.1rem; line-height:1; padding:4px 8px;">✕</button>
+          <button type="button" class="button-icon" onclick="closeMonthlyReportModal()" style="font-size:1.1rem; line-height:1; padding:6px 10px; border-radius:8px;">✕</button>
         </div>
       </div>
       <div class="modal-body" id="monthlyReportModalBody" style="flex:1; overflow-y:auto; padding:20px 24px;">

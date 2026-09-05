@@ -3480,6 +3480,11 @@ function _getPreviousMonthString() {
   return `${y}-${m}`;
 }
 
+function _formatCurrencyPounds(val) {
+  const num = Number(val || 0);
+  return '£' + num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 window.initMonthlyReportsTab = async function() {
   const picker = document.getElementById('monthlyReportMonthPicker');
   if (picker && !picker.value) {
@@ -3493,7 +3498,7 @@ window.initMonthlyReportsTab = async function() {
 
 window.loadMonthlyReports = async function() {
   const tbody = document.getElementById('monthlyReportsTableBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:28px;">Carregando histórico...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="td-empty">Carregando histórico de fechamentos...</td></tr>';
   try {
     const res = await api('/api/monthly-reports');
     finState.monthlyReports = res.reports || [];
@@ -3502,7 +3507,7 @@ window.loadMonthlyReports = async function() {
     renderMonthlyReportsTable(finState.monthlyReports);
   } catch (err) {
     console.error('Erro ao carregar fechamentos mensais:', err);
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#EF4444; padding:20px;">Erro ao carregar histórico: ${escapeHtml(err.message)}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="td-empty" style="color:#ef4444;">Erro ao carregar histórico: ${escapeHtml(err.message)}</td></tr>`;
   }
 };
 
@@ -3512,10 +3517,10 @@ function renderMonthlyReportsTable(reports) {
   if (!reports || reports.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center; color:var(--muted); padding:36px 16px;">
+        <td colspan="7" class="td-empty">
           <div style="font-size:2rem; margin-bottom:8px;">📁</div>
-          <strong>Nenhum mês fechado ainda</strong>
-          <p style="margin:4px 0 0 0; font-size:0.85rem;">Selecione o mês acima e clique em <b>Fechar Mês &amp; Salvar</b> para consolidar o relatório.</p>
+          <strong style="color:var(--text); font-size:1rem;">Nenhum mês fechado no histórico</strong>
+          <p style="margin:6px 0 0 0; font-size:0.85rem; color:var(--muted);">Selecione o mês desejado na barra acima e clique em <b>Fechar Mês &amp; Salvar</b> para consolidar o relatório oficial.</p>
         </td>
       </tr>
     `;
@@ -3528,36 +3533,44 @@ function renderMonthlyReportsTable(reports) {
     return `
       <tr>
         <td>
-          <strong style="font-size:0.95rem;">${escapeHtml(r.period_label || r.period_month)}</strong>
-          <div style="font-size:0.75rem; color:var(--muted);">${escapeHtml(r.period_month)}</div>
+          <div class="period-cell">
+            <span class="period-name">${escapeHtml(r.period_label || r.period_month)}</span>
+            <span class="period-pill">${escapeHtml(r.period_month)}</span>
+          </div>
         </td>
-        <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(r.total_revenue || 0).toFixed(2)}</td>
-        <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(r.total_expenses || 0).toFixed(2)}</td>
-        <td style="text-align:right; font-weight:700; color:#3B82F6;">
-          £${Number(r.total_profit || 0).toFixed(2)}
-          <span style="font-size:0.75rem; color:var(--muted); display:block; font-weight:normal;">${margin}%</span>
-        </td>
-        <td style="text-align:center; font-weight:600;">${r.total_jobs || 0}</td>
-        <td>
-          <div style="font-size:0.82rem;">${closedDate}</div>
-          <div style="font-size:0.75rem; color:var(--muted);">${escapeHtml(r.closed_by_name ? `por ${r.closed_by_name}` : '')}</div>
+        <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(r.total_revenue)}</td>
+        <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(r.total_expenses)}</td>
+        <td style="text-align:right;">
+          <div class="profit-cell-group">
+            <span class="num-cell-profit">${_formatCurrencyPounds(r.total_profit)}</span>
+            <span class="margin-pill">${margin}% margem</span>
+          </div>
         </td>
         <td style="text-align:center;">
-          <div style="display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="button button-secondary report-action-btn" title="Baixar Planilha Excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
-              📥 Excel
+          <span class="pill-count">${r.total_jobs || 0}</span>
+        </td>
+        <td>
+          <div class="meta-cell">
+            <span class="meta-date">${closedDate}</span>
+            <span class="meta-author">${escapeHtml(r.closed_by_name ? `por ${r.closed_by_name}` : '')}</span>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="report-actions-row">
+            <button type="button" class="report-btn-action excel" title="Baixar Planilha Excel (.xls)" onclick="downloadMonthlyReport(${r.id}, 'excel')">
+              📗 Excel
             </button>
-            <button type="button" class="button button-secondary report-action-btn" title="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
+            <button type="button" class="report-btn-action csv" title="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
               📄 CSV
             </button>
-            <button type="button" class="button button-secondary report-action-btn" title="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
+            <button type="button" class="report-btn-action view" title="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
               👁️ Ver
             </button>
-            <button type="button" class="button button-secondary report-action-btn" title="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
+            <button type="button" class="report-btn-action recalc" title="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
               🔄 Recalcular
             </button>
             ${isAdmin() ? `
-              <button type="button" class="button button-danger report-action-btn" title="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
+              <button type="button" class="report-btn-action danger" title="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
                 🗑️
               </button>
             ` : ''}
@@ -3588,35 +3601,47 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
     const badge = document.getElementById('previewStatusBadge');
     if (badge) {
       if (data.already_closed) {
-        badge.textContent = '🔒 Mês já fechado no histórico (clicar em Fechar atualizará o arquivo)';
-        badge.style.background = 'rgba(59, 130, 246, 0.15)';
-        badge.style.color = '#3B82F6';
+        badge.innerHTML = '🔒 <span>Fechamento arquivado no histórico (clique em Fechar para atualizar)</span>';
+        badge.className = 'report-status-pill closed';
       } else {
-        badge.textContent = '⚠️ Mês ainda em aberto / Não fechado';
-        badge.style.background = 'rgba(234, 179, 8, 0.15)';
-        badge.style.color = '#EAB308';
+        badge.innerHTML = '⚠️ <span>Mês ainda em aberto / Não arquivado</span>';
+        badge.className = 'report-status-pill open';
       }
     }
 
-    document.getElementById('prevKpiRevenue').textContent = `£${Number(data.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('prevKpiExpenses').textContent = `£${Number(data.total_expenses || 0).toFixed(2)}`;
-    document.getElementById('prevKpiProfit').textContent = `£${Number(data.total_profit || 0).toFixed(2)}`;
+    document.getElementById('prevKpiRevenue').textContent = _formatCurrencyPounds(data.total_revenue);
+    document.getElementById('prevKpiExpenses').textContent = _formatCurrencyPounds(data.total_expenses);
+    document.getElementById('prevKpiProfit').textContent = _formatCurrencyPounds(data.total_profit);
     document.getElementById('prevKpiMargin').textContent = `${Number(data.margin_pct || 0).toFixed(1)}%`;
     document.getElementById('prevKpiJobs').textContent = data.total_jobs || 0;
     document.getElementById('prevKpiHours').textContent = `${Number(data.total_hours || 0).toFixed(1)}h`;
 
+    const cCountBadge = document.getElementById('prevClientsCountBadge');
+    if (cCountBadge) {
+      cCountBadge.textContent = `${(data.by_client || []).length} clientes`;
+    }
+    const eCountBadge = document.getElementById('prevEmployeesCountBadge');
+    if (eCountBadge) {
+      eCountBadge.textContent = `${(data.by_employee || []).length} cleaners`;
+    }
+
     const cBody = document.getElementById('prevClientsTableBody');
     if (cBody) {
       if (!data.by_client || data.by_client.length === 0) {
-        cBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum serviço faturado neste mês</td></tr>';
+        cBody.innerHTML = '<tr><td colspan="5" class="td-empty">Nenhum serviço faturado neste mês</td></tr>';
       } else {
         cBody.innerHTML = data.by_client.map(c => `
           <tr>
-            <td><strong>${escapeHtml(c.name)}</strong></td>
-            <td style="text-align:center;">${c.jobs_count}</td>
-            <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(c.revenue || 0).toFixed(2)}</td>
-            <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(c.expenses || 0).toFixed(2)}</td>
-            <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(c.profit || 0).toFixed(2)}</td>
+            <td>
+              <div class="entity-cell">
+                <span class="entity-avatar">🏢</span>
+                <span class="entity-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
+              </div>
+            </td>
+            <td style="text-align:center;"><span class="pill-count">${c.jobs_count}</span></td>
+            <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(c.revenue)}</td>
+            <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(c.expenses)}</td>
+            <td style="text-align:right;" class="num-cell-profit">${_formatCurrencyPounds(c.profit)}</td>
           </tr>
         `).join('');
       }
@@ -3625,14 +3650,19 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
     const eBody = document.getElementById('prevEmployeesTableBody');
     if (eBody) {
       if (!data.by_employee || data.by_employee.length === 0) {
-        eBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted);">Nenhum cleaner designado neste mês</td></tr>';
+        eBody.innerHTML = '<tr><td colspan="4" class="td-empty">Nenhum cleaner designado neste mês</td></tr>';
       } else {
         eBody.innerHTML = data.by_employee.map(e => `
           <tr>
-            <td><strong>${escapeHtml(e.name)}</strong></td>
-            <td style="text-align:center;">${e.jobs_count}</td>
-            <td style="text-align:center;">${Number(e.hours_worked || 0).toFixed(1)}h</td>
-            <td style="text-align:right; font-weight:700; color:#EF4444;">£${Number(e.total_paid || 0).toFixed(2)}</td>
+            <td>
+              <div class="entity-cell">
+                <span class="entity-avatar cleaner">🧹</span>
+                <span class="entity-name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
+              </div>
+            </td>
+            <td style="text-align:center;"><span class="pill-count">${e.jobs_count}</span></td>
+            <td style="text-align:center;"><span class="pill-count">${Number(e.hours_worked || 0).toFixed(1)}h</span></td>
+            <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(e.total_paid)}</td>
           </tr>
         `).join('');
       }
@@ -3740,131 +3770,183 @@ window.viewMonthlyReportModal = async function(id) {
     body.innerHTML = `
       <!-- KPI Cards -->
       <div class="report-kpi-grid" style="margin-bottom:24px;">
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #10B981;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Faturamento Bruto</div>
-          <div style="font-size:1.35rem; font-weight:700; color:#10B981; margin-top:4px;">£${Number(data.total_revenue || 0).toFixed(2)}</div>
+        <div class="report-kpi-card kpi-revenue">
+          <div class="kpi-head">
+            <span class="kpi-label">Faturamento Bruto</span>
+            <span class="kpi-icon-pill">💰</span>
+          </div>
+          <div class="kpi-value">${_formatCurrencyPounds(data.total_revenue)}</div>
+          <div class="kpi-sub">Total faturado no mês</div>
         </div>
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #EF4444;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Despesas Equipe</div>
-          <div style="font-size:1.35rem; font-weight:700; color:#EF4444; margin-top:4px;">£${Number(data.total_expenses || 0).toFixed(2)}</div>
+        <div class="report-kpi-card kpi-expenses">
+          <div class="kpi-head">
+            <span class="kpi-label">Despesas Equipe</span>
+            <span class="kpi-icon-pill">💸</span>
+          </div>
+          <div class="kpi-value">${_formatCurrencyPounds(data.total_expenses)}</div>
+          <div class="kpi-sub">Total pago aos cleaners</div>
         </div>
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #3B82F6;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Lucro Líquido</div>
-          <div style="font-size:1.35rem; font-weight:700; color:#3B82F6; margin-top:4px;">£${Number(data.total_profit || 0).toFixed(2)}</div>
+        <div class="report-kpi-card kpi-profit">
+          <div class="kpi-head">
+            <span class="kpi-label">Lucro Líquido</span>
+            <span class="kpi-icon-pill">📈</span>
+          </div>
+          <div class="kpi-value">${_formatCurrencyPounds(data.total_profit)}</div>
+          <div class="kpi-sub">Receita menos despesas</div>
         </div>
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #8B5CF6;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Margem (%)</div>
-          <div style="font-size:1.35rem; font-weight:700; color:#8B5CF6; margin-top:4px;">${Number(data.margin_pct || 0).toFixed(1)}%</div>
+        <div class="report-kpi-card kpi-margin">
+          <div class="kpi-head">
+            <span class="kpi-label">Margem Líquida</span>
+            <span class="kpi-icon-pill">🎯</span>
+          </div>
+          <div class="kpi-value">${Number(data.margin_pct || 0).toFixed(1)}%</div>
+          <div class="kpi-sub">Rentabilidade da operação</div>
         </div>
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #64748B;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Total Serviços</div>
-          <div style="font-size:1.35rem; font-weight:700; color:var(--text); margin-top:4px;">${data.total_jobs || 0}</div>
+        <div class="report-kpi-card kpi-jobs">
+          <div class="kpi-head">
+            <span class="kpi-label">Total Serviços</span>
+            <span class="kpi-icon-pill">🧹</span>
+          </div>
+          <div class="kpi-value">${data.total_jobs || 0}</div>
+          <div class="kpi-sub">Limpezas realizadas</div>
         </div>
-        <div class="report-kpi-card glass-card" style="padding:14px; border-radius:10px; border-left:4px solid #64748B;">
-          <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; font-weight:600;">Horas Trabalhadas</div>
-          <div style="font-size:1.35rem; font-weight:700; color:var(--text); margin-top:4px;">${Number(data.total_hours || 0).toFixed(1)}h</div>
+        <div class="report-kpi-card kpi-hours">
+          <div class="kpi-head">
+            <span class="kpi-label">Horas Trabalhadas</span>
+            <span class="kpi-icon-pill">⏱️</span>
+          </div>
+          <div class="kpi-value">${Number(data.total_hours || 0).toFixed(1)}h</div>
+          <div class="kpi-sub">Duração total registrada</div>
         </div>
       </div>
 
       <!-- Subtables -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;" class="report-preview-subtables">
+      <div class="report-subtables-grid" style="margin-bottom:24px;">
         <!-- Por Cliente -->
-        <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
-          <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
-            <span>🏢</span> Desempenho por Cliente
-          </h4>
-          <table class="fin-table" style="font-size:0.83rem;">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th style="text-align:center;">Jobs</th>
-                <th style="text-align:right;">Fat. (£)</th>
-                <th style="text-align:right;">Desp. (£)</th>
-                <th style="text-align:right;">Lucro (£)</th>
-                <th style="text-align:right;">Margem</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(data.by_client || []).map(c => `
+        <div class="report-subtable-card">
+          <div class="subtable-header">
+            <div class="subtable-title">
+              <span class="subtable-icon">🏢</span>
+              <h5>Desempenho por Cliente</h5>
+            </div>
+            <span class="subtable-badge">${(data.by_client || []).length} clientes</span>
+          </div>
+          <div class="subtable-scroll">
+            <table class="report-table">
+              <thead>
                 <tr>
-                  <td><strong>${escapeHtml(c.name)}</strong></td>
-                  <td style="text-align:center;">${c.jobs_count}</td>
-                  <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(c.revenue || 0).toFixed(2)}</td>
-                  <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(c.expenses || 0).toFixed(2)}</td>
-                  <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(c.profit || 0).toFixed(2)}</td>
-                  <td style="text-align:right; color:var(--muted);">${Number(c.margin_pct || 0).toFixed(1)}%</td>
+                  <th>Cliente</th>
+                  <th class="th-center">Jobs</th>
+                  <th class="th-right">Fat. (£)</th>
+                  <th class="th-right">Desp. (£)</th>
+                  <th class="th-right">Lucro (£)</th>
+                  <th class="th-right">Margem</th>
                 </tr>
-              `).join('') || '<tr><td colspan="6" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>'}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${(data.by_client || []).map(c => `
+                  <tr>
+                    <td>
+                      <div class="entity-cell">
+                        <span class="entity-avatar">🏢</span>
+                        <span class="entity-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span>
+                      </div>
+                    </td>
+                    <td style="text-align:center;"><span class="pill-count">${c.jobs_count}</span></td>
+                    <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(c.revenue)}</td>
+                    <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(c.expenses)}</td>
+                    <td style="text-align:right;" class="num-cell-profit">${_formatCurrencyPounds(c.profit)}</td>
+                    <td style="text-align:right;"><span class="margin-pill">${Number(c.margin_pct || 0).toFixed(1)}%</span></td>
+                  </tr>
+                `).join('') || '<tr><td colspan="6" class="td-empty">Nenhum dado</td></tr>'}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Por Cleaner -->
-        <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
-          <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
-            <span>🧹</span> Despesas por Cleaner / Equipe
-          </h4>
-          <table class="fin-table" style="font-size:0.83rem;">
-            <thead>
-              <tr>
-                <th>Profissional</th>
-                <th style="text-align:center;">Papel</th>
-                <th style="text-align:center;">Jobs</th>
-                <th style="text-align:center;">Horas</th>
-                <th style="text-align:right;">Total Pago (£)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(data.by_employee || []).map(e => `
+        <div class="report-subtable-card">
+          <div class="subtable-header">
+            <div class="subtable-title">
+              <span class="subtable-icon">🧹</span>
+              <h5>Despesas por Cleaner / Equipe</h5>
+            </div>
+            <span class="subtable-badge">${(data.by_employee || []).length} cleaners</span>
+          </div>
+          <div class="subtable-scroll">
+            <table class="report-table">
+              <thead>
                 <tr>
-                  <td><strong>${escapeHtml(e.name)}</strong></td>
-                  <td style="text-align:center; font-size:0.78rem; color:var(--muted);">${escapeHtml(e.role)}</td>
-                  <td style="text-align:center;">${e.jobs_count}</td>
-                  <td style="text-align:center;">${Number(e.hours_worked || 0).toFixed(1)}h</td>
-                  <td style="text-align:right; font-weight:700; color:#EF4444;">£${Number(e.total_paid || 0).toFixed(2)}</td>
+                  <th>Profissional</th>
+                  <th class="th-center">Papel</th>
+                  <th class="th-center">Jobs</th>
+                  <th class="th-center">Horas</th>
+                  <th class="th-right">Total Pago (£)</th>
                 </tr>
-              `).join('') || '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum dado</td></tr>'}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${(data.by_employee || []).map(e => `
+                  <tr>
+                    <td>
+                      <div class="entity-cell">
+                        <span class="entity-avatar cleaner">🧹</span>
+                        <span class="entity-name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
+                      </div>
+                    </td>
+                    <td style="text-align:center;"><span class="pill-count" style="font-size:0.72rem;">${escapeHtml(e.role)}</span></td>
+                    <td style="text-align:center;"><span class="pill-count">${e.jobs_count}</span></td>
+                    <td style="text-align:center;"><span class="pill-count">${Number(e.hours_worked || 0).toFixed(1)}h</span></td>
+                    <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(e.total_paid)}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="5" class="td-empty">Nenhum dado</td></tr>'}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Detalhamento de Serviços do Mês -->
-      <div class="glass-card" style="padding:16px; border-radius:12px; overflow-x:auto;">
-        <h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:8px;">
-          <span>📋</span> Detalhamento Completo de Serviços (${(data.jobs || []).length})
-        </h4>
-        <table class="fin-table" style="font-size:0.8rem;">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Data</th>
-              <th>Imóvel</th>
-              <th>Cliente</th>
-              <th>Cleaner</th>
-              <th style="text-align:center;">Horas</th>
-              <th style="text-align:right;">Cliente (£)</th>
-              <th style="text-align:right;">Cleaner (£)</th>
-              <th style="text-align:right;">Lucro (£)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${(data.jobs || []).slice(0, 100).map(j => `
+      <div class="report-subtable-card">
+        <div class="subtable-header">
+          <div class="subtable-title">
+            <span class="subtable-icon">📋</span>
+            <h5>Detalhamento Completo de Serviços (${(data.jobs || []).length})</h5>
+          </div>
+          <span class="subtable-badge">Visualização rápida</span>
+        </div>
+        <div class="subtable-scroll" style="max-height:450px;">
+          <table class="report-table" style="font-size:0.82rem;">
+            <thead>
               <tr>
-                <td>${j.id}</td>
-                <td>${escapeHtml(j.date)}</td>
-                <td>${escapeHtml(j.flat_address)}</td>
-                <td>${escapeHtml(j.client_name)}</td>
-                <td>${escapeHtml(j.employee_name)}</td>
-                <td style="text-align:center;">${Number(j.duration_hours || 0).toFixed(1)}h</td>
-                <td style="text-align:right; font-weight:600; color:#10B981;">£${Number(j.client_amount || 0).toFixed(2)}</td>
-                <td style="text-align:right; font-weight:600; color:#EF4444;">£${Number(j.employee_amount || 0).toFixed(2)}</td>
-                <td style="text-align:right; font-weight:700; color:#3B82F6;">£${Number(j.profit || 0).toFixed(2)}</td>
+                <th>#</th>
+                <th>Data</th>
+                <th>Imóvel</th>
+                <th>Cliente</th>
+                <th>Cleaner</th>
+                <th class="th-center">Horas</th>
+                <th class="th-right">Cliente (£)</th>
+                <th class="th-right">Cleaner (£)</th>
+                <th class="th-right">Lucro (£)</th>
               </tr>
-            `).join('') || '<tr><td colspan="9" style="text-align:center; color:var(--muted);">Nenhum serviço detalhado</td></tr>'}
-            ${(data.jobs || []).length > 100 ? `<tr><td colspan="9" style="text-align:center; color:var(--muted); font-style:italic;">Mostrando os primeiros 100 serviços. Baixe o arquivo Excel para ver a totalidade.</td></tr>` : ''}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${(data.jobs || []).slice(0, 100).map(j => `
+                <tr>
+                  <td><span class="pill-count">#${j.id}</span></td>
+                  <td style="white-space:nowrap; font-weight:500;">${escapeHtml(j.date)}</td>
+                  <td><strong>${escapeHtml(j.flat_address)}</strong></td>
+                  <td>${escapeHtml(j.client_name)}</td>
+                  <td>${escapeHtml(j.employee_name)}</td>
+                  <td style="text-align:center;"><span class="pill-count">${Number(j.duration_hours || 0).toFixed(1)}h</span></td>
+                  <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(j.client_amount)}</td>
+                  <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(j.employee_amount)}</td>
+                  <td style="text-align:right;" class="num-cell-profit">${_formatCurrencyPounds(j.profit)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="9" class="td-empty">Nenhum serviço detalhado</td></tr>'}
+              ${(data.jobs || []).length > 100 ? `<tr><td colspan="9" class="td-empty" style="font-style:italic;">Mostrando os primeiros 100 serviços. Baixe o arquivo Excel para ver a totalidade.</td></tr>` : ''}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   } catch (err) {
