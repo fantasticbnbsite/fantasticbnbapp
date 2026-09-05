@@ -2218,7 +2218,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/monthly-reports/close' && req.method === 'POST') {
     if (!canAccessMonthlyReports(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const month = body.month;
+    const month = String(body.month || '').trim();
     if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       return sendJson(res, 400, { error: 'Mês inválido. Formato esperado: AAAA-MM' });
     }
@@ -3840,7 +3840,15 @@ async function parseBody(req) {
   }
   const raw = Buffer.concat(chunks).toString('utf8');
   if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+  try {
+    let parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') {
+      try { parsed = JSON.parse(parsed); } catch {}
+    }
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 function sendJson(res, status, payload) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(payload)); }
 function sendNoContent(res) { res.writeHead(204, { 'Cache-Control': 'no-store' }); res.end(); }

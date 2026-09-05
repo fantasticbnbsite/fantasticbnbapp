@@ -2417,7 +2417,7 @@ async function api(url, options = {}) {
     method: options.method || 'GET',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined,
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -3658,7 +3658,7 @@ window.closeMonthlyReport = async function(customMonth = null) {
   try {
     const res = await api('/api/monthly-reports/close', {
       method: 'POST',
-      body: JSON.stringify({ month })
+      body: { month }
     });
     alert(`Fechamento de ${res.report?.period_label || label} salvo com sucesso!`);
     await loadMonthlyReports();
