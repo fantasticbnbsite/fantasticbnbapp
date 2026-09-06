@@ -1101,6 +1101,7 @@ async function handleApi(req, res, requestUrl) {
     if (!['admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const id = Number(checklistMatch[1]);
     const body = await parseBody(req);
+    if (!body.name) return sendJson(res, 400, { error: 'Nome obrigatório.' });
     db.prepare('UPDATE checklist_templates SET name = ?, checklist_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
       body.name.trim(),
       body.checklistJson || '[]',
