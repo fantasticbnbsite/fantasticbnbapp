@@ -1472,6 +1472,12 @@
           <label for="adminEditJobEmployeeNotes">Observações da Limpeza / Cleaner (Visível ao Cliente)</label>
           <textarea id="adminEditJobEmployeeNotes" rows="2" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px;" placeholder="Observações deixadas pelo cleaner..."></textarea>
         </div>
+        <div>
+          <label>Checklist (Progresso da Limpeza)</label>
+          <div id="adminEditJobChecklist" style="max-height: 150px; overflow-y: auto; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 13px; border: 1px solid var(--line);">
+            Nenhuma informação de checklist.
+          </div>
+        </div>
         <button class="button button-primary" id="confirmAdminEditJobButton" style="margin-top:8px;">Salvar Alteracoes</button>
       </div>
     </div>
@@ -1853,7 +1859,7 @@
     }
   </style>
 
-  <script src="script.js?v=20260828122341" defer></script>
+  <script src="script.js?v=20260906a" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

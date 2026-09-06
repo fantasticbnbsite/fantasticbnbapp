@@ -719,7 +719,7 @@ const App = (() => {
           return `
             <label class="chk-item ${checked ? 'done' : ''}">
               <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
-              <span>${escapeHtml(it)}</span>
+              <span>${escapeHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">$&</strong>')}</span>
             </label>
           `;
         }).join('');

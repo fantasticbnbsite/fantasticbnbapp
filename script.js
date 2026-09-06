@@ -4122,6 +4122,31 @@ window.openAdminEditJobModal = async function(jobId) {
     durInput.value = '';
   }
 
+  const chkEl = document.getElementById('adminEditJobChecklist');
+  if (chkEl) {
+    if (job.flatChecklist && job.flatChecklist.length > 0) {
+      const stateArr = job.checklistState || [];
+      let html = '';
+      job.flatChecklist.forEach(cat => {
+        let catHtml = `<strong>${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+        if (cat.items) {
+          cat.items.forEach(it => {
+            const val = cat.category + '|' + it;
+            const checked = stateArr.includes(val);
+            const icon = checked ? '<span style="color:var(--success, green);">✓</span>' : '<span style="color:var(--muted, gray);">☐</span>';
+            const textHtml = escapeHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>');
+            catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">${icon} ${textHtml}</li>`;
+          });
+        }
+        catHtml += '</ul>';
+        html += catHtml;
+      });
+      chkEl.innerHTML = html;
+    } else {
+      chkEl.innerHTML = '<span style="color:var(--muted);">Nenhuma informação de checklist para este serviço.</span>';
+    }
+  }
+
   modal.classList.remove('hidden');
 };
 
