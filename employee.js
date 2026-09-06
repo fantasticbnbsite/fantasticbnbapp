@@ -1042,6 +1042,17 @@ const App = (() => {
   }
 
   async function finishJob(jobId, btn) {
+    const job = allJobs.find(j => String(j.id) === String(jobId));
+    if (job && job.flatChecklist && job.flatChecklist.length > 0) {
+      let totalItems = 0;
+      job.flatChecklist.forEach(c => totalItems += (c.items ? c.items.length : 0));
+      const jobChecklistState = job.checklistState || [];
+      if (jobChecklistState.length < totalItems) {
+        alert('⚠️ ATENÇÃO: Você precisa marcar TODAS as tarefas do checklist para poder finalizar o serviço!');
+        return;
+      }
+    }
+
     const obsInput = document.getElementById('obs-' + jobId);
     const employeeNotes = obsInput ? obsInput.value : '';
     const urgentInput = document.getElementById('urgent-' + jobId);
