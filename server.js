@@ -1415,14 +1415,29 @@ async function handleApi(req, res, requestUrl) {
     }
 
     let updatedFinishedAt = job.finished_at;
+    let updatedStartedAt = job.started_at;
+    
     if (updatedStatus === 'completed' && !updatedFinishedAt) {
       updatedFinishedAt = now;
+    } else if (['pending', 'assigned', 'accepted'].includes(updatedStatus) && !['pending', 'assigned', 'accepted'].includes(job.status)) {
+      // Reverted to an early state: clear financials and timestamps
+      updatedFinishedAt = null;
+      updatedStartedAt = null;
+      updatedDurationHours = null;
+      updatedClientAmount = 0.00;
+      updatedEmployeeAmount = 0.00;
+    } else if (updatedStatus === 'in_progress' && !['in_progress', 'pending', 'assigned', 'accepted'].includes(job.status)) {
+      // Reverted to in_progress: clear finished time and financials, but keep start time
+      updatedFinishedAt = null;
+      updatedDurationHours = null;
+      updatedClientAmount = 0.00;
+      updatedEmployeeAmount = 0.00;
     } else if (updatedStatus !== 'completed' && job.status === 'completed') {
       updatedFinishedAt = null;
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, employee_notes=?, finished_at=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedEmployeeNotes, updatedFinishedAt, now, jobId);
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, employee_notes=?, started_at=?, finished_at=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedEmployeeNotes, updatedStartedAt, updatedFinishedAt, now, jobId);
     
     enforceProjectFlatIntegrity(job.flat_id, updatedRequestedDate || job.requested_date);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
