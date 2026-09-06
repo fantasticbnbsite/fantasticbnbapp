@@ -1117,7 +1117,7 @@ async function handleApi(req, res, requestUrl) {
     const cleanerFilter = requestUrl.searchParams.get('cleaner_id') || '';
     let sql = `
       SELECT j.*,
-        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
@@ -1154,7 +1154,7 @@ async function handleApi(req, res, requestUrl) {
     const filterId = isEmployeeView ? session.user.id : targetClientId;
     const jobs = db.prepare(`
       SELECT j.*,
-        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
@@ -1208,7 +1208,7 @@ async function handleApi(req, res, requestUrl) {
     }
 
     logSystemActivity(session.user.id, 'CREATE', 'job', result.lastInsertRowid, `Serviço agendado no flat ${flat.address}`);
-    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
+    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
   if (requestUrl.pathname === '/api/jobs/manual' && req.method === 'POST') {
@@ -1448,13 +1448,28 @@ async function handleApi(req, res, requestUrl) {
     }
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
       WHERE j.id=?
     `).get(jobId);
     return sendJson(res, 200, { job: hydrateJob(updatedJob) });
   }
+
+  const jobChecklistMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)\/checklist$/);
+  if (jobChecklistMatch && req.method === 'PATCH') {
+    const jobId = Number(jobChecklistMatch[1]);
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
+    if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
+    if (session.user.role === 'employee' && job.employee_user_id !== session.user.id) {
+      return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    }
+    const body = await parseBody(req);
+    if (typeof body.checklistState !== 'string') return sendJson(res, 400, { error: 'Payload invalido.' });
+    db.prepare('UPDATE jobs SET checklist_state=?, updated_at=? WHERE id=?').run(body.checklistState, new Date().toISOString(), jobId);
+    return sendJson(res, 200, { ok: true });
+  }
+
 
   if (jobCrudMatch && req.method === 'DELETE') {
     const jobId = Number(jobCrudMatch[1]);
@@ -1542,6 +1557,16 @@ async function handleApi(req, res, requestUrl) {
 
       const employee = db.prepare('SELECT * FROM users WHERE id = ?').get(session.user.id);
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
+
+      const flatChecklist = safeJsonParse(flat.checklist_json, []);
+      if (flatChecklist.length > 0) {
+        let totalItems = 0;
+        flatChecklist.forEach(c => totalItems += (c.items ? c.items.length : 0));
+        const jobChecklistState = safeJsonParse(job.checklist_state, []);
+        if (jobChecklistState.length < totalItems) {
+          return sendJson(res, 400, { error: 'Você precisa concluir todos os itens do checklist antes de finalizar o serviço.' });
+        }
+      }
 
       const reqDate = new Date(job.requested_date);
       const isWeekend = reqDate.getUTCDay() === 0 || reqDate.getUTCDay() === 6;
@@ -1656,7 +1681,7 @@ async function handleApi(req, res, requestUrl) {
     }
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
       WHERE j.id=?
@@ -3702,6 +3727,8 @@ function hydrateJob(row) {
     guestEmail: row.guest_email || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    checklistState: safeJsonParse(row.checklist_state, []),
+    flatChecklist: safeJsonParse(row.flat_checklist_json, []),
   };
 }
 

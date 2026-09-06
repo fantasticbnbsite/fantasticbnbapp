@@ -701,8 +701,43 @@ const App = (() => {
       }
     }
 
+    
+    let checklistHtml = '';
+    if (job.status === 'in_progress' && job.flatChecklist && job.flatChecklist.length > 0) {
+      const state = job.checklistState || [];
+      const tabsHtml = job.flatChecklist.map((cat, i) => {
+        const catTotal = cat.items ? cat.items.length : 0;
+        const catDone = cat.items ? cat.items.filter(it => state.includes(cat.category + '|' + it)).length : 0;
+        const icon = catDone === catTotal && catTotal > 0 ? '✅' : '';
+        return `<button class="chk-tab ${i === 0 ? 'active' : ''}" onclick="App.switchChecklistTab(this, 'chk-pane-${job.id}-${i}')">${cat.category} ${icon}</button>`;
+      }).join('');
+      
+      const panesHtml = job.flatChecklist.map((cat, i) => {
+        const itemsHtml = (cat.items || []).map(it => {
+          const val = cat.category + '|' + it;
+          const checked = state.includes(val) ? 'checked' : '';
+          return `
+            <label class="chk-item ${checked ? 'done' : ''}">
+              <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
+              <span>${escapeHtml(it)}</span>
+            </label>
+          `;
+        }).join('');
+        return `<div id="chk-pane-${job.id}-${i}" class="chk-pane ${i === 0 ? 'active' : ''}">${itemsHtml}</div>`;
+      }).join('');
+
+      checklistHtml = `
+        <div class="chk-container">
+          <div class="chk-header">✓ Checklist Obrigatório</div>
+          <div class="chk-tabs">${tabsHtml}</div>
+          <div class="chk-panes">${panesHtml}</div>
+        </div>
+      `;
+    }
+
     if (job.status === 'in_progress') {
       actionsHtml = `
+        ${checklistHtml}
         <div class="employee-notes-wrapper">
           <label class="employee-notes-label" for="obs-${job.id}">
             <span>📝</span> Observações da Limpeza (Visível ao cliente)
