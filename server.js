@@ -1064,7 +1064,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id, checklist_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -1078,7 +1078,8 @@ async function handleApi(req, res, requestUrl) {
       Number(body.projectHolidayRate || 0),
       body.city || '',
       body.showProjectHours ? 1 : 0,
-      (body.guestyListingId || '').trim()
+      (body.guestyListingId || '').trim(),
+      body.checklistJson || null
     );
     logSystemActivity(session.user.id, 'CREATE', 'flat', result.lastInsertRowid, `Flat criado: ${body.address || 'Novo flat'}`);
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
@@ -1091,7 +1092,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=?, checklist_json=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -1107,6 +1108,7 @@ async function handleApi(req, res, requestUrl) {
       body.active === false ? 0 : 1,
       body.showProjectHours !== undefined ? (body.showProjectHours ? 1 : 0) : (flat.show_project_hours || 0),
       body.guestyListingId !== undefined ? body.guestyListingId.trim() : (flat.guesty_listing_id || ''),
+      body.checklistJson !== undefined ? body.checklistJson : flat.checklist_json,
       flatId
     );
     return sendJson(res, 200, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId) });

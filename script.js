@@ -2527,6 +2527,29 @@ function openFlatForm(flat) {
     const sel = document.getElementById('flatClientUser');
     if (sel) sel.value = String(flat.client_user_id);
   }
+  
+  const editor = document.getElementById('flatChecklistEditor');
+  if (editor) {
+    if (flat && flat.checklist_json) {
+      try {
+        const json = typeof flat.checklist_json === 'string' ? JSON.parse(flat.checklist_json) : flat.checklist_json;
+        let text = '';
+        json.forEach(cat => {
+          text += `[${cat.category}]\n`;
+          if (cat.items) {
+            cat.items.forEach(it => text += `${it}\n`);
+          }
+          text += '\n';
+        });
+        editor.value = text.trim();
+      } catch (e) {
+        editor.value = '';
+      }
+    } else {
+      editor.value = '';
+    }
+  }
+
   updateFlatRateFields();
   document.getElementById('flatSubmitButton').textContent = flat ? 'Atualizar flat' : 'Salvar flat';
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2535,6 +2558,25 @@ function openFlatForm(flat) {
 async function onFlatSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('flatEditId').value;
+  
+  const editorVal = document.getElementById('flatChecklistEditor') ? document.getElementById('flatChecklistEditor').value : '';
+  let checklistJson = null;
+  if (editorVal.trim()) {
+    const parsed = [];
+    let currentCat = null;
+    editorVal.split('\n').forEach(line => {
+      const t = line.trim();
+      if (!t) return;
+      if (t.startsWith('[') && t.endsWith(']')) {
+        currentCat = { category: t.slice(1, -1).trim(), items: [] };
+        parsed.push(currentCat);
+      } else if (currentCat) {
+        currentCat.items.push(t);
+      }
+    });
+    if (parsed.length > 0) checklistJson = JSON.stringify(parsed);
+  }
+
   const body = {
     address: document.getElementById('flatAddress').value.trim(),
     fullAddress: document.getElementById('flatFullAddress').value.trim(),
@@ -2550,6 +2592,7 @@ async function onFlatSubmit(e) {
     projectWeekendRate: document.getElementById('flatProjectWeekendRate') ? document.getElementById('flatProjectWeekendRate').value : '',
     projectHolidayRate: document.getElementById('flatProjectHolidayRate') ? document.getElementById('flatProjectHolidayRate').value : '',
     showProjectHours: document.getElementById('flatShowProjectHours') ? document.getElementById('flatShowProjectHours').checked : false,
+    checklistJson: checklistJson
   };
   const btn = document.getElementById('flatSubmitButton');
   btn.disabled = true;
