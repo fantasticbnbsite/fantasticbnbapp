@@ -1322,7 +1322,14 @@ async function handleApi(req, res, requestUrl) {
     }
     
     const updatedRequestedDate = body.requestedDate || job.requested_date;
-    const updatedStatus = body.status || job.status;
+    let updatedStatus = body.status || job.status;
+    
+    // Auto-coerce status based on employee presence to fix manual edit modal issues
+    if (updatedStatus === 'pending' && updatedEmployeeUserId) {
+      updatedStatus = 'assigned';
+    } else if (updatedStatus === 'assigned' && !updatedEmployeeUserId) {
+      updatedStatus = 'pending';
+    }
     let updatedDurationHours = job.duration_hours;
     let updatedClientAmount = job.client_amount;
     let updatedEmployeeAmount = job.employee_amount;
