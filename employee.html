@@ -1309,6 +1309,75 @@
       white-space: nowrap;
       width: 100%;
     }
+    /* Checklist Styling */
+    .chk-container {
+      background: var(--surface);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .chk-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .chk-tabs {
+      display: flex;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      background: var(--bg);
+    }
+    .chk-tab {
+      padding: 10px 12px;
+      border: none;
+      background: transparent;
+      white-space: nowrap;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .chk-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .chk-panes {
+      padding: 12px;
+    }
+    .chk-pane {
+      display: none;
+    }
+    .chk-pane.active {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chk-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border, #e5e7eb);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .chk-item.done {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+    .chk-item input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
   </style>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
@@ -1566,7 +1635,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="employee.js?v=20260621a"></script>
+  <script src="employee.js?v=20260906a"></script>
 <script>
   // Auto-reload when Service Worker updates
   if ('serviceWorker' in navigator) {
