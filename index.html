@@ -1890,7 +1890,7 @@
     }
   </style>
 
-  <script src="script.js?v=20260906g" defer></script>
+  <script src="script.js?v=20260906h" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -1898,6 +1898,44 @@
     });
   }
 </script>
+
+  <!-- ── Checklist Modal ─────────────────────────────────────────── -->
+  <div class="modal hidden" id="checklistModal">
+    <div class="modal-card glass-card" style="max-width:600px;">
+      <div class="modal-header">
+        <div><h3 style="margin:0;">Modelo de Checklist</h3><p class="eyebrow" style="margin-top:4px;">Configure as categorias e tarefas</p></div>
+        <button class="icon-button" onclick="closeChecklistForm()">x</button>
+      </div>
+      <div class="modal-body">
+        <form id="checklistForm" class="stack-form" onsubmit="onChecklistSubmit(event)">
+          <input type="hidden" id="checklistEditId" />
+          <div class="flats-input-group full-width">
+            <label for="checklistName">Nome do Modelo</label>
+            <div class="flats-input-wrapper">
+              <i data-lucide="tag"></i>
+              <input type="text" id="checklistName" placeholder="Ex: End of Tenancy Cleaning" required />
+            </div>
+          </div>
+          <div class="flats-input-group full-width" style="margin-top: 16px;">
+            <label for="checklistEditor" style="margin-bottom:6px; display:block;">
+              Itens do Checklist
+              <small style="display:block; font-weight:normal; color:var(--muted); font-size:12px; margin-top:4px;">
+                Digite o nome do cômodo entre colchetes <b>[QUARTO]</b> e as tarefas embaixo.
+              </small>
+            </label>
+            <textarea id="checklistEditor" rows="12" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:12px; font-family:monospace; font-size:13px; line-height:1.5; resize:vertical; background:var(--bg);" placeholder="[QUARTO]
+FOTO QUARTO
+DEBAIXO DA CAMA (FOTO)"></textarea>
+          </div>
+          <div class="flats-form-actions" style="margin-top: 16px; display: flex; gap: 8px;">
+            <button type="submit" class="button button-primary" id="checklistSubmitButton">Salvar Modelo</button>
+            <button type="button" class="button button-secondary outline" onclick="closeChecklistForm()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
 
