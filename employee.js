@@ -1398,6 +1398,49 @@ const App = (() => {
       .replace(/'/g, '&#039;');
   }
 
+  function switchChecklistTab(btn, paneId) {
+    const container = btn.closest('.chk-container');
+    container.querySelectorAll('.chk-tab').forEach(b => b.classList.remove('active'));
+    container.querySelectorAll('.chk-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(paneId).classList.add('active');
+  }
+
+  async function toggleChecklistItem(jobId, checkbox) {
+    const job = allJobs.find(j => String(j.id) === String(jobId));
+    if(!job) return;
+    
+    if(!job.checklistState) job.checklistState = [];
+    if(checkbox.checked) {
+      if(!job.checklistState.includes(checkbox.value)) job.checklistState.push(checkbox.value);
+      checkbox.closest('.chk-item').classList.add('done');
+    } else {
+      job.checklistState = job.checklistState.filter(v => v !== checkbox.value);
+      checkbox.closest('.chk-item').classList.remove('done');
+    }
+
+    // Update tab icon
+    const container = checkbox.closest('.chk-container');
+    job.flatChecklist.forEach((cat, i) => {
+      const catTotal = cat.items ? cat.items.length : 0;
+      const catDone = cat.items ? cat.items.filter(it => job.checklistState.includes(cat.category + '|' + it)).length : 0;
+      const tab = container.querySelectorAll('.chk-tab')[i];
+      if(tab) {
+        tab.innerHTML = cat.category + (catDone === catTotal && catTotal > 0 ? ' ✅' : '');
+      }
+    });
+
+    try {
+      await apiFetch('/api/jobs/' + jobId + '/checklist', {
+        method: 'PATCH',
+        body: JSON.stringify({ checklistState: JSON.stringify(job.checklistState) })
+      });
+    } catch(e) {
+      console.error('Failed to save checklist state', e);
+      showToast('Erro ao salvar item do checklist', 'error');
+    }
+  }
+
   /* ── Public API ─────────────────────────────────────────────── */
   return {
     init,
@@ -1415,6 +1458,8 @@ const App = (() => {
     applyDateFilter,
     filterToday,
     clearDateFilter,
+    switchChecklistTab,
+    toggleChecklistItem,
   };
 
 })();
