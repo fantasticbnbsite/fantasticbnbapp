@@ -421,6 +421,18 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN guesty_reservation_id TEXT DEFAULT ""
 try { db.exec('ALTER TABLE jobs ADD COLUMN guest_name TEXT DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN guest_email TEXT DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN is_back_to_back INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN checklist_json TEXT;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN checklist_state TEXT NOT NULL DEFAULT "[]";'); } catch {}
+try {
+  const defaultChecklist = JSON.stringify([
+    { "category": "QUARTO", "items": ["FOTO QUARTO", "DEBAIXO DA CAMA (FOTO)", "CHECAR GAVETAS (FOTO)", "DESLIGAR AR CONDICIONADO / AQUECEDOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
+    { "category": "BANHEIRO", "items": ["FOTO DO BANHEIRO", "ARMARIO DO BANHEIRO(FOTO)", "CHECAR SHAMPOO E CONDICIONADOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
+    { "category": "SALA", "items": ["FOTO DA SALA", "CHECAR TV (FOTO)", "CHECAR AR CONDICIONADO/AQUECEDOR", "LIMPEZA EMBAIXO DO SOFA", "GAVETAS SE HOUVER", "RODAPES E JANELAS", "HOOVER/MOP"] },
+    { "category": "COZINHA", "items": ["FOTO DA COZINHA", "GELADEIRA (FOTOS)", "CONGELADOR (FOTOS)", "FOGÃO (FOTOS)", "FORNO (FOTOS)", "CHECAR GAVETAS", "TALHERES/COPOS/PRATOS (FOTOS)", "CHECAR PANELAS E TAMPAS", "CHECAR AR CONDICIONADO /AQUECEDOR", "MICROONDAS (FOTOS)", "DETEGENTE, BUCHA E SACO DE LIXO (FOTOS)", "TROCAR SACO DE LIXO", "RODAPES E JANELAS", "CHECAR MAQUINA DE LAVAR/ SECADORA", "HOOVER/MOP"] },
+    { "category": "GERAL", "items": ["FECHAR JANELAS", "CHAVES NOS LOCKBOX (FOTOS)"] }
+  ]);
+  db.prepare("UPDATE flats SET checklist_json = ? WHERE checklist_json IS NULL").run(defaultChecklist);
+} catch {}
 try {
   db.exec(`
     CREATE TABLE IF NOT EXISTS guesty_reservations (
