@@ -1955,6 +1955,8 @@ async function handleApi(req, res, requestUrl) {
           db.prepare('UPDATE jobs SET invoice_id = ? WHERE id = ?').run(inv.lastInsertRowid, j.id);
         });
         invoicesGenerated++;
+        const cName = db.prepare('SELECT name FROM users WHERE id = ?').get(clientId)?.name || 'Cliente';
+        logSystemActivity(session.user.id, 'CREATE', 'invoice', inv.lastInsertRowid, `Invoice #${nextNum} gerada para ${cName}`);
       }
     } else if (type === 'payroll') {
       if (!canGenPayrolls(session.user)) return sendJson(res, 403, { error: 'Sem permissao para holerites.' });
@@ -1985,6 +1987,8 @@ async function handleApi(req, res, requestUrl) {
           db.prepare('UPDATE jobs SET payroll_id = ? WHERE id = ?').run(pr.lastInsertRowid, j.id);
         });
         payrollsGenerated++;
+        const eName = db.prepare('SELECT name FROM users WHERE id = ?').get(employeeId)?.name || 'Profissional';
+        logSystemActivity(session.user.id, 'CREATE', 'payroll', pr.lastInsertRowid, `Holerite gerado para ${eName} (Período: ${periodFrom} a ${periodTo})`);
       }
     }
 
@@ -2299,6 +2303,7 @@ async function handleApi(req, res, requestUrl) {
     if (!info) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
     db.prepare('UPDATE jobs SET invoice_id = NULL, invoice_sent = 0 WHERE invoice_id = ?').run(invoiceId);
     db.prepare('DELETE FROM invoices WHERE id = ?').run(invoiceId);
+    logSystemActivity(session.user.id, 'DELETE', 'invoice', invoiceId, `Invoice #${invoiceId} excluída`);
     return sendJson(res, 200, { success: true });
   }
 
@@ -2321,6 +2326,7 @@ async function handleApi(req, res, requestUrl) {
     if (!info) return sendJson(res, 404, { error: 'Holerite nao encontrado.' });
     db.prepare('UPDATE jobs SET payroll_id = NULL WHERE payroll_id = ?').run(payrollId);
     db.prepare('DELETE FROM payrolls WHERE id = ?').run(payrollId);
+    logSystemActivity(session.user.id, 'DELETE', 'payroll', payrollId, `Holerite #${payrollId} excluído`);
     return sendJson(res, 200, { success: true });
   }
 
