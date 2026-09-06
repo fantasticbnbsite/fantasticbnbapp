@@ -676,13 +676,29 @@ const App = (() => {
     }
 
     if (job.status === 'accepted') {
-      actionsHtml = `
-        <div class="job-actions one-btn">
-          <button class="btn btn-start" onclick="App.startJob('${job.id}', this)">
-            <span class="spinner"></span>
-            <span class="btn-text">▶️ Iniciar Serviço</span>
-          </button>
-        </div>`;
+      // Check if today is the scheduled date (UK time)
+      const todayUK = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }); // YYYY-MM-DD
+      const scheduledDate = (job.requestedDate || '').slice(0, 10);
+      const isToday = !scheduledDate || todayUK === scheduledDate;
+      const isAdminUser = currentUser && ['admin', 'superadmin'].includes(currentUser.role);
+
+      if (isToday || isAdminUser) {
+        actionsHtml = `
+          <div class="job-actions one-btn">
+            <button class="btn btn-start" onclick="App.startJob('${job.id}', this)">
+              <span class="spinner"></span>
+              <span class="btn-text">▶️ Iniciar Serviço</span>
+            </button>
+          </div>`;
+      } else {
+        const fmtDate = new Date(scheduledDate + 'T12:00:00Z').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        actionsHtml = `
+          <div class="job-actions one-btn">
+            <button class="btn" disabled style="background:#e5e7eb;color:#6b7280;cursor:not-allowed;border:1px solid #d1d5db;">
+              🔒 Disponível em ${fmtDate}
+            </button>
+          </div>`;
+      }
     }
 
     if (job.status === 'in_progress') {

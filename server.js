@@ -1489,8 +1489,10 @@ async function handleApi(req, res, requestUrl) {
       if (job.status !== 'accepted') return sendJson(res, 400, { error: 'O servico precisa estar aceito para iniciar.' });
       if (job.employee_user_id !== session.user.id && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
 
-      // Employees can only start on the scheduled date (UK timezone)
-      if (session.user.role === 'employee') {
+      // Only admins/superadmins can start a job on any date.
+      // All other users (employee, analyst, manager, cleaner flag) must start on the scheduled date.
+      const isAdmin = ['admin', 'superadmin'].includes(session.user.role);
+      if (!isAdmin) {
         const todayUK = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }); // YYYY-MM-DD
         const scheduledDate = (job.requested_date || '').slice(0, 10);
         if (scheduledDate && todayUK !== scheduledDate) {
@@ -1498,6 +1500,7 @@ async function handleApi(req, res, requestUrl) {
           return sendJson(res, 400, { error: `Este serviço está agendado para o dia ${formatted}. Só é possível iniciá-lo na data marcada.` });
         }
       }
+
 
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
