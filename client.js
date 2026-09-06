@@ -676,6 +676,31 @@ function jobCardHTML(job) {
   if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Finished: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
   const timelineBlock = timelineHtml ? `<div class="job-meta-item" style="width:100%;margin-top:2px;">${timelineHtml}</div>` : '';
 
+  let checklistHtml = '';
+  if ((job.status === 'in_progress' || job.status === 'completed') && job.flatChecklist && job.flatChecklist.length > 0) {
+    const stateArr = job.checklistState || [];
+    let html = '';
+    job.flatChecklist.forEach(cat => {
+      let catHtml = `<strong style="display:block; margin-top:8px;">${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+      if (cat.items) {
+        cat.items.forEach(it => {
+          const val = cat.category + '|' + it;
+          const checked = stateArr.includes(val);
+          const icon = checked ? '<span style="color:#166534; font-weight:bold;">✓</span>' : '<span style="color:#9ca3af;">☐</span>';
+          const textStyle = checked ? '' : 'color:#6b7280; text-decoration:line-through;';
+          catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${escHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>')}</span></li>`;
+        });
+      }
+      catHtml += '</ul>';
+      html += catHtml;
+    });
+    checklistHtml = `
+      <div style="width:100%; margin-top:12px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); font-size:0.85rem;">
+        <strong style="color:var(--text); font-size:0.85rem; display:block; margin-bottom:6px;">✓ Checklist (Cleaning Progress)</strong>
+        ${html}
+      </div>`;
+  }
+
   return `
     <article class="job-card glass-card" style="--status-color:${cfg.color}">
       <div class="job-card-inner">
@@ -688,6 +713,7 @@ function jobCardHTML(job) {
           ${job.billingType === 'hourly' ? '<div class="job-meta-item">⏱ Hourly</div>' : job.billingType === 'project' ? '<div class="job-meta-item">📋 Fixed project</div>' : ''}
           ${notesHTML}
           ${timelineBlock}
+          ${checklistHtml}
         </div>
         ${footContent ? `<div class="job-card-foot">${footContent}</div>` : ''}
       </div>
@@ -1068,6 +1094,34 @@ window.openEditJobModal = function(jobId) {
     } else {
       cleanerNotesBox.style.display = 'none';
       cleanerNotesText.textContent = '';
+    }
+  }
+
+  const chkContainer = document.getElementById('clientEditJobChecklistContainer');
+  const chkEl = document.getElementById('clientEditJobChecklist');
+  if (chkContainer && chkEl) {
+    if (job.flatChecklist && job.flatChecklist.length > 0) {
+      const stateArr = job.checklistState || [];
+      let html = '';
+      job.flatChecklist.forEach(cat => {
+        let catHtml = `<strong style="display:block; margin-top:8px;">${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+        if (cat.items) {
+          cat.items.forEach(it => {
+            const val = cat.category + '|' + it;
+            const checked = stateArr.includes(val);
+            const icon = checked ? '<span style="color:#166534; font-weight:bold;">✓</span>' : '<span style="color:#9ca3af;">☐</span>';
+            const textStyle = checked ? '' : 'color:#6b7280; text-decoration:line-through;';
+            catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${it.replace(/</g, '&lt;')}</span></li>`;
+          });
+        }
+        catHtml += '</ul>';
+        html += catHtml;
+      });
+      chkEl.innerHTML = html;
+      chkContainer.style.display = 'block';
+    } else {
+      chkContainer.style.display = 'none';
+      chkEl.innerHTML = '';
     }
   }
 

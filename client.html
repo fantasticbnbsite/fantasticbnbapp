@@ -1082,13 +1082,17 @@
             <strong style="color:#059669; font-size:0.8rem; display:block; margin-bottom:3px;">🧹 Cleaner Observation:</strong>
             <span id="clientEditJobCleanerNotes" style="font-size:0.88rem; color:var(--text); white-space:pre-wrap; line-height:1.4;"></span>
           </div>
+          <div id="clientEditJobChecklistContainer" style="display:none; padding:10px 14px; border:1px solid var(--line); border-radius:8px; font-size:13px; max-height:200px; overflow-y:auto; background:var(--surface);">
+            <strong style="color:var(--text); font-size:0.85rem; display:block; margin-bottom:6px;">✓ Checklist (Cleaning Progress)</strong>
+            <div id="clientEditJobChecklist"></div>
+          </div>
           <button type="submit" class="btn btn-primary" id="confirmClientEditJobButton" style="width:100%;">Save Changes</button>
         </form>
       </div>
     </div>
   </div>
 
-  <script src="client.js?v=20260611c"></script>
+  <script src="client.js?v=20260906b"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
