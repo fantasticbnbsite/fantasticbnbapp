@@ -155,6 +155,7 @@ const els = {
     admin: $('#adminView'),
     jobs: $('#jobsView'),
     flats: $('#flatsView'),
+    checklists: $('#checklistsView'),
     config: $('#configView'),
     logs: $('#logsView'),
     dashboard: $('#dashboardView'),
@@ -3163,6 +3164,7 @@ const _origSwitchViewForCleanOps = switchView;
 switchView = function(view) {
   _origSwitchViewForCleanOps(view);
   if (view === 'jobs') loadJobs();
+  else if (view === 'checklists') { loadChecklists().then(renderChecklists); }
   else if (view === 'flats') loadFlats();
   else if (view === 'config') loadConfig();
   else if (view === 'finance') renderFinanceSummary();
