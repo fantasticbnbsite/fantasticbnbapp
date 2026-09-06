@@ -2528,25 +2528,19 @@ function openFlatForm(flat) {
     if (sel) sel.value = String(flat.client_user_id);
   }
   
-  const editor = document.getElementById('flatChecklistEditor');
-  if (editor) {
-    if (flat && flat.checklist_json) {
-      try {
-        const json = typeof flat.checklist_json === 'string' ? JSON.parse(flat.checklist_json) : flat.checklist_json;
-        let text = '';
-        json.forEach(cat => {
-          text += `[${cat.category}]\n`;
-          if (cat.items) {
-            cat.items.forEach(it => text += `${it}\n`);
-          }
-          text += '\n';
-        });
-        editor.value = text.trim();
-      } catch (e) {
-        editor.value = '';
-      }
+  const tplSelect = document.getElementById('flatChecklistTemplate');
+  if (tplSelect) {
+    tplSelect.innerHTML = '<option value="">(Nenhum - Permitir fechar sem checklist)</option>';
+    (state.checklists || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      tplSelect.appendChild(opt);
+    });
+    if (flat && flat.checklist_template_id) {
+      tplSelect.value = flat.checklist_template_id;
     } else {
-      editor.value = '';
+      tplSelect.value = '';
     }
   }
 
@@ -2559,23 +2553,7 @@ async function onFlatSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('flatEditId').value;
   
-  const editorVal = document.getElementById('flatChecklistEditor') ? document.getElementById('flatChecklistEditor').value : '';
-  let checklistJson = null;
-  if (editorVal.trim()) {
-    const parsed = [];
-    let currentCat = null;
-    editorVal.split('\n').forEach(line => {
-      const t = line.trim();
-      if (!t) return;
-      if (t.startsWith('[') && t.endsWith(']')) {
-        currentCat = { category: t.slice(1, -1).trim(), items: [] };
-        parsed.push(currentCat);
-      } else if (currentCat) {
-        currentCat.items.push(t);
-      }
-    });
-    if (parsed.length > 0) checklistJson = JSON.stringify(parsed);
-  }
+
 
   const body = {
     address: document.getElementById('flatAddress').value.trim(),
@@ -2592,7 +2570,7 @@ async function onFlatSubmit(e) {
     projectWeekendRate: document.getElementById('flatProjectWeekendRate') ? document.getElementById('flatProjectWeekendRate').value : '',
     projectHolidayRate: document.getElementById('flatProjectHolidayRate') ? document.getElementById('flatProjectHolidayRate').value : '',
     showProjectHours: document.getElementById('flatShowProjectHours') ? document.getElementById('flatShowProjectHours').checked : false,
-    checklistJson: checklistJson
+    checklistTemplateId: document.getElementById('flatChecklistTemplate') ? document.getElementById('flatChecklistTemplate').value : null
   };
   const btn = document.getElementById('flatSubmitButton');
   btn.disabled = true;
@@ -2630,6 +2608,145 @@ async function deleteFlat(id) {
     toast('Erro: ' + (e.message || ''));
   }
 }
+
+
+// ── CHECKLISTS ────────────────────────────────────────────────────────────
+
+async function loadChecklists() {
+  if (!['admin', 'superadmin', 'manager'].includes(state.user?.role)) return;
+  try {
+    const data = await api('/api/checklists');
+    state.checklists = data.templates || [];
+  } catch (err) {
+    console.error('Error loading checklists', err);
+  }
+}
+
+function renderChecklists() {
+  const list = document.getElementById('checklistsList');
+  if (!list) return;
+  if (!state.checklists || state.checklists.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhum modelo de checklist encontrado.</div>';
+    return;
+  }
+  list.innerHTML = state.checklists.map(c => `
+    <div class="glass-card" style="padding:16px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:600;">${escapeHtml(c.name)}</div>
+        <div style="font-size:0.875rem; color:var(--muted); margin-top:4px;">Atualizado em: ${c.updated_at ? new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(c.updated_at)) : ''}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="button button-secondary" onclick="editChecklist(${c.id})">Editar</button>
+        <button class="button button-danger" style="background:var(--danger);border:none;color:#fff;padding:8px 16px;border-radius:4px;" onclick="deleteChecklist(${c.id})">Excluir</button>
+      </div>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function openChecklistForm(c = null) {
+  const form = document.getElementById('checklistForm');
+  const modal = document.getElementById('checklistModal');
+  if (!form || !modal) return;
+  
+  form.reset();
+  document.getElementById('checklistEditId').value = c ? c.id : '';
+  document.getElementById('checklistName').value = c ? c.name : '';
+  
+  const editor = document.getElementById('checklistEditor');
+  if (c && c.checklist_json) {
+    try {
+      const json = typeof c.checklist_json === 'string' ? JSON.parse(c.checklist_json) : c.checklist_json;
+      let text = '';
+      json.forEach(cat => {
+        text += `[${cat.category}]\n`;
+        if (cat.items) {
+          cat.items.forEach(it => text += `${it}\n`);
+        }
+        text += '\n';
+      });
+      editor.value = text.trim();
+    } catch(e) { editor.value = ''; }
+  } else {
+    editor.value = '';
+  }
+  
+  document.getElementById('checklistSubmitButton').innerHTML = `<i data-lucide="save"></i> ${c ? 'Atualizar' : 'Salvar'} Modelo`;
+  modal.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeChecklistForm() {
+  document.getElementById('checklistModal')?.classList.add('hidden');
+}
+
+function editChecklist(id) {
+  const c = state.checklists.find(x => x.id === id);
+  if (c) openChecklistForm(c);
+}
+
+async function deleteChecklist(id) {
+  if (!confirm('Deseja excluir este modelo? (Ele não deve estar em uso por nenhum flat)')) return;
+  try {
+    await api(`/api/checklists/${id}`, { method: 'DELETE' });
+    toast('Modelo excluído!');
+    await loadChecklists();
+    renderChecklists();
+  } catch (err) {
+    toast('Erro: ' + (err.message || ''));
+  }
+}
+
+async function onChecklistSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('checklistEditId').value;
+  const name = document.getElementById('checklistName').value;
+  const editorVal = document.getElementById('checklistEditor').value;
+  
+  let checklistJson = null;
+  if (editorVal.trim()) {
+    const parsed = [];
+    let currentCat = null;
+    editorVal.split('\n').forEach(line => {
+      const t = line.trim();
+      if (!t) return;
+      if (t.startsWith('[') && t.endsWith(']')) {
+        currentCat = { category: t.slice(1, -1).trim(), items: [] };
+        parsed.push(currentCat);
+      } else if (currentCat) {
+        currentCat.items.push(t);
+      }
+    });
+    if (parsed.length > 0) checklistJson = JSON.stringify(parsed);
+  }
+  
+  const body = { name, checklistJson };
+  const btn = document.getElementById('checklistSubmitButton');
+  btn.disabled = true;
+  
+  try {
+    if (id) {
+      await api(`/api/checklists/${id}`, { method: 'PUT', body });
+      toast('Modelo atualizado!');
+    } else {
+      await api('/api/checklists', { method: 'POST', body });
+      toast('Modelo criado!');
+    }
+    closeChecklistForm();
+    await loadChecklists();
+    renderChecklists();
+  } catch (err) {
+    toast('Erro: ' + (err.message || ''));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+window.editChecklist = editChecklist;
+window.deleteChecklist = deleteChecklist;
+window.openChecklistForm = openChecklistForm;
+window.closeChecklistForm = closeChecklistForm;
+window.onChecklistSubmit = onChecklistSubmit;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 async function loadConfig() {

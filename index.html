@@ -1111,21 +1111,16 @@
               </div>
             </div>
 
-            <!-- Checklist Customizado -->
+            <!-- Modelo de Checklist -->
             <div class="flats-input-group full-width" style="margin-top: 16px;">
-              <label for="flatChecklistEditor" style="margin-bottom:6px; display:block;">
-                Checklist Obrigatório
-                <small style="display:block; font-weight:normal; color:var(--muted); font-size:12px; margin-top:4px;">
-                  Configure as tarefas exigidas para os cleaners finalizarem o serviço neste Flat.<br>
-                  Formato: Digite o nome do cômodo entre colchetes <b>[QUARTO]</b> e as tarefas embaixo.
-                </small>
-              </label>
-              <textarea id="flatChecklistEditor" rows="8" style="width:100%; border:1px solid var(--line); border-radius:8px; padding:12px; font-family:monospace; font-size:13px; line-height:1.5; resize:vertical; background:var(--bg);" placeholder="[QUARTO]
-FOTO QUARTO
-DEBAIXO DA CAMA (FOTO)
-
-[BANHEIRO]
-FOTO DO BANHEIRO"></textarea>
+              <label for="flatChecklistTemplate">Modelo de Checklist</label>
+              <div class="flats-input-wrapper">
+                <i data-lucide="check-square"></i>
+                <select id="flatChecklistTemplate">
+                  <option value="">(Nenhum - Permitir fechar sem checklist)</option>
+                </select>
+                <i data-lucide="chevron-down" class="select-arrow"></i>
+              </div>
             </div>
 
             <div class="flats-form-actions">
@@ -1876,7 +1871,7 @@ FOTO DO BANHEIRO"></textarea>
     }
   </style>
 
-  <script src="script.js?v=20260906b" defer></script>
+  <script src="script.js?v=20260906d" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

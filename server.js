@@ -421,7 +421,39 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN guesty_reservation_id TEXT DEFAULT ""
 try { db.exec('ALTER TABLE jobs ADD COLUMN guest_name TEXT DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN guest_email TEXT DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN is_back_to_back INTEGER NOT NULL DEFAULT 0;'); } catch {}
-try { db.exec('ALTER TABLE flats ADD COLUMN checklist_json TEXT;'); } catch {}
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS checklist_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      checklist_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  const count = db.prepare('SELECT COUNT(*) AS c FROM checklist_templates').get().c;
+  if (count === 0) {
+    const defaultChecklist = JSON.stringify([
+      { "category": "QUARTO", "items": ["FOTO QUARTO", "DEBAIXO DA CAMA (FOTO)", "CHECAR GAVETAS (FOTO)", "DESLIGAR AR CONDICIONADO / AQUECEDOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
+      { "category": "BANHEIRO", "items": ["FOTO DO BANHEIRO", "ARMARIO DO BANHEIRO(FOTO)", "CHECAR SHAMPOO E CONDICIONADOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
+      { "category": "SALA", "items": ["FOTO DA SALA", "CHECAR TV (FOTO)", "CHECAR AR CONDICIONADO/AQUECEDOR", "LIMPEZA EMBAIXO DO SOFA", "GAVETAS SE HOUVER", "RODAPES E JANELAS", "HOOVER/MOP"] },
+      { "category": "COZINHA", "items": ["FOTO DA COZINHA", "GELADEIRA (FOTOS)", "CONGELADOR (FOTOS)", "FOGÃO (FOTOS)", "FORNO (FOTOS)", "CHECAR GAVETAS", "TALHERES/COPOS/PRATOS (FOTOS)", "CHECAR PANELAS E TAMPAS", "CHECAR AR CONDICIONADO /AQUECEDOR", "MICROONDAS (FOTOS)", "DETEGENTE, BUCHA E SACO DE LIXO (FOTOS)", "TROCAR SACO DE LIXO", "RODAPES E JANELAS", "CHECAR MAQUINA DE LAVAR/ SECADORA", "HOOVER/MOP"] },
+      { "category": "GERAL", "items": ["FECHAR JANELAS", "CHAVES NOS LOCKBOX (FOTOS)"] }
+    ]);
+    db.prepare('INSERT INTO checklist_templates (name, checklist_json) VALUES (?, ?)').run('Padrão Airbnb', defaultChecklist);
+  }
+} catch (e) { console.error('Migration error checklist_templates', e); }
+
+try { db.exec('ALTER TABLE flats ADD COLUMN checklist_template_id INTEGER;'); } catch {}
+
+try {
+  // Associate existing flats to template 1 if they have no template assigned
+  const defaultTemplate = db.prepare('SELECT id FROM checklist_templates ORDER BY id ASC LIMIT 1').get();
+  if (defaultTemplate) {
+    db.prepare('UPDATE flats SET checklist_template_id = ? WHERE checklist_template_id IS NULL').run(defaultTemplate.id);
+  }
+} catch (e) { console.error('Migration error flat checklist assignment', e); }
+
 try { db.exec('ALTER TABLE jobs ADD COLUMN checklist_state TEXT NOT NULL DEFAULT "[]";'); } catch {}
 try {
   const defaultChecklist = JSON.stringify([
@@ -1045,6 +1077,48 @@ async function handleApi(req, res, requestUrl) {
   }
 
   // ── Flats ──
+
+  // ── CHECKLIST TEMPLATES ───────────────────────────────────────────────────
+  if (requestUrl.pathname === '/api/checklists' && req.method === 'GET') {
+    if (!['admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const templates = db.prepare('SELECT * FROM checklist_templates ORDER BY id ASC').all();
+    return sendJson(res, 200, { templates });
+  }
+  
+  if (requestUrl.pathname === '/api/checklists' && req.method === 'POST') {
+    if (!['admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const body = await parseBody(req);
+    if (!body.name) return sendJson(res, 400, { error: 'Nome obrigatório.' });
+    const result = db.prepare('INSERT INTO checklist_templates (name, checklist_json) VALUES (?, ?)').run(
+      body.name.trim(),
+      body.checklistJson || '[]'
+    );
+    return sendJson(res, 201, { template: db.prepare('SELECT * FROM checklist_templates WHERE id = ?').get(result.lastInsertRowid) });
+  }
+  
+  const checklistMatch = requestUrl.pathname.match(/^\/api\/checklists\/(\d+)$/);
+  if (checklistMatch && req.method === 'PUT') {
+    if (!['admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const id = Number(checklistMatch[1]);
+    const body = await parseBody(req);
+    db.prepare('UPDATE checklist_templates SET name = ?, checklist_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      body.name.trim(),
+      body.checklistJson || '[]',
+      id
+    );
+    return sendJson(res, 200, { success: true });
+  }
+  
+  if (checklistMatch && req.method === 'DELETE') {
+    if (!['admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const id = Number(checklistMatch[1]);
+    // Prevent deletion if in use
+    const inUse = db.prepare('SELECT COUNT(*) AS c FROM flats WHERE checklist_template_id = ?').get(id).c;
+    if (inUse > 0) return sendJson(res, 400, { error: 'Este modelo está em uso por flats. Remova-o dos flats antes de excluir.' });
+    db.prepare('DELETE FROM checklist_templates WHERE id = ?').run(id);
+    return sendJson(res, 200, { success: true });
+  }
+
   if (requestUrl.pathname === '/api/flats' && req.method === 'GET') {
     if (!canManageClientsFlats(session.user) && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flats = db.prepare(`
@@ -1064,7 +1138,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id, checklist_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id, checklist_template_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -1079,7 +1153,7 @@ async function handleApi(req, res, requestUrl) {
       body.city || '',
       body.showProjectHours ? 1 : 0,
       (body.guestyListingId || '').trim(),
-      body.checklistJson || null
+      body.checklistTemplateId ? Number(body.checklistTemplateId) : null
     );
     logSystemActivity(session.user.id, 'CREATE', 'flat', result.lastInsertRowid, `Flat criado: ${body.address || 'Novo flat'}`);
     return sendJson(res, 201, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(result.lastInsertRowid) });
@@ -1092,7 +1166,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=?, checklist_json=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=?, checklist_template_id=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -1108,7 +1182,7 @@ async function handleApi(req, res, requestUrl) {
       body.active === false ? 0 : 1,
       body.showProjectHours !== undefined ? (body.showProjectHours ? 1 : 0) : (flat.show_project_hours || 0),
       body.guestyListingId !== undefined ? body.guestyListingId.trim() : (flat.guesty_listing_id || ''),
-      body.checklistJson !== undefined ? body.checklistJson : flat.checklist_json,
+      body.checklistTemplateId !== undefined ? (body.checklistTemplateId ? Number(body.checklistTemplateId) : null) : flat.checklist_template_id,
       flatId
     );
     return sendJson(res, 200, { flat: db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId) });
@@ -1131,13 +1205,14 @@ async function handleApi(req, res, requestUrl) {
     const cleanerFilter = requestUrl.searchParams.get('cleaner_id') || '';
     let sql = `
       SELECT j.*,
-        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
       LEFT JOIN flats f ON f.id = j.flat_id
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
+      LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id
       WHERE 1=1
     `;
     const params = [];
@@ -1168,13 +1243,14 @@ async function handleApi(req, res, requestUrl) {
     const filterId = isEmployeeView ? session.user.id : targetClientId;
     const jobs = db.prepare(`
       SELECT j.*,
-        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
+        f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email,
         eu.name AS employee_name, eu.email AS employee_email
       FROM jobs j
       LEFT JOIN flats f ON f.id = j.flat_id
       LEFT JOIN users cu ON cu.id = j.client_user_id
       LEFT JOIN users eu ON eu.id = j.employee_user_id
+      LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id
       WHERE ${whereField} = ?
       ORDER BY COALESCE(j.requested_date, substr(j.created_at, 1, 10)) DESC, j.id DESC LIMIT 1500
     `).all(filterId).map(hydrateJob);
@@ -1222,7 +1298,7 @@ async function handleApi(req, res, requestUrl) {
     }
 
     logSystemActivity(session.user.id, 'CREATE', 'job', result.lastInsertRowid, `Serviço agendado no flat ${flat.address}`);
-    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.id = ?').get(result.lastInsertRowid)) });
+    return sendJson(res, 201, { job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id WHERE j.id = ?').get(result.lastInsertRowid)) });
   }
 
   if (requestUrl.pathname === '/api/jobs/manual' && req.method === 'POST') {
@@ -1462,9 +1538,9 @@ async function handleApi(req, res, requestUrl) {
     }
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
-      FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
+      FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id
       WHERE j.id=?
     `).get(jobId);
     return sendJson(res, 200, { job: hydrateJob(updatedJob) });
@@ -1695,9 +1771,9 @@ async function handleApi(req, res, requestUrl) {
     }
 
     const updatedJob = db.prepare(`
-      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, f.checklist_json AS flat_checklist_json,
+      SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json,
         cu.name AS client_name, cu.email AS client_email, eu.name AS employee_name, eu.email AS employee_email
-      FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id
+      FROM jobs j LEFT JOIN flats f ON f.id=j.flat_id LEFT JOIN users cu ON cu.id=j.client_user_id LEFT JOIN users eu ON eu.id=j.employee_user_id LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id
       WHERE j.id=?
     `).get(jobId);
     return sendJson(res, 200, { job: hydrateJob(updatedJob) });
