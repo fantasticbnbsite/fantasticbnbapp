@@ -634,7 +634,11 @@ function checkOverdueInvoices() {
 
     if (invoicesToCharge.length === 0) return;
 
-    const billingTransporter = nodemailer.createTransport({
+    const billingTransporter = smtpHost.includes('gmail') ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
+    }) : nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
@@ -985,7 +989,7 @@ async function handleApi(req, res, requestUrl) {
       const smtpUser = config.smtp_user || SMTP_USER;
       const smtpPass = config.smtp_pass || SMTP_PASS;
       
-      logs.push("SMTP Config check: " + (smtpHost ? "OK" : "MISSING"));
+      logs.push(`SMTP Config check: host=${smtpHost}, port=${smtpPort}, user=${smtpUser}`);
       
       if (!smtpHost) return sendJson(res, 200, { logs, error: 'SMTP NOT CONFIGURED' });
 
@@ -1002,7 +1006,11 @@ async function handleApi(req, res, requestUrl) {
       
       if (invoicesToCharge.length === 0) return sendJson(res, 200, { logs });
       
-      const billingTransporter = nodemailer.createTransport({
+      const billingTransporter = smtpHost.includes('gmail') ? nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
+      }) : nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
         secure: smtpPort === 465,
