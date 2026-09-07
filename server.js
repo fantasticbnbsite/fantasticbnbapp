@@ -617,10 +617,7 @@ function checkOverdueInvoices() {
     const smtpUser = config.smtp_user || SMTP_USER;
     const smtpPass = config.smtp_pass || SMTP_PASS;
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      // SMTP not configured yet — skip silently
-      return;
-    }
+    // if (!config.resend_api_key) return; // Disabled so we use hardcoded key for debug
 
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -989,7 +986,7 @@ async function handleApi(req, res, requestUrl) {
       
       logs.push(`SMTP Config check: host=${smtpHost}, port=${smtpPort}, user=${smtpUser}`);
       
-      if (!smtpHost) return sendJson(res, 200, { logs, error: 'SMTP NOT CONFIGURED' });
+      // if (!config.resend_api_key) return sendJson(res, 200, { logs, error: 'Resend API key missing' });
 
       const today = new Date().toISOString().slice(0, 10);
       const invoicesToCharge = db.prepare(`
