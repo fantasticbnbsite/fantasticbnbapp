@@ -2807,6 +2807,7 @@ async function onConfigSubmit(e) {
 }
 
 // ── Helper: expose functions globally for onclick handlers ────────────────────
+window.onConfigSubmit = onConfigSubmit;
 window.openAssignModal = openAssignModal;
 window.adminCancelJob = adminCancelJob;
 window.deleteJob = deleteJob;

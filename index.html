@@ -1170,7 +1170,7 @@
               <p class="panel-kicker">Dados bancarios para invoices e configuracoes de envio de e-mail (SMTP).</p>
             </div>
           </div>
-          <form class="stack-form" id="configForm">
+          <form class="stack-form" id="configForm" onsubmit="onConfigSubmit(event)">
             <h4 style="margin:0 0 8px;opacity:0.8;">Dados bancarios (Invoice)</h4>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div>
@@ -1890,7 +1890,7 @@
     }
   </style>
 
-  <script src="script.js?v=20260906h" defer></script>
+  <script src="script.js?v=20260906i" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
