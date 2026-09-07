@@ -638,7 +638,7 @@ function checkOverdueInvoices() {
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass }
+      auth: { user: smtpUser, pass: smtpPass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
     });
 
     for (const inv of invoicesToCharge) {
@@ -1006,7 +1006,7 @@ async function handleApi(req, res, requestUrl) {
         host: smtpHost,
         port: smtpPort,
         secure: smtpPort === 465,
-        auth: { user: smtpUser, pass: smtpPass }
+        auth: { user: smtpUser, pass: smtpPass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
       });
       
       const inv = invoicesToCharge[0];
