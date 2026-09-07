@@ -983,8 +983,8 @@ async function handleApi(req, res, requestUrl) {
         FROM invoices i
         JOIN users u ON i.client_user_id = u.id
         WHERE i.is_paid = 0 AND i.due_date IS NOT NULL AND i.due_date != '' AND i.due_date < ? AND i.status = 'published'
-          AND (i.overdue_notified_date IS NULL OR (julianday(?) - julianday(i.overdue_notified_date)) >= 15)
-      `).all(today, today);
+          
+      `).all(today);
       
       logs.push("Found invoices: " + invoicesToCharge.length);
       
@@ -997,7 +997,19 @@ async function handleApi(req, res, requestUrl) {
         from: `Fantastic BNB <info@fantasticbnb.co.uk>`,
         to: [inv.client_email],
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
-        html: `<p>Dear ${inv.client_name}, this is a test reminder.</p><div style="margin-top: 30px; padding-top: 20px;"><img src="https://fantasticbnbapp-production.up.railway.app/images/signature.jpg" alt="Fantastic BNB Signature" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`
+        html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto;">
+            <h2 style="color: #10B981;">Payment Reminder</h2>
+            <p>Dear <strong>${inv.client_name}</strong>,</p>
+            <p>This is a friendly reminder that your invoice for <strong>£${Number(inv.total_amount).toFixed(2)}</strong> was due on <strong>${inv.due_date}</strong>.</p>
+            <p><strong>Period:</strong> ${inv.period_from} to ${inv.period_to}</p>
+            <br>
+            <p>Please make the payment at your earliest convenience to avoid any service interruption.</p>
+            <p><i>If you have already made the payment, please disregard this email.</i></p>
+            <p>Kind regards,<br>Fantastic BNB Team</p>
+            <div style="margin-top: 30px; padding-top: 20px;">
+              <img src="https://fantasticbnbapp-production.up.railway.app/images/signature.jpg" alt="Fantastic BNB Signature" style="max-width: 100%; height: auto; border-radius: 8px;" />
+            </div>
+          </div>`
       };
       
       logs.push("Attempting to send mail to: " + inv.client_email);
