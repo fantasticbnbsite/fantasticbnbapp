@@ -973,6 +973,31 @@ async function handleApi(req, res, requestUrl) {
   }
 
   // ── Users (admin) ──
+
+  if (requestUrl.pathname === '/api/debug-cron') {
+    const today = new Date().toISOString().slice(0, 10);
+    const invoices = db.prepare(`
+      SELECT i.*, u.name as client_name, u.email as client_email 
+      FROM invoices i
+      JOIN users u ON i.client_user_id = u.id
+      WHERE i.is_paid = 0 AND i.due_date IS NOT NULL AND i.due_date != ''
+    `).all();
+    
+    return sendJson(res, 200, {
+      today,
+      all_unpaid_with_duedate: invoices.map(i => ({
+        id: i.id,
+        client: i.client_name,
+        due_date: i.due_date,
+        is_paid: i.is_paid,
+        status: i.status,
+        overdue_notified_date: i.overdue_notified_date,
+        email_to_send: i.client_email,
+        will_match_query: (i.due_date < today) && (i.status === 'published')
+      }))
+    });
+  }
+
   if (requestUrl.pathname === '/api/users' && req.method === 'GET') {
     if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const users = db.prepare(`
