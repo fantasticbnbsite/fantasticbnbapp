@@ -974,6 +974,72 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Users (admin) ──
 
+
+  if (requestUrl.pathname === '/api/debug-force-cron') {
+    let logs = [];
+    try {
+      const config = {};
+      db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
+      const smtpHost = config.smtp_host || SMTP_HOST;
+      const smtpPort = Number(config.smtp_port || SMTP_PORT || 465);
+      const smtpUser = config.smtp_user || SMTP_USER;
+      const smtpPass = config.smtp_pass || SMTP_PASS;
+      
+      logs.push("SMTP Config check: " + (smtpHost ? "OK" : "MISSING"));
+      
+      if (!smtpHost) return sendJson(res, 200, { logs, error: 'SMTP NOT CONFIGURED' });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const invoicesToCharge = db.prepare(`
+        SELECT i.*, u.name as client_name, u.email as client_email 
+        FROM invoices i
+        JOIN users u ON i.client_user_id = u.id
+        WHERE i.is_paid = 0 AND i.due_date IS NOT NULL AND i.due_date != '' AND i.due_date < ? AND i.status = 'published'
+          AND (i.overdue_notified_date IS NULL OR (julianday(?) - julianday(i.overdue_notified_date)) >= 15)
+      `).all(today, today);
+      
+      logs.push("Found invoices: " + invoicesToCharge.length);
+      
+      if (invoicesToCharge.length === 0) return sendJson(res, 200, { logs });
+      
+      const billingTransporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: smtpUser, pass: smtpPass }
+      });
+      
+      const inv = invoicesToCharge[0];
+      const mailOptions = {
+        from: `"Fantastic BNB" <${smtpUser}>`,
+        to: inv.client_email,
+        subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
+        text: 'Test reminder',
+        html: '<p>Test reminder</p>'
+      };
+      
+      logs.push("Attempting to send mail to: " + inv.client_email);
+      
+      // Promisify sendMail to wait for result
+      const info = await new Promise((resolve, reject) => {
+        billingTransporter.sendMail(mailOptions, (err, info) => {
+          if (err) reject(err);
+          else resolve(info);
+        });
+      });
+      
+      logs.push("Mail sent successfully! " + info.messageId);
+      
+      db.prepare('UPDATE invoices SET overdue_notified_date = ? WHERE id = ?').run(today, inv.id);
+      logs.push("Database updated");
+      
+      return sendJson(res, 200, { logs, success: true });
+    } catch (e) {
+      logs.push("ERROR: " + e.message);
+      return sendJson(res, 500, { logs, stack: e.stack });
+    }
+  }
+
   if (requestUrl.pathname === '/api/debug-cron') {
     const today = new Date().toISOString().slice(0, 10);
     const invoices = db.prepare(`
