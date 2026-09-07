@@ -634,15 +634,13 @@ function checkOverdueInvoices() {
 
     if (invoicesToCharge.length === 0) return;
 
-    const billingTransporter = smtpHost.includes('gmail') ? nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: smtpUser, pass: smtpPass },
-      connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
-    }) : nodemailer.createTransport({
+    const billingTransporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000,
+      family: 4 // Force IPv4 to prevent ENETUNREACH on Railway
     });
 
     for (const inv of invoicesToCharge) {
@@ -1006,16 +1004,14 @@ async function handleApi(req, res, requestUrl) {
       
       if (invoicesToCharge.length === 0) return sendJson(res, 200, { logs });
       
-      const billingTransporter = smtpHost.includes('gmail') ? nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
-      }) : nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: smtpUser, pass: smtpPass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 10000
-      });
+      const billingTransporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000,
+      family: 4 // Force IPv4 to prevent ENETUNREACH on Railway
+    });
       
       const inv = invoicesToCharge[0];
       const mailOptions = {
