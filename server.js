@@ -628,8 +628,8 @@ function checkOverdueInvoices() {
       SELECT i.*, u.name as client_name, u.email as client_email 
       FROM invoices i
       JOIN users u ON i.client_user_id = u.id
-      WHERE i.is_paid = 0 AND i.due_date < ? AND i.status = 'published'
-        AND (i.overdue_notified_date IS NULL OR i.overdue_notified_date != ?)
+      WHERE i.is_paid = 0 AND i.due_date IS NOT NULL AND i.due_date != '' AND i.due_date < ? AND i.status = 'published'
+        AND (i.overdue_notified_date IS NULL OR (julianday(?) - julianday(i.overdue_notified_date)) >= 15)
     `).all(today, today);
 
     if (invoicesToCharge.length === 0) return;
