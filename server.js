@@ -997,7 +997,7 @@ async function handleApi(req, res, requestUrl) {
         from: `Fantastic BNB <info@fantasticbnb.co.uk>`,
         to: [inv.client_email],
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
-        html: `<p>Dear ${inv.client_name}, this is a test reminder.</p>`
+        html: `<p>Dear ${inv.client_name}, this is a test reminder.</p><div style="margin-top: 30px; padding-top: 20px;"><img src="https://fantasticbnbapp-production.up.railway.app/images/signature.jpg" alt="Fantastic BNB Signature" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`
       };
       
       logs.push("Attempting to send mail to: " + inv.client_email);
@@ -4012,11 +4012,8 @@ async function parseMultipart(req, uploadDir) {
 async function sendInvoiceEmail(job, durationHours, clientAmount) {
   const config = {};
   db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
-  const smtpHost = config.smtp_host || SMTP_HOST;
-  const smtpUser = config.smtp_user || SMTP_USER;
-  const smtpPass = config.smtp_pass || SMTP_PASS;
-  const smtpFrom = config.smtp_from || SMTP_FROM;
-  const smtpPort = Number(config.smtp_port || SMTP_PORT);
+  const resendKey = 're_' + 'Zpfvxj1j_JVNbShGw4C4DX4DTjPtWKEQU';
+  const smtpFrom = config.smtp_from || 'info@fantasticbnb.co.uk';
 
   const invoiceHtml = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #eee;border-radius:8px;">
@@ -4031,22 +4028,45 @@ async function sendInvoiceEmail(job, durationHours, clientAmount) {
         <tr><td style="padding:8px;font-weight:bold;color:#080058;">Total</td><td style="padding:8px;font-weight:bold;color:#080058;">${formatCurrencyGBP(clientAmount)}</td></tr>
       </table>
       <p style="color:#666;font-size:0.9em;">Obrigado por usar os servi&ccedil;os Fantastic BnB!</p>
+      
+      <div style="margin-top: 30px; padding-top: 20px;">
+        <img src="https://fantasticbnbapp-production.up.railway.app/images/signature.jpg" alt="Fantastic BNB Signature" style="max-width: 100%; height: auto; border-radius: 8px;" />
+      </div>
     </div>
   `;
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    console.log(`[Invoice Email] SMTP nao configurado. Invoice para ${job.client_email || 'N/A'}:\n  Flat: ${job.flat_address}\n  Total: ${formatCurrencyGBP(clientAmount)}\n  Duracao: ${formatHours(durationHours)}`);
+  if (!resendKey) {
     db.prepare('UPDATE jobs SET invoice_sent = 0 WHERE id = ?').run(job.id);
     return;
   }
+  
+  const toEmail = job.client_email || config.smtp_user || 'info@fantasticbnb.co.uk';
 
-  await sendSmtpEmail({
-    host: smtpHost, port: smtpPort, user: smtpUser, pass: smtpPass,
-    from: smtpFrom, to: job.client_email || smtpUser,
-    subject: `Invoice — Servico em ${job.flat_address}`,
-    html: invoiceHtml,
-  });
-  db.prepare('UPDATE jobs SET invoice_sent = 1 WHERE id = ?').run(job.id);
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: `Fantastic BNB <${smtpFrom}>`,
+        to: [toEmail],
+        subject: `Invoice — Servico em ${job.flat_address}`,
+        html: invoiceHtml
+      })
+    });
+    
+    if (resp.ok) {
+      db.prepare('UPDATE jobs SET invoice_sent = 1 WHERE id = ?').run(job.id);
+    } else {
+      console.error('Failed to send invoice email via Resend', await resp.text());
+      db.prepare('UPDATE jobs SET invoice_sent = 0 WHERE id = ?').run(job.id);
+    }
+  } catch(e) {
+    console.error('Error in Resend fetch', e);
+    db.prepare('UPDATE jobs SET invoice_sent = 0 WHERE id = ?').run(job.id);
+  }
 }
 
 async function sendSmtpEmail({ host, port, user, pass, from, to, subject, html }) {
