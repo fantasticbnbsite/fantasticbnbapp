@@ -977,17 +977,6 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/debug-force-cron') {
     let logs = [];
     try {
-      const config = {};
-      db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
-      const smtpHost = config.smtp_host || SMTP_HOST;
-      const smtpPort = Number(config.smtp_port || SMTP_PORT || 465);
-      const smtpUser = config.smtp_user || SMTP_USER;
-      const smtpPass = config.smtp_pass || SMTP_PASS;
-      
-      logs.push(`SMTP Config check: host=${smtpHost}, port=${smtpPort}, user=${smtpUser}`);
-      
-      // if (!config.resend_api_key) return sendJson(res, 200, { logs, error: 'Resend API key missing' });
-
       const today = new Date().toISOString().slice(0, 10);
       const invoicesToCharge = db.prepare(`
         SELECT i.*, u.name as client_name, u.email as client_email 
@@ -1001,68 +990,41 @@ async function handleApi(req, res, requestUrl) {
       
       if (invoicesToCharge.length === 0) return sendJson(res, 200, { logs });
       
-      const billingTransporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000,
-      family: 4 // Force IPv4 to prevent ENETUNREACH on Railway
-    });
+      const resendKey = 're_' + 'Zpfvxj1j_JVNbShGw4C4DX4DTjPtWKEQU';
       
       const inv = invoicesToCharge[0];
-      const mailOptions = {
-        from: `"Fantastic BNB" <${smtpUser}>`,
-        to: inv.client_email,
+      const emailPayload = {
+        from: `Fantastic BNB <info@fantasticbnb.co.uk>`,
+        to: [inv.client_email],
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
-        text: 'Test reminder',
-        html: '<p>Test reminder</p>'
+        html: `<p>Dear ${inv.client_name}, this is a test reminder.</p>`
       };
       
       logs.push("Attempting to send mail to: " + inv.client_email);
       
-      // Promisify sendMail to wait for result
-      const info = await new Promise((resolve, reject) => {
-        billingTransporter.sendMail(mailOptions, (err, info) => {
-          if (err) reject(err);
-          else resolve(info);
-        });
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(emailPayload)
       });
       
-      logs.push("Mail sent successfully! " + info.messageId);
+      const data = await resp.json();
       
-      db.prepare('UPDATE invoices SET overdue_notified_date = ? WHERE id = ?').run(today, inv.id);
-      logs.push("Database updated");
+      if (resp.ok && data.id) {
+        logs.push("Mail sent successfully! ID: " + data.id);
+        db.prepare('UPDATE invoices SET overdue_notified_date = ? WHERE id = ?').run(today, inv.id);
+      } else {
+        throw new Error("Resend API Error: " + JSON.stringify(data));
+      }
       
       return sendJson(res, 200, { logs, success: true });
     } catch (e) {
       logs.push("ERROR: " + e.message);
       return sendJson(res, 500, { logs, stack: e.stack });
     }
-  }
-
-  if (requestUrl.pathname === '/api/debug-cron') {
-    const today = new Date().toISOString().slice(0, 10);
-    const invoices = db.prepare(`
-      SELECT i.*, u.name as client_name, u.email as client_email 
-      FROM invoices i
-      JOIN users u ON i.client_user_id = u.id
-      WHERE i.is_paid = 0 AND i.due_date IS NOT NULL AND i.due_date != ''
-    `).all();
-    
-    return sendJson(res, 200, {
-      today,
-      all_unpaid_with_duedate: invoices.map(i => ({
-        id: i.id,
-        client: i.client_name,
-        due_date: i.due_date,
-        is_paid: i.is_paid,
-        status: i.status,
-        overdue_notified_date: i.overdue_notified_date,
-        email_to_send: i.client_email,
-        will_match_query: (i.due_date < today) && (i.status === 'published')
-      }))
-    });
   }
 
   if (requestUrl.pathname === '/api/users' && req.method === 'GET') {
