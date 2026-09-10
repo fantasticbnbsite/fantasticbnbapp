@@ -4298,7 +4298,7 @@ window.openAdminEditJobModal = async function(jobId) {
             const val = cat.category + '|' + it;
             const checked = stateArr.includes(val);
             const icon = checked ? '<span style="color:var(--success, green);">✓</span>' : '<span style="color:var(--muted, gray);">☐</span>';
-            const textHtml = escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">const textHtml = escapeHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>');</strong>');
+            const textHtml = escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">2275&</strong>');
             catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">${icon} ${textHtml}</li>`;
           });
         }
