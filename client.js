@@ -689,7 +689,8 @@ function jobCardHTML(job) {
           const checked = stateArr.includes(val);
           const icon = checked ? '<span style="color:#166534; font-weight:bold;">✓</span>' : '<span style="color:#9ca3af;">☐</span>';
           const textStyle = checked ? '' : 'color:#6b7280; text-decoration:line-through;';
-          catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${escHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>')}</span></li>`;
+          const clientIt2 = it.split('/').length > 1 ? it.split('/')[1].trim() : it.trim();
+          catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${escHtml(clientIt2).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>')}</span></li>`;
         });
       }
       catHtml += '</ul>';
