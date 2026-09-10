@@ -1478,6 +1478,17 @@
           <input type="checkbox" id="adminEditJobIsHoliday" />
           <label for="adminEditJobIsHoliday" style="margin:0;">É feriado?</label>
         </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" id="adminEditJobIsPriority" style="accent-color:var(--danger, red);" />
+          <label for="adminEditJobIsPriority" style="margin:0; color:var(--danger, red); font-weight:bold;">Priority Service</label>
+        </div>
+        <div style="margin-top:8px;">
+          <label for="adminEditJobCleaningType">Tipo de Limpeza</label>
+          <select id="adminEditJobCleaningType" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--line);">
+            <option value="end_of_stay">End of Stay (Com Checklist)</option>
+            <option value="mid_stay">Mid Stay (Sem Checklist)</option>
+          </select>
+        </div>
         <div>
           <label for="adminEditJobStatus">Status do Servico</label>
           <select id="adminEditJobStatus" style="width:100%;">
@@ -1750,6 +1761,17 @@
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="adminReqJobIsHoliday" style="width: auto; margin: 0;" />
               <label for="adminReqJobIsHoliday" style="margin: 0;">É feriado?</label>
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; color:var(--danger, red); font-weight:bold;">
+              <input type="checkbox" id="adminReqJobIsPriority" style="width: auto; margin: 0; accent-color: red;" />
+              <label for="adminReqJobIsPriority" style="margin: 0;">Priority Service</label>
+            </div>
+            <div style="margin-top: 16px;">
+              <label for="adminReqJobCleaningType" style="margin-bottom:6px;">Tipo de Limpeza</label>
+              <select id="adminReqJobCleaningType" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                <option value="end_of_stay">End of Stay (Com Checklist)</option>
+                <option value="mid_stay">Mid Stay (Sem Checklist)</option>
+              </select>
             </div>
           </div>
           <div>
