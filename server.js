@@ -1354,8 +1354,9 @@ async function handleApi(req, res, requestUrl) {
     const now = new Date().toISOString();
     const isHoliday = body.isHoliday ? 1 : 0;
     const isPriority = body.isPriority ? 1 : 0;
+    const cleaningType = body.cleaningType === 'mid_stay' ? 'mid_stay' : 'end_of_stay';
     const createdBy = session.user.id;
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, isPriority, createdBy, now, now);
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, cleaning_type, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, isPriority, cleaningType, createdBy, now, now);
     
     if (status === 'assigned' && empId) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
@@ -1418,9 +1419,10 @@ async function handleApi(req, res, requestUrl) {
     let payrollId = body.payrollId || null;
 
     const notes = (body.notes && body.notes.trim()) ? body.notes.trim() : 'Serviço lançado manualmente pelo admin';
+    const cleaningType = body.cleaningType === "mid_stay" ? "mid_stay" : "end_of_stay";
     const isPriority = body.isPriority ? 1 : 0;
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, is_priority, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, isPriority, notes, invoiceId, payrollId, session.user.id, now, now, now);
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, is_priority, cleaning_type, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, isPriority, cleaningType, notes, invoiceId, payrollId, session.user.id, now, now, now);
 
     enforceProjectFlatIntegrity(flatId, body.requestedDate);
 
@@ -1498,6 +1500,14 @@ async function handleApi(req, res, requestUrl) {
     let updatedIsHoliday = job.is_holiday;
     if (body.isHoliday !== undefined) {
       updatedIsHoliday = body.isHoliday ? 1 : 0;
+    }
+    let updatedIsPriority = job.is_priority;
+    if (body.isPriority !== undefined) {
+      updatedIsPriority = body.isPriority ? 1 : 0;
+    }
+    let updatedCleaningType = job.cleaning_type;
+    if (body.cleaningType !== undefined) {
+      updatedCleaningType = body.cleaningType === 'mid_stay' ? 'mid_stay' : 'end_of_stay';
     }
 
     const reqDate = new Date(updatedRequestedDate);
@@ -1595,8 +1605,8 @@ async function handleApi(req, res, requestUrl) {
       updatedFinishedAt = null;
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, notes=?, employee_notes=?, started_at=?, finished_at=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedNotes, updatedEmployeeNotes, updatedStartedAt, updatedFinishedAt, now, jobId);
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, is_priority=?, cleaning_type=?, notes=?, employee_notes=?, started_at=?, finished_at=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedIsPriority, updatedCleaningType, updatedNotes, updatedEmployeeNotes, updatedStartedAt, updatedFinishedAt, now, jobId);
     
     enforceProjectFlatIntegrity(job.flat_id, updatedRequestedDate || job.requested_date);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
@@ -1717,7 +1727,7 @@ async function handleApi(req, res, requestUrl) {
       const employee = db.prepare('SELECT * FROM users WHERE id = ?').get(session.user.id);
       const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(job.flat_id);
 
-      const flatChecklist = safeJsonParse(flat.checklist_json, []);
+      const flatChecklist = job.cleaning_type === 'mid_stay' ? [] : safeJsonParse(flat.checklist_json, []);
       if (flatChecklist.length > 0) {
         let totalItems = 0;
         flatChecklist.forEach(c => totalItems += (c.items ? c.items.length : 0));
@@ -3956,7 +3966,8 @@ function hydrateJob(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     checklistState: safeJsonParse(row.checklist_state, []),
-    flatChecklist: safeJsonParse(row.flat_checklist_json, []),
+    flatChecklist: row.cleaning_type === 'mid_stay' ? [] : safeJsonParse(row.flat_checklist_json, []),
+    cleaningType: row.cleaning_type || 'end_of_stay',
   };
 }
 
