@@ -455,6 +455,8 @@ try {
 } catch (e) { console.error('Migration error flat checklist assignment', e); }
 
 try { db.exec('ALTER TABLE jobs ADD COLUMN checklist_state TEXT NOT NULL DEFAULT "[]";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN is_priority INTEGER DEFAULT 0;'); } catch {}
+try { db.exec("ALTER TABLE jobs ADD COLUMN cleaning_type TEXT DEFAULT 'end_of_stay';"); } catch {}
 try {
   const defaultChecklist = JSON.stringify([
     { "category": "QUARTO", "items": ["FOTO QUARTO", "DEBAIXO DA CAMA (FOTO)", "CHECAR GAVETAS (FOTO)", "DESLIGAR AR CONDICIONADO / AQUECEDOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
