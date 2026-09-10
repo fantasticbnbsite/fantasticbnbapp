@@ -2204,6 +2204,75 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { invoices, payrolls });
   }
 
+  if (requestUrl.pathname === '/api/migrate-checklists' && req.method === 'GET') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Forbidden' });
+    try {
+      const templates = db.prepare('SELECT id, name, checklist_json FROM checklist_templates').all();
+      let migratedCount = 0;
+      
+      async function translate(text) {
+        if (!text) return '';
+        if (text.includes('/')) return text; // already translated
+        // Clean some markers
+        let raw = text.replace(/\(FOTOS?\)/gi, '').replace(/\[/g, '').replace(/\]/g, '').trim();
+        try {
+          const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=' + encodeURIComponent(raw);
+          const response = await fetch(url);
+          const data = await response.json();
+          let en = data[0][0][0];
+          
+          // Re-add brackets if it's a category
+          if (text.startsWith('[')) {
+            return `[${raw.toUpperCase()} / ${en.toUpperCase()}]`;
+          } else {
+            // Re-add (FOTO) if it existed
+            if (/(FOTOS?)/i.test(text)) {
+              return `${raw} (FOTO) / ${en} (PHOTO)`;
+            }
+            return `${raw} / ${en}`;
+          }
+        } catch (e) {
+          return text;
+        }
+      }
+
+      for (const tpl of templates) {
+        if (!tpl.checklist_json) continue;
+        
+        let json;
+        try {
+          json = typeof tpl.checklist_json === 'string' ? JSON.parse(tpl.checklist_json) : tpl.checklist_json;
+        } catch (e) { continue; }
+        
+        let needsUpdate = false;
+        
+        for (let cat of json) {
+          if (!cat.category.includes('/')) {
+            cat.category = await translate('[' + cat.category + ']');
+            cat.category = cat.category.replace(/\[/g, '').replace(/\]/g, ''); // strip brackets for internal storage
+            needsUpdate = true;
+          }
+          if (cat.items) {
+            for (let i=0; i<cat.items.length; i++) {
+              if (!cat.items[i].includes('/')) {
+                cat.items[i] = await translate(cat.items[i]);
+                needsUpdate = true;
+              }
+            }
+          }
+        }
+        
+        if (needsUpdate) {
+          db.prepare('UPDATE checklist_templates SET checklist_json = ? WHERE id = ?').run(JSON.stringify(json), tpl.id);
+          migratedCount++;
+        }
+      }
+      return sendJson(res, 200, { success: true, migrated: migratedCount });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+  
   if (requestUrl.pathname === '/api/dashboard/stats' && req.method === 'GET') {
     if (!isAdminRole(session.user.role) && session.user.role !== 'manager') return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const jobs = db.prepare(`
