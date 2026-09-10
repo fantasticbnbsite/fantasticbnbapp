@@ -681,7 +681,7 @@ function jobCardHTML(job) {
     const stateArr = job.checklistState || [];
     let html = '';
     job.flatChecklist.forEach(cat => {
-      let catHtml = `<strong style="display:block; margin-top:8px;">${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+      let catHtml = `<strong style="display:block; margin-top:8px;">${cat.category.split('/').length > 1 ? cat.category.split('/')[1].trim() : cat.category.split('/')[0].trim()}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
       if (cat.items) {
         cat.items.forEach(it => {
           const val = cat.category + '|' + it;
@@ -1111,7 +1111,8 @@ window.openEditJobModal = function(jobId) {
             const checked = stateArr.includes(val);
             const icon = checked ? '<span style="color:#166534; font-weight:bold;">✓</span>' : '<span style="color:#9ca3af;">☐</span>';
             const textStyle = checked ? '' : 'color:#6b7280; text-decoration:line-through;';
-            catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${it.replace(/</g, '&lt;')}</span></li>`;
+            const displayIt = it.split('/').length > 1 ? it.split('/')[1].trim() : it.split('/')[0].trim();
+            catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px; ${textStyle}">${icon} <span>${displayIt.replace(/</g, '&lt;')}</span></li>`;
           });
         }
         catHtml += '</ul>';
