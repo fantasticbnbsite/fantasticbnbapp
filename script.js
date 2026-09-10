@@ -4625,7 +4625,7 @@ function renderJobs() {
             ${guestyBadge}
           </td>
           <td class="td-prop" data-label="Propriedade">
-            <div style="font-weight:700; font-size:15px; margin-bottom:3px; color:var(--text); line-height:1.3; word-break:keep-all;">${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
+            <div style="font-weight:700; font-size:15px; margin-bottom:3px; color:var(--text); line-height:1.3; word-break:keep-all;">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${job.cleaningType === 'mid_stay' ? '<span class="badge" style="background:#3b82f6; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">MID STAY</span>' : ''}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
             ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:13px; line-height:1.35; margin-bottom:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${cleanAccessCode ? `<div style="color:var(--primary); font-size:12px; font-weight:600; margin-bottom:4px; display:inline-flex; align-items:center; gap:4px; background:rgba(234,88,12,0.08); padding:2px 7px; border-radius:6px; white-space:nowrap;"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: ${escapeHtml(cleanAccessCode)}</div>` : ''}
             ${job.notes ? `
