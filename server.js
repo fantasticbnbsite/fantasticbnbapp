@@ -3960,6 +3960,8 @@ function hydrateJob(row) {
     employeeAmount: row.status === 'cancelled' ? 0 : (row.employee_amount !== null && row.employee_amount !== undefined ? Number(row.employee_amount) : null),
     invoiceSent: Boolean(row.invoice_sent),
     isHoliday: Boolean(row.is_holiday),
+    isPriority: Boolean(row.is_priority),
+    cleaningType: row.cleaning_type || 'end_of_stay',
     isUrgent: Boolean(row.is_urgent),
     isBackToBack: Boolean(row.is_back_to_back),
     guestyReservationId: row.guesty_reservation_id || '',

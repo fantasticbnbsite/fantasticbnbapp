@@ -4272,6 +4272,8 @@ window.openAdminEditJobModal = async function(jobId) {
   document.getElementById('adminEditJobDate').value = job.requestedDate || '';
   document.getElementById('adminEditJobStatus').value = job.status || 'pending';
   document.getElementById('adminEditJobIsHoliday').checked = job.isHoliday ? true : false;
+  const prioEl = document.getElementById('adminEditJobIsPriority'); if(prioEl) prioEl.checked = job.isPriority ? true : false;
+  const cleanEl = document.getElementById('adminEditJobCleaningType'); if(cleanEl) cleanEl.value = job.cleaningType || 'end_of_stay';
   document.getElementById('adminEditJobNotes').value = job.notes || '';
   const empNotesEl = document.getElementById('adminEditJobEmployeeNotes');
   if (empNotesEl) empNotesEl.value = job.employeeNotes || '';
@@ -6298,6 +6300,8 @@ async function openAdminRequestJobModal() {
   // Reset other fields
   document.getElementById('adminReqJobDate').value = new Date().toISOString().slice(0, 10);
   document.getElementById('adminReqJobIsHoliday').checked = false;
+  if(document.getElementById('adminReqJobIsPriority')) document.getElementById('adminReqJobIsPriority').checked = false;
+  if(document.getElementById('adminReqJobCleaningType')) document.getElementById('adminReqJobCleaningType').value = 'end_of_stay';
   document.getElementById('adminReqJobNotes').value = '';
   
   modal.classList.remove('hidden');
