@@ -1105,7 +1105,8 @@ window.openEditJobModal = function(jobId) {
       const stateArr = job.checklistState || [];
       let html = '';
       job.flatChecklist.forEach(cat => {
-        let catHtml = `<strong style="display:block; margin-top:8px;">${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+        const clientCat = cat.category.split('/').length > 1 ? cat.category.split('/')[1].trim() : cat.category.trim();
+        let catHtml = `<strong style="display:block; margin-top:8px;">${clientCat}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
         if (cat.items) {
           cat.items.forEach(it => {
             const val = cat.category + '|' + it;
