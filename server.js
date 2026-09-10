@@ -1353,8 +1353,9 @@ async function handleApi(req, res, requestUrl) {
     
     const now = new Date().toISOString();
     const isHoliday = body.isHoliday ? 1 : 0;
+    const isPriority = body.isPriority ? 1 : 0;
     const createdBy = session.user.id;
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, createdBy, now, now);
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, isPriority, createdBy, now, now);
     
     if (status === 'assigned' && empId) {
       sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
@@ -1417,8 +1418,9 @@ async function handleApi(req, res, requestUrl) {
     let payrollId = body.payrollId || null;
 
     const notes = (body.notes && body.notes.trim()) ? body.notes.trim() : 'Serviço lançado manualmente pelo admin';
-    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, notes, invoiceId, payrollId, session.user.id, now, now, now);
+    const isPriority = body.isPriority ? 1 : 0;
+    const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, employee_user_id, status, requested_date, duration_hours, client_amount, employee_amount, is_holiday, is_priority, notes, invoice_id, payroll_id, created_by_user_id, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(flatId, flat.client_user_id, employeeUserId, 'completed', body.requestedDate, durationHours, clientAmount, employeeAmount, isHoliday, isPriority, notes, invoiceId, payrollId, session.user.id, now, now, now);
 
     enforceProjectFlatIntegrity(flatId, body.requestedDate);
 
