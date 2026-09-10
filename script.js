@@ -4292,13 +4292,13 @@ window.openAdminEditJobModal = async function(jobId) {
       const stateArr = job.checklistState || [];
       let html = '';
       job.flatChecklist.forEach(cat => {
-        let catHtml = `<strong>${cat.category}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
+        let catHtml = `<strong>${cat.category.split('/')[0].trim()}</strong><ul style="margin:4px 0 10px 0; padding-left:0; list-style:none;">`;
         if (cat.items) {
           cat.items.forEach(it => {
             const val = cat.category + '|' + it;
             const checked = stateArr.includes(val);
             const icon = checked ? '<span style="color:var(--success, green);">✓</span>' : '<span style="color:var(--muted, gray);">☐</span>';
-            const textHtml = escapeHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>');
+            const textHtml = escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red);">$&</strong>');
             catHtml += `<li style="margin-bottom:4px; display:flex; align-items:center; gap:6px;">${icon} ${textHtml}</li>`;
           });
         }

@@ -709,7 +709,8 @@ const App = (() => {
         const catTotal = cat.items ? cat.items.length : 0;
         const catDone = cat.items ? cat.items.filter(it => state.includes(cat.category + '|' + it)).length : 0;
         const icon = catDone === catTotal && catTotal > 0 ? '✅' : '';
-        return `<button class="chk-tab ${i === 0 ? 'active' : ''}" onclick="App.switchChecklistTab(this, 'chk-pane-${job.id}-${i}')">${cat.category} ${icon}</button>`;
+        const catDisplay = cat.category.split('/')[0].trim();
+        return `<button class="chk-tab ${i === 0 ? 'active' : ''}" onclick="App.switchChecklistTab(this, 'chk-pane-${job.id}-${i}')">${catDisplay} ${icon}</button>`;
       }).join('');
       
       const panesHtml = job.flatChecklist.map((cat, i) => {
@@ -719,7 +720,7 @@ const App = (() => {
           return `
             <label class="chk-item ${checked ? 'done' : ''}">
               <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
-              <span>${escapeHtml(it).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">$&</strong>')}</span>
+              <span>${escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">$&</strong>')}</span>
             </label>
           `;
         }).join('');
@@ -1437,7 +1438,7 @@ const App = (() => {
       const catDone = cat.items ? cat.items.filter(it => job.checklistState.includes(cat.category + '|' + it)).length : 0;
       const tab = container.querySelectorAll('.chk-tab')[i];
       if(tab) {
-        tab.innerHTML = cat.category + (catDone === catTotal && catTotal > 0 ? ' ✅' : '');
+        tab.innerHTML = cat.category.split('/')[0].trim() + (catDone === catTotal && catTotal > 0 ? ' ✅' : '');
       }
     });
 
