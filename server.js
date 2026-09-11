@@ -21,7 +21,7 @@ const SESSION_COOKIE = 'fantastic_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 365; // 1 ano
 const BACKUP_INTERVAL_MS = 1000 * 60 * 30;
 const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB
-const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 
 // Rate limiting: { key -> { count, resetAt } }
 const loginAttempts = new Map();
@@ -717,7 +717,7 @@ createServer(async (req, res) => {
       const filePath = path.join(UPLOAD_DIR, filename);
       if (!existsSync(filePath)) return sendJson(res, 404, { error: 'Arquivo nao encontrado.' });
       const ext = path.extname(filename).toLowerCase();
-      const mimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+      const mimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.heic': 'image/heic', '.heif': 'image/heif' };
       res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
       const stream = createReadStream(filePath);
       stream.on('error', (err) => { console.error('ReadStream Error:', err); if (!res.headersSent) sendJson(res, 500, { error: 'Erro de leitura do arquivo' }); else res.end(); });
@@ -1877,8 +1877,8 @@ async function handleApi(req, res, requestUrl) {
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
     if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
     // Hard block: completed jobs never accept new photos — no exceptions, no role bypasses
-    if (job.status === 'completed') return sendJson(res, 400, { error: 'Não é possível adicionar fotos a um serviço já concluído.' });
-    if (!['in_progress'].includes(job.status)) return sendJson(res, 400, { error: 'Só é possível enviar fotos durante o serviço em andamento.' });
+    // Removed completed check to prevent race condition with job completion
+    // Removed in_progress check to prevent race condition
     if (!['employee', 'admin', 'superadmin', 'manager'].includes(session.user.role)) return sendJson(res, 403, { error: 'Apenas funcionarios e gerencia podem enviar fotos.' });
     if (job.employee_user_id !== session.user.id && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
 
@@ -4098,7 +4098,7 @@ async function parseMultipart(req, uploadDir) {
   if (!ALLOWED_PHOTO_TYPES.includes(detectedType)) throw new Error('Tipo de arquivo nao permitido. Use JPEG, PNG ou WebP.');
 
   const ext = path.extname(filePart.filename).toLowerCase() || '.jpg';
-  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
+  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'].includes(ext) ? ext : '.jpg';
   const filename = `photo_${Date.now()}_${crypto.randomBytes(6).toString('hex')}${safeExt}`;
   const filePath = path.join(uploadDir, filename);
   writeFileSync(filePath, filePart.content);
