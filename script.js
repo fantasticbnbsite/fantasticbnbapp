@@ -4336,6 +4336,8 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
   const requestedDate = document.getElementById('adminEditJobDate').value;
   const durationStr = document.getElementById('adminEditJobDuration').value;
   const isHoliday = document.getElementById('adminEditJobIsHoliday').checked;
+  const isPriority = document.getElementById('adminEditJobIsPriority')?.checked || false;
+  const cleaningType = document.getElementById('adminEditJobCleaningType')?.value || 'end_of_stay';
   const notes = document.getElementById('adminEditJobNotes').value;
   const employeeNotes = document.getElementById('adminEditJobEmployeeNotes')?.value;
   
@@ -4344,6 +4346,8 @@ document.getElementById('confirmAdminEditJobButton')?.addEventListener('click', 
     employeeUserId: employeeUserId || null, 
     requestedDate, 
     isHoliday,
+    isPriority,
+    cleaningType,
     notes,
     employeeNotes: employeeNotes !== undefined ? employeeNotes : undefined,
     durationHours: ['completed', 'cancelled_late', 'cancelled_company'].includes(status) ? (durationStr ? timeStrToDecimal(durationStr) : 0) : undefined
@@ -6332,6 +6336,8 @@ async function submitAdminRequestJob(e) {
   const flatId = document.getElementById('adminReqJobFlat').value;
   const requestedDate = document.getElementById('adminReqJobDate').value;
   const isHoliday = document.getElementById('adminReqJobIsHoliday').checked;
+  const isPriority = document.getElementById('adminReqJobIsPriority')?.checked || false;
+  const cleaningType = document.getElementById('adminReqJobCleaningType')?.value || 'end_of_stay';
   const employeeUserId = document.getElementById('adminReqJobEmployee').value;
   const notes = document.getElementById('adminReqJobNotes').value;
   
@@ -6348,6 +6354,8 @@ async function submitAdminRequestJob(e) {
       flatId: Number(flatId),
       requestedDate,
       isHoliday,
+      isPriority,
+      cleaningType,
       employeeUserId: employeeUserId ? Number(employeeUserId) : null,
       notes
     };
