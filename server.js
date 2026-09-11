@@ -599,7 +599,14 @@ function cleanupOldPhotos() {
       stmt.run(photo.id);
       try { unlinkSync(path.join(UPLOAD_DIR, photo.filename)); } catch (e) {}
     }
-    if (oldPhotos.length > 0) console.log(`[Cleanup] Removed ${oldPhotos.length} old photos.`);
+    if (oldPhotos.length > 0) {
+      console.log(`[Cleanup] Removed ${oldPhotos.length} old photos.`);
+      // Log into system activity for traceability
+      try {
+        const cleanupLog = oldPhotos.map(p => p.filename).join(', ');
+        logSystemActivity(null, 'CLEANUP_PHOTOS', 'system', 0, `Auto-cleanup removeu ${oldPhotos.length} fotos antigas: ${cleanupLog}`);
+      } catch(e) {}
+    }
   } catch (err) {
     console.error('[Cleanup Error]', err);
   }
@@ -1891,6 +1898,7 @@ async function handleApi(req, res, requestUrl) {
 
     const now = new Date().toISOString();
     const result = db.prepare('INSERT INTO job_photos (job_id, filename, original_name, uploaded_by, uploaded_at) VALUES (?, ?, ?, ?, ?)').run(jobId, uploadedFile.filename, uploadedFile.originalName, session.user.id, now);
+    logSystemActivity(session.user.id, 'UPLOAD_PHOTO', 'job_photo', result.lastInsertRowid, `Foto enviada: ${uploadedFile.filename} no job ${jobId}`);
     return sendJson(res, 201, { photo: db.prepare('SELECT * FROM job_photos WHERE id = ?').get(result.lastInsertRowid) });
   }
 
@@ -1902,6 +1910,7 @@ async function handleApi(req, res, requestUrl) {
     if (!photo) return sendJson(res, 404, { error: 'Foto nao encontrada.' });
     db.prepare('DELETE FROM job_photos WHERE id = ?').run(photoId);
     fs.unlink(path.join(UPLOAD_DIR, photo.filename)).catch(() => {});
+    logSystemActivity(session.user.id, 'DELETE_PHOTO', 'job_photo', photoId, `Foto apagada manualmente: ${photo.filename} do job ${photo.job_id}`);
     return sendJson(res, 200, { ok: true });
   }
 
