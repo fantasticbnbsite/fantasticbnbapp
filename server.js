@@ -4031,6 +4031,7 @@ function hydrateJob(row) {
     updatedAt: row.updated_at,
     checklistState: safeJsonParse(row.checklist_state, []),
     flatChecklist: row.cleaning_type === 'mid_stay' ? [] : safeJsonParse(row.flat_checklist_json, []),
+    flatInventory: db.prepare("SELECT fi.*, c.name, c.category FROM flat_inventory fi JOIN inventory_catalog c ON c.id = fi.item_id WHERE fi.flat_id = ? ORDER BY c.category, c.name").all(row.flat_id),
     cleaningType: row.cleaning_type || 'end_of_stay',
   };
 }

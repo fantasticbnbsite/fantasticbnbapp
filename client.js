@@ -332,27 +332,48 @@ function switchView(view) {
   if (viewInvoices) viewInvoices.style.display = view === 'invoices' ? 'block' : 'none';
   if (viewJobs) viewJobs.style.display = view === 'jobs' ? 'block' : 'none';
   if (viewRequest) viewRequest.style.display = view === 'request' ? 'block' : 'none';
+  const viewFlats = document.getElementById('viewFlats');
+  if (viewFlats) viewFlats.style.display = view === 'flats' ? 'block' : 'none';
 
   tabJobs.classList.toggle('active', view === 'jobs');
   tabRequest.classList.toggle('active', view === 'request');
   const tabInvoices = document.getElementById('tabInvoices');
   if (tabInvoices) tabInvoices.classList.toggle('active', view === 'invoices');
+  const tabFlats = document.getElementById('tabFlats');
+  if (tabFlats) tabFlats.classList.toggle('active', view === 'flats');
 
   if (tabJobsDesk) tabJobsDesk.classList.toggle('active', view === 'jobs');
   if (tabRequestDesk) tabRequestDesk.classList.toggle('active', view === 'request');
   const tabInvoicesDesk = document.getElementById('tabInvoicesDesk');
   if (tabInvoicesDesk) tabInvoicesDesk.classList.toggle('active', view === 'invoices');
+  const tabFlatsDesk = document.getElementById('tabFlatsDesk');
+  if (tabFlatsDesk) tabFlatsDesk.classList.toggle('active', view === 'flats');
 
   tabJobs.setAttribute('aria-selected', view === 'jobs');
   tabRequest.setAttribute('aria-selected', view === 'request');
   if (tabInvoices) tabInvoices.setAttribute('aria-selected', view === 'invoices');
+  if (tabFlats) tabFlats.setAttribute('aria-selected', view === 'flats');
   
   if (view === 'invoices') {
     loadInvoices();
   }
+  if (view === 'flats') {
+    renderClientFlats();
+  }
 }
 
 tabJobs.addEventListener('click', () => switchView('jobs'));
+const tabJobsDesk = document.getElementById('tabJobsDesk');
+if (tabJobsDesk) tabJobsDesk.addEventListener('click', () => switchView('jobs'));
+const tabRequestDesk = document.getElementById('tabRequestDesk');
+if (tabRequestDesk) tabRequestDesk.addEventListener('click', () => switchView('request'));
+const tabInvoicesDesk = document.getElementById('tabInvoicesDesk');
+if (tabInvoicesDesk) tabInvoicesDesk.addEventListener('click', () => switchView('invoices'));
+const tabFlatsDesk = document.getElementById('tabFlatsDesk');
+if (tabFlatsDesk) tabFlatsDesk.addEventListener('click', () => switchView('flats'));
+
+const tabFlats = document.getElementById('tabFlats');
+if (tabFlats) tabFlats.addEventListener('click', () => switchView('flats'));
 tabRequest.addEventListener('click', () => switchView('request'));
 const tabInvoices = document.getElementById('tabInvoices');
 if (tabInvoices) tabInvoices.addEventListener('click', () => switchView('invoices'));
