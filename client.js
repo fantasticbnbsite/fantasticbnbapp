@@ -672,8 +672,8 @@ function jobCardHTML(job) {
 
   const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
   let timelineHtml = '';
-  if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Started: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
-  if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Finished: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
+  // if (job.startedAt) timelineHtml += `<span style="color:#16756b; font-weight:600; margin-right:12px;">🟢 Started: ${timeFmt.format(new Date(job.startedAt))} (UK)</span>`;
+  // if (job.finishedAt) timelineHtml += `<span style="color:#d45555; font-weight:600;">🔴 Finished: ${timeFmt.format(new Date(job.finishedAt))} (UK)</span>`;
   const timelineBlock = timelineHtml ? `<div class="job-meta-item" style="width:100%;margin-top:2px;">${timelineHtml}</div>` : '';
 
   let checklistHtml = '';
