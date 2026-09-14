@@ -1912,6 +1912,54 @@
     }
   </style>
 
+
+  <!-- ── Flat Inventory Modal ────────────────────────────────────────── -->
+  <div class="modal hidden" id="flatInventoryModal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 id="inventoryModalTitle">Inventário do Flat</h3>
+        <button class="icon-button" onclick="closeFlatInventoryModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+        <div id="inventoryLoading" style="text-align:center; padding: 20px; color: var(--muted);">Carregando inventário e catálogo...</div>
+        <form id="flatInventoryForm" onsubmit="submitFlatInventory(event)" class="hidden">
+          <input type="hidden" id="inventoryFlatId" />
+          <div id="inventoryCategoriesContainer" style="display:flex; flex-direction:column; gap:20px;">
+            <!-- Rendered by JS -->
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+            <button type="button" class="button button-outline" onclick="closeFlatInventoryModal()">Cancelar</button>
+            <button type="submit" class="button button-primary">Salvar Inventário</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Catalog Management Modal (in settings) ──────────────────────── -->
+  <div class="modal hidden" id="inventoryCatalogModal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Gerenciar Catálogo de Inventário</h3>
+        <button class="icon-button" onclick="closeInventoryCatalogModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form onsubmit="addInventoryCatalogItem(event)" style="display:flex; gap:10px; margin-bottom:20px;">
+          <input type="text" id="newCatalogItemName" placeholder="Nome do item (ex: Lençol)" required style="flex:2;" />
+          <input type="text" id="newCatalogItemCategory" placeholder="Categoria" required style="flex:1;" />
+          <button type="submit" class="button button-primary">Adicionar</button>
+        </form>
+        <div id="catalogItemsList" style="display:flex; flex-direction:column; gap:8px; max-height:40vh; overflow-y:auto;">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js?v=20260906i" defer></script>
 <script>
   if ('serviceWorker' in navigator) {

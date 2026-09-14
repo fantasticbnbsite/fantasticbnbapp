@@ -684,6 +684,7 @@ const App = (() => {
 
       if (isToday || isAdminUser) {
         actionsHtml = `
+          ${inventoryHtml}
           <div class="job-actions one-btn">
             <button class="btn btn-start" onclick="App.startJob('${job.id}', this)">
               <span class="spinner"></span>
@@ -702,6 +703,30 @@ const App = (() => {
     }
 
     
+    
+    let inventoryHtml = '';
+    if ((job.status === 'in_progress' || job.status === 'accepted' || job.status === 'completed') && job.flatInventory && job.flatInventory.length > 0) {
+      let cats = {};
+      job.flatInventory.forEach(item => {
+        if (!cats[item.category]) cats[item.category] = [];
+        cats[item.category].push(item);
+      });
+      let html = '<div class="chk-container" style="margin-top: 16px; border-color: #16756b;"><div class="chk-header" style="background:#16756b;">📦 Inventário do Flat</div><div style="padding: 12px; font-size: 0.9rem;">';
+      
+      Object.keys(cats).forEach(cat => {
+        html += `<div style="font-weight:bold; margin-top:8px; margin-bottom:4px; color:#16756b;">${escapeHtml(cat)}</div>`;
+        cats[cat].forEach(item => {
+          const notesStr = item.notes ? ` <span style="color:#666; font-size:0.8rem;">(${escapeHtml(item.notes)})</span>` : '';
+          html += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #eee;">
+            <span>${escapeHtml(item.name)}${notesStr}</span>
+            <strong>${item.quantity}</strong>
+          </div>`;
+        });
+      });
+      html += '</div></div>';
+      inventoryHtml = html;
+    }
+
     let checklistHtml = '';
     if (job.status === 'in_progress' && job.flatChecklist && job.flatChecklist.length > 0) {
       const state = job.checklistState || [];
@@ -739,6 +764,7 @@ const App = (() => {
     if (job.status === 'in_progress') {
       actionsHtml = `
         ${checklistHtml}
+        ${inventoryHtml}
         <div class="employee-notes-wrapper">
           <label class="employee-notes-label" for="obs-${job.id}">
             <span>📝</span> Observações da Limpeza (Visível ao cliente)
@@ -757,6 +783,7 @@ const App = (() => {
         </div>`;
 
       extraHtml = `
+        ${inventoryHtml}
         <div class="photo-section">
           <div class="photo-section-title">📸 Fotos do Serviço</div>
           <div class="photo-thumbnails" id="photos-${job.id}">

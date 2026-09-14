@@ -291,6 +291,22 @@ CREATE TABLE IF NOT EXISTS jobs (
   FOREIGN KEY (client_user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (employee_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS inventory_catalog (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  category TEXT DEFAULT 'Geral',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS flat_inventory (
+  flat_id INTEGER NOT NULL,
+  item_id INTEGER NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  notes TEXT DEFAULT '',
+  PRIMARY KEY (flat_id, item_id),
+  FOREIGN KEY (flat_id) REFERENCES flats(id) ON DELETE CASCADE,
+  FOREIGN KEY (item_id) REFERENCES inventory_catalog(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS job_photos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id INTEGER NOT NULL,
@@ -587,6 +603,41 @@ cleanupDuplicateProjectJobCharges();
 // syncClientCatalog();
 // seedCollaboratorModule();
 // seedCleanOps();
+
+function seedInventoryCatalog() {
+  const count = db.prepare('SELECT COUNT(*) AS total FROM inventory_catalog').get().total;
+  if (count === 0) {
+    console.log('[Seed] Seeding inventory_catalog...');
+    const insert = db.prepare('INSERT INTO inventory_catalog (category, name) VALUES (?, ?)');
+    const items = [
+      ['Cama', 'Lençol Casal'],
+      ['Cama', 'Lençol Solteiro'],
+      ['Cama', 'Fronha'],
+      ['Cama', 'Edredom Casal'],
+      ['Cama', 'Edredom Solteiro'],
+      ['Banho', 'Toalha de Banho'],
+      ['Banho', 'Toalha de Rosto'],
+      ['Banho', 'Piso de Banheiro'],
+      ['Cozinha', 'Pano de Prato'],
+      ['Cozinha', 'Esponja'],
+      ['Cozinha', 'Detergente'],
+      ['Limpeza', 'Saco de Lixo (Pia)'],
+      ['Limpeza', 'Saco de Lixo (Banheiro)'],
+      ['Limpeza', 'Saco de Lixo (Cozinha)'],
+      ['Geral', 'Papel Higiênico (Rolos)'],
+      ['Geral', 'Sabonete Líquido (Und)'],
+      ['Geral', 'Shampoo (Und)'],
+      ['Geral', 'Condicionador (Und)']
+    ];
+    db.transaction(() => {
+      for (const [cat, name] of items) {
+        insert.run(cat, name);
+      }
+    })();
+  }
+}
+seedInventoryCatalog();
+
 createBackup('startup');
 setInterval(() => createBackup('auto'), BACKUP_INTERVAL_MS).unref();
 

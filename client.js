@@ -736,6 +736,64 @@ async function loadFlats() {
   }
 }
 
+
+async function renderClientFlats() {
+  const container = document.getElementById('clientFlatsList');
+  if (!container) return;
+  
+  if (!state.flats || state.flats.length === 0) {
+    container.innerHTML = '<div class="empty-state">No properties found.</div>';
+    return;
+  }
+  
+  container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;">Loading properties...</div>';
+  
+  let html = '';
+  for (const flat of state.flats) {
+    let inventoryHtml = '';
+    try {
+      const res = await api('GET', '/api/flats/' + flat.id + '/inventory');
+      const inv = res.inventory || [];
+      if (inv.length > 0) {
+        let cats = {};
+        inv.forEach(item => {
+          if (!cats[item.category]) cats[item.category] = [];
+          cats[item.category].push(item);
+        });
+        
+        inventoryHtml += '<div style="margin-top:16px; border-top:1px solid #eee; padding-top:16px;">';
+        inventoryHtml += '<h4 style="margin:0 0 12px 0; font-size:0.95rem; display:flex; align-items:center; gap:6px;">📦 Flat Inventory</h4>';
+        
+        Object.keys(cats).forEach(cat => {
+          inventoryHtml += `<div style="font-weight:600; font-size:0.85rem; color:var(--muted); margin-bottom:4px; margin-top:8px;">${escHtml(cat)}</div>`;
+          cats[cat].forEach(item => {
+            const notesStr = item.notes ? ` <span style="font-size:0.75rem; color:#888;">(${escHtml(item.notes)})</span>` : '';
+            inventoryHtml += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #f5f5f5; font-size:0.9rem;">
+              <span>${escHtml(item.name)}${notesStr}</span>
+              <strong>${item.quantity}</strong>
+            </div>`;
+          });
+        });
+        inventoryHtml += '</div>';
+      } else {
+        inventoryHtml = '<div style="margin-top:16px; border-top:1px solid #eee; padding-top:12px; font-size:0.85rem; color:var(--muted);">No inventory items mapped.</div>';
+      }
+    } catch (err) {
+      inventoryHtml = '<div style="margin-top:16px; color:var(--danger); font-size:0.85rem;">Failed to load inventory.</div>';
+    }
+    
+    html += `
+      <div class="job-card">
+        <h3 style="margin:0 0 4px 0; font-size:1.1rem; color:var(--text); line-height:1.3;">${escHtml(flat.address)}</h3>
+        ${flat.fullAddress ? `<div style="font-size:0.85rem; color:var(--muted); margin-bottom:8px;">${escHtml(flat.fullAddress)}</div>` : ''}
+        ${inventoryHtml}
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
+
 function populateFlatSelect() {
   selectFlat.innerHTML = '<option value="">Select a property…</option>';
   state.flats.forEach(flat => {
