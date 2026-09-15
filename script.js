@@ -7068,7 +7068,10 @@ async function renderInventoryCatalog() {
     }
     html += `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed rgba(0,0,0,0.05);">
-        <span>${escapeHtml(item.name)}</span>
+        <div style="display:flex; flex-direction:column;">
+          <span>${escapeHtml(item.name)}</span>
+          <span style="font-size:0.8rem; color:var(--muted);">${escapeHtml(item.name_en || '')}</span>
+        </div>
         <button class="icon-button" style="color:var(--danger);" onclick="deleteInventoryCatalogItem(${item.id})">
           <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
         </button>
@@ -7083,11 +7086,15 @@ async function addInventoryCatalogItem(e) {
   e.preventDefault();
   const name = document.getElementById('newCatalogItemName').value;
   const category = document.getElementById('newCatalogItemCategory').value || 'Geral';
+  const name_en = document.getElementById('newCatalogItemNameEn').value;
+  const category_en = document.getElementById('newCatalogItemCategoryEn').value || 'General';
+  
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
   try {
-    await api('/api/inventory/catalog', { method: 'POST', body: JSON.stringify({ name, category }) });
+    await api('/api/inventory/catalog', { method: 'POST', body: JSON.stringify({ name, category, name_en, category_en }) });
     document.getElementById('newCatalogItemName').value = '';
+    document.getElementById('newCatalogItemNameEn').value = '';
     await renderInventoryCatalog();
   } catch (err) {
     toast(err.message || 'Erro ao salvar', 'error');

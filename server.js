@@ -131,6 +131,8 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
+  name_en TEXT,
+  category_en TEXT,
   slug TEXT NOT NULL UNIQUE,
   segment TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -608,31 +610,31 @@ function seedInventoryCatalog() {
   const count = db.prepare('SELECT COUNT(*) AS total FROM inventory_catalog').get().total;
   if (count === 0) {
     console.log('[Seed] Seeding inventory_catalog...');
-    const insert = db.prepare('INSERT INTO inventory_catalog (category, name) VALUES (?, ?)');
+    const insert = db.prepare('INSERT INTO inventory_catalog (category, name, category_en, name_en) VALUES (?, ?, ?, ?)');
     const items = [
-      ['Cama', 'Lençol Casal'],
-      ['Cama', 'Lençol Solteiro'],
-      ['Cama', 'Fronha'],
-      ['Cama', 'Edredom Casal'],
-      ['Cama', 'Edredom Solteiro'],
-      ['Banho', 'Toalha de Banho'],
-      ['Banho', 'Toalha de Rosto'],
-      ['Banho', 'Piso de Banheiro'],
-      ['Cozinha', 'Pano de Prato'],
-      ['Cozinha', 'Esponja'],
-      ['Cozinha', 'Detergente'],
-      ['Limpeza', 'Saco de Lixo (Pia)'],
-      ['Limpeza', 'Saco de Lixo (Banheiro)'],
-      ['Limpeza', 'Saco de Lixo (Cozinha)'],
-      ['Geral', 'Papel Higiênico (Rolos)'],
-      ['Geral', 'Sabonete Líquido (Und)'],
-      ['Geral', 'Shampoo (Und)'],
-      ['Geral', 'Condicionador (Und)']
+      ['Cama', 'Lençol Casal', 'Bed', 'Double Bedsheet'],
+      ['Cama', 'Lençol Solteiro', 'Bed', 'Single Bedsheet'],
+      ['Cama', 'Fronha', 'Bed', 'Pillowcase'],
+      ['Cama', 'Edredom Casal', 'Bed', 'Double Duvet Cover'],
+      ['Cama', 'Edredom Solteiro', 'Bed', 'Single Duvet Cover'],
+      ['Banho', 'Toalha de Banho', 'Bath', 'Bath Towel'],
+      ['Banho', 'Toalha de Rosto', 'Bath', 'Hand Towel'],
+      ['Banho', 'Piso de Banheiro', 'Bath', 'Bath Mat'],
+      ['Cozinha', 'Pano de Prato', 'Kitchen', 'Dish Towel'],
+      ['Cozinha', 'Esponja', 'Kitchen', 'Sponge'],
+      ['Cozinha', 'Detergente', 'Kitchen', 'Dish Soap'],
+      ['Limpeza', 'Saco de Lixo (Pia)', 'Cleaning', 'Bin Liner (Small)'],
+      ['Limpeza', 'Saco de Lixo (Banheiro)', 'Cleaning', 'Bin Liner (Bathroom)'],
+      ['Limpeza', 'Saco de Lixo (Cozinha)', 'Cleaning', 'Bin Liner (Kitchen)'],
+      ['Geral', 'Papel Higiênico (Rolos)', 'General', 'Toilet Paper (Rolls)'],
+      ['Geral', 'Sabonete Líquido (Und)', 'General', 'Hand Soap (Unit)'],
+      ['Geral', 'Shampoo (Und)', 'General', 'Shampoo (Unit)'],
+      ['Geral', 'Condicionador (Und)', 'General', 'Conditioner (Unit)']
     ];
     db.exec('BEGIN');
     try {
-      for (const [cat, name] of items) {
-        insert.run(cat, name);
+      for (const item of items) {
+        insert.run(item[0], item[1], item[2], item[3]);
       }
       db.exec('COMMIT');
     } catch(err) {
@@ -1265,8 +1267,11 @@ async function handleApi(req, res, requestUrl) {
     const body = await parseBody(req);
     const category = body.category || 'Geral';
     const name = body.name;
+    const categoryEn = body.category_en || 'General';
+    const nameEn = body.name_en || '';
+    
     if (!name) return sendJson(res, 400, { error: 'Nome obrigatorio' });
-    const result = db.prepare('INSERT INTO inventory_catalog (category, name) VALUES (?, ?)').run(category, name);
+    const result = db.prepare('INSERT INTO inventory_catalog (category, name, category_en, name_en) VALUES (?, ?, ?, ?)').run(category, name, categoryEn, nameEn);
     return sendJson(res, 201, { success: true, id: result.lastInsertRowid });
   }
   
@@ -1927,7 +1932,17 @@ async function handleApi(req, res, requestUrl) {
       }
 
       const isUrgent = body.isUrgent === true ? 1 : 0;
-      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, is_urgent=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', isUrgent, now, jobId);
+      
+      // Calculate inventory discrepancies
+      let auditJson = '[]';
+      if (Array.isArray(body.inventoryAudit)) {
+        const discrepancies = body.inventoryAudit.filter(item => {
+          return item.expectedQty !== item.foundQty;
+        });
+        auditJson = JSON.stringify(discrepancies);
+      }
+      
+      db.prepare('UPDATE jobs SET status=?, finished_at=?, duration_hours=?, client_amount=?, employee_amount=?, employee_notes=?, is_urgent=?, inventory_audit_json=?, updated_at=? WHERE id=?').run('completed', now, durationHours, clientAmount, employeeAmount, body.employeeNotes || '', isUrgent, auditJson, now, jobId);
       enforceProjectFlatIntegrity(job.flat_id, job.requested_date || now);
       logSystemActivity(session.user.id, 'FINISH', 'job', jobId, `Serviço concluído no flat ${flat.address} (${durationHours}h)`);
 
@@ -4110,6 +4125,7 @@ function hydrateJob(row) {
     isHoliday: Boolean(row.is_holiday),
     isPriority: Boolean(row.is_priority),
     cleaningType: row.cleaning_type || 'end_of_stay',
+    inventoryAudit: safeJsonParse(row.inventory_audit_json, []),
     isUrgent: Boolean(row.is_urgent),
     isBackToBack: Boolean(row.is_back_to_back),
     guestyReservationId: row.guesty_reservation_id || '',
@@ -4119,7 +4135,7 @@ function hydrateJob(row) {
     updatedAt: row.updated_at,
     checklistState: safeJsonParse(row.checklist_state, []),
     flatChecklist: row.cleaning_type === 'mid_stay' ? [] : safeJsonParse(row.flat_checklist_json, []),
-    flatInventory: db.prepare("SELECT fi.*, c.name, c.category FROM flat_inventory fi JOIN inventory_catalog c ON c.id = fi.item_id WHERE fi.flat_id = ? ORDER BY c.category, c.name").all(row.flat_id),
+    flatInventory: db.prepare("SELECT fi.*, c.name, c.name_en, c.category, c.category_en FROM flat_inventory fi JOIN inventory_catalog c ON c.id = fi.item_id WHERE fi.flat_id = ? ORDER BY c.category, c.name").all(row.flat_id),
     cleaningType: row.cleaning_type || 'end_of_stay',
   };
 }
