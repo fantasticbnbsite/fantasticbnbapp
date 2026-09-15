@@ -4443,23 +4443,27 @@ async function loadJobs() {
       } catch (e) {}
     }
     
-    // Calculate date_from based on filter
-    const dateFilter = document.getElementById('jobsDateFilter')?.value || 'current_month';
-    let dateFrom = '';
-    const now = new Date();
-    let dateTo = '';
+    let dateFrom = document.getElementById('jobsDateFrom')?.value || '';
+    let dateTo = document.getElementById('jobsDateTo')?.value || '';
     
-    if (dateFilter === 'current_month') {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      dateFrom = firstDay.toISOString().slice(0, 10);
-    } else if (dateFilter === 'last_month') {
-      const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-      dateFrom = firstDay.toISOString().slice(0, 10);
-      dateTo = lastDay.toISOString().slice(0, 10);
-    } else if (dateFilter === 'last_3_months') {
-      const firstDay = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-      dateFrom = firstDay.toISOString().slice(0, 10);
+    if (!dateFrom && !dateTo) {
+      const dateFilter = document.getElementById('jobsDateFilter')?.value || 'all';
+      const now = new Date();
+      if (dateFilter === 'current_month') {
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        dateFrom = firstDay.toISOString().slice(0, 10);
+      } else if (dateFilter === 'last_month') {
+        const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+        dateFrom = firstDay.toISOString().slice(0, 10);
+        dateTo = lastDay.toISOString().slice(0, 10);
+      } else if (dateFilter === 'last_3_months') {
+        const firstDay = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+        dateFrom = firstDay.toISOString().slice(0, 10);
+      }
+      
+      if (document.getElementById('jobsDateFrom')) document.getElementById('jobsDateFrom').value = dateFrom;
+      if (document.getElementById('jobsDateTo')) document.getElementById('jobsDateTo').value = dateTo;
     }
 
     let url = '/api/jobs?';
@@ -4730,20 +4734,29 @@ window.filterJobsToday = function() {
   const today = new Date().toISOString().slice(0, 10);
   const fromEl = document.getElementById('jobsDateFrom');
   const toEl   = document.getElementById('jobsDateTo');
+  const filterEl = document.getElementById('jobsDateFilter');
   if (fromEl) fromEl.value = today;
   if (toEl)   toEl.value   = today;
-  renderJobs();
+  if (filterEl) filterEl.value = 'all';
+  loadJobs();
 };
 
 window.clearJobsDateFilter = function() {
   const fromEl = document.getElementById('jobsDateFrom');
   const toEl   = document.getElementById('jobsDateTo');
+  const filterEl = document.getElementById('jobsDateFilter');
   if (fromEl) fromEl.value = '';
   if (toEl)   toEl.value   = '';
-  renderJobs();
+  if (filterEl) filterEl.value = 'all';
+  loadJobs();
 };
 
 // Wire up filter change events
+document.getElementById('jobsDateFilter')?.addEventListener('change', () => {
+  document.getElementById('jobsDateFrom').value = '';
+  document.getElementById('jobsDateTo').value = '';
+  loadJobs();
+});
 document.getElementById('jobsStatusFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsClientFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsCleanerFilter')?.addEventListener('change', renderJobs);

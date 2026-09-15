@@ -946,7 +946,7 @@
               <input type="date" id="jobsDateTo" class="filter-select" placeholder="Até" title="Data final" />
               <button class="button button-secondary" onclick="filterJobsToday()">📅 Hoje</button>
               <button class="button button-secondary" onclick="clearJobsDateFilter()">✕ Limpar datas</button>
-              <button class="button button-secondary" id="refreshJobsButton">Atualizar</button>
+              <button class="button button-secondary" id="refreshJobsButton" onclick="loadJobs()">Atualizar</button>
             </div>
           </div>
           <div class="stats-row" id="jobsStats"></div>
