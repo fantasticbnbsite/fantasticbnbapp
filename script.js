@@ -7025,3 +7025,184 @@ window.openGuestyTestModal = openGuestyTestModal;
 window.closeGuestyTestModal = closeGuestyTestModal;
 window.onGuestyTestSubmit = onGuestyTestSubmit;
 
+
+
+// ── INVENTORY LOGIC ──────────────────────────────────────────────────────────
+
+async function loadInventoryCatalog() {
+  try {
+    const res = await api('/api/inventory/catalog');
+    return res.items || [];
+  } catch (err) {
+    console.error('loadInventoryCatalog Error', err);
+    return [];
+  }
+}
+
+async function openInventoryCatalogModal() {
+  document.getElementById('inventoryCatalogModal').classList.remove('hidden');
+  await renderInventoryCatalog();
+}
+
+function closeInventoryCatalogModal() {
+  document.getElementById('inventoryCatalogModal').classList.add('hidden');
+}
+
+async function renderInventoryCatalog() {
+  const list = document.getElementById('catalogItemsList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:12px;color:gray;">Carregando...</div>';
+  const items = await loadInventoryCatalog();
+  
+  if (!items.length) {
+    list.innerHTML = '<div style="opacity:0.5;padding:12px;text-align:center;">Nenhum item cadastrado.</div>';
+    return;
+  }
+  
+  let html = '';
+  let currentCategory = '';
+  items.forEach(item => {
+    if (item.category !== currentCategory) {
+      currentCategory = item.category;
+      html += `<div style="font-weight:600; margin-top:12px; padding-bottom:4px; border-bottom:1px solid rgba(0,0,0,0.1);">${escapeHtml(currentCategory)}</div>`;
+    }
+    html += `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed rgba(0,0,0,0.05);">
+        <span>${escapeHtml(item.name)}</span>
+        <button class="icon-button" style="color:var(--danger);" onclick="deleteInventoryCatalogItem(${item.id})">
+          <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+  if(window.lucide) window.lucide.createIcons();
+}
+
+async function addInventoryCatalogItem(e) {
+  e.preventDefault();
+  const name = document.getElementById('newCatalogItemName').value;
+  const category = document.getElementById('newCatalogItemCategory').value || 'Geral';
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await api('/api/inventory/catalog', { method: 'POST', body: JSON.stringify({ name, category }) });
+    document.getElementById('newCatalogItemName').value = '';
+    await renderInventoryCatalog();
+  } catch (err) {
+    toast(err.message || 'Erro ao salvar', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteInventoryCatalogItem(id) {
+  if (!confirm('Excluir este item do catálogo?')) return;
+  try {
+    await api('/api/inventory/catalog/' + id, { method: 'DELETE' });
+    await renderInventoryCatalog();
+  } catch (err) {
+    toast(err.message || 'Erro ao excluir', 'error');
+  }
+}
+
+async function openFlatInventory(flatId) {
+  document.getElementById('inventoryFlatId').value = flatId;
+  const modal = document.getElementById('flatInventoryModal');
+  modal.classList.remove('hidden');
+  
+  const loading = document.getElementById('inventoryLoading');
+  const form = document.getElementById('flatInventoryForm');
+  const container = document.getElementById('inventoryCategoriesContainer');
+  
+  loading.classList.remove('hidden');
+  form.classList.add('hidden');
+  
+  try {
+    const catalog = await loadInventoryCatalog();
+    const res = await api('/api/flats/' + flatId + '/inventory');
+    const flatItems = res.inventory || [];
+    
+    // Create map for easy lookup
+    const qtys = {};
+    const notes = {};
+    flatItems.forEach(i => {
+      qtys[i.item_id] = i.quantity;
+      notes[i.item_id] = i.notes || '';
+    });
+    
+    if (!catalog.length) {
+      container.innerHTML = '<div style="opacity:0.5;padding:12px;text-align:center;">O catálogo de inventário está vazio. Cadastre itens nas Configurações.</div>';
+    } else {
+      let html = '';
+      let currentCategory = '';
+      catalog.forEach(item => {
+        if (item.category !== currentCategory) {
+          currentCategory = item.category;
+          html += `<div style="font-weight:600; margin-top:8px; padding-bottom:8px; border-bottom:1px solid rgba(0,0,0,0.1); font-size:1.1rem; color:var(--primary);">${escapeHtml(currentCategory)}</div>`;
+        }
+        
+        const qty = qtys[item.id] || 0;
+        const note = notes[item.id] || '';
+        
+        html += `
+          <div style="display:flex; flex-direction:column; gap:4px; padding:12px; background:rgba(0,0,0,0.02); border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:500;">${escapeHtml(item.name)}</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" class="button" style="padding:4px 10px;" onclick="document.getElementById('inv_qty_${item.id}').stepDown()">-</button>
+                <input type="number" id="inv_qty_${item.id}" name="inv_qty_${item.id}" value="${qty}" min="0" style="width:60px; text-align:center;" data-item-id="${item.id}" />
+                <button type="button" class="button" style="padding:4px 10px;" onclick="document.getElementById('inv_qty_${item.id}').stepUp()">+</button>
+              </div>
+            </div>
+            <input type="text" id="inv_notes_${item.id}" value="${escapeHtml(note)}" placeholder="Observações (opcional)" style="font-size:0.85rem; padding:6px; background:transparent; border-bottom:1px solid rgba(0,0,0,0.1); border-top:none; border-left:none; border-right:none; border-radius:0;" />
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+    
+    loading.classList.add('hidden');
+    form.classList.remove('hidden');
+    
+  } catch (err) {
+    console.error('loadFlatInventory Error', err);
+    loading.innerHTML = 'Erro ao carregar inventário.';
+  }
+}
+
+function closeFlatInventoryModal() {
+  document.getElementById('flatInventoryModal').classList.add('hidden');
+}
+
+async function submitFlatInventory(e) {
+  e.preventDefault();
+  const flatId = document.getElementById('inventoryFlatId').value;
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  
+  try {
+    const inputs = document.querySelectorAll('input[id^="inv_qty_"]');
+    const items = [];
+    inputs.forEach(input => {
+      const itemId = input.dataset.itemId;
+      const qty = parseInt(input.value) || 0;
+      const notes = document.getElementById('inv_notes_' + itemId).value || '';
+      if (qty > 0 || notes.trim() !== '') {
+        items.push({ item_id: itemId, quantity: qty, notes: notes.trim() });
+      }
+    });
+    
+    await api('/api/flats/' + flatId + '/inventory', {
+      method: 'PUT',
+      body: JSON.stringify({ items })
+    });
+    
+    toast('Inventário salvo com sucesso!', 'success');
+    closeFlatInventoryModal();
+  } catch (err) {
+    toast(err.message || 'Erro ao salvar inventário', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
