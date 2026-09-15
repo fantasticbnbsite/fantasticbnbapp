@@ -3,7 +3,7 @@
   "short_name": "Fantastic",
   "description": "Aplicativo de gestão de serviços de limpeza",
   "display": "standalone",
-  "background_color": "#f8f4ee",
+  "background_color": "#000000",
   "theme_color": "#080058",
   "icons": [
     {
