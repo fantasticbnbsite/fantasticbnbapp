@@ -1409,7 +1409,10 @@ const App = (() => {
 
   function formatDate(dateStr) {
     if (!dateStr) return '—';
-    const d = new Date(dateStr);
+    // If it's a plain date string (YYYY-MM-DD), parse as local noon to avoid
+    // UTC-offset shifting the day (e.g. UTC midnight = previous day in UTC-3)
+    const plain = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    const d = plain ? new Date(dateStr + 'T12:00:00') : new Date(dateStr);
     if (isNaN(d)) return dateStr;
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
