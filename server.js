@@ -629,11 +629,16 @@ function seedInventoryCatalog() {
       ['Geral', 'Shampoo (Und)'],
       ['Geral', 'Condicionador (Und)']
     ];
-    db.transaction(() => {
+    db.exec('BEGIN');
+    try {
       for (const [cat, name] of items) {
         insert.run(cat, name);
       }
-    })();
+      db.exec('COMMIT');
+    } catch(err) {
+      db.exec('ROLLBACK');
+      console.error(err);
+    }
   }
 }
 seedInventoryCatalog();

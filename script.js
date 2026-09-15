@@ -4447,8 +4447,6 @@ async function loadJobs() {
     const dateFilter = document.getElementById('jobsDateFilter')?.value || 'current_month';
     let dateFrom = '';
     const now = new Date();
-    
-    const now = new Date();
     let dateTo = '';
     
     if (dateFilter === 'current_month') {

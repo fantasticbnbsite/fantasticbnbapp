@@ -362,28 +362,15 @@ function switchView(view) {
   }
 }
 
-tabJobs.addEventListener('click', () => switchView('jobs'));
-const tabJobsDesk = document.getElementById('tabJobsDesk');
-if (tabJobsDesk) tabJobsDesk.addEventListener('click', () => switchView('jobs'));
-const tabRequestDesk = document.getElementById('tabRequestDesk');
-if (tabRequestDesk) tabRequestDesk.addEventListener('click', () => switchView('request'));
-const tabInvoicesDesk = document.getElementById('tabInvoicesDesk');
-if (tabInvoicesDesk) tabInvoicesDesk.addEventListener('click', () => switchView('invoices'));
-const tabFlatsDesk = document.getElementById('tabFlatsDesk');
-if (tabFlatsDesk) tabFlatsDesk.addEventListener('click', () => switchView('flats'));
-
-const tabFlats = document.getElementById('tabFlats');
-if (tabFlats) tabFlats.addEventListener('click', () => switchView('flats'));
-tabRequest.addEventListener('click', () => switchView('request'));
-const tabInvoices = document.getElementById('tabInvoices');
-if (tabInvoices) tabInvoices.addEventListener('click', () => switchView('invoices'));
+if (tabJobs) tabJobs.addEventListener('click', () => switchView('jobs'));
+if (tabRequest) tabRequest.addEventListener('click', () => switchView('request'));
+if (document.getElementById('tabInvoices')) document.getElementById('tabInvoices').addEventListener('click', () => switchView('invoices'));
+if (document.getElementById('tabFlats')) document.getElementById('tabFlats').addEventListener('click', () => switchView('flats'));
 
 if (tabJobsDesk) tabJobsDesk.addEventListener('click', () => switchView('jobs'));
-if (tabRequestDesk) tabRequestDesk.addEventListener('click', () => switchView('request'));
-const tabInvoicesDesk = document.getElementById('tabInvoicesDesk');
-if (tabInvoicesDesk) tabInvoicesDesk.addEventListener('click', () => switchView('invoices'));
-
-/* ─── Load Invoices ──────────────────────────────────────── */
+if (document.getElementById('tabRequestDesk')) document.getElementById('tabRequestDesk').addEventListener('click', () => switchView('request'));
+if (document.getElementById('tabInvoicesDesk')) document.getElementById('tabInvoicesDesk').addEventListener('click', () => switchView('invoices'));
+if (document.getElementById('tabFlatsDesk')) document.getElementById('tabFlatsDesk').addEventListener('click', () => switchView('flats'));
 
 let globalClientInvoices = [];
 
