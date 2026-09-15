@@ -658,6 +658,64 @@ const App = (() => {
     const date  = job.requestedDate ? formatDate(job.requestedDate) : '—';
     const notes = job.notes ? escapeHtml(job.notes) : '';
 
+    let inventoryHtml = '';
+    if ((job.status === 'in_progress' || job.status === 'accepted' || job.status === 'completed') && job.flatInventory && job.flatInventory.length > 0) {
+      let cats = {};
+      job.flatInventory.forEach(item => {
+        if (!cats[item.category]) cats[item.category] = [];
+        cats[item.category].push(item);
+      });
+      let html = '<div class="chk-container" style="margin-top: 16px; border-color: #16756b;"><div class="chk-header" style="background:#16756b;">📦 Inventário do Flat</div><div style="padding: 12px; font-size: 0.9rem;">';
+      
+      Object.keys(cats).forEach(cat => {
+        html += `<div style="font-weight:bold; margin-top:8px; margin-bottom:4px; color:#16756b;">${escapeHtml(cat)}</div>`;
+        cats[cat].forEach(item => {
+          const notesStr = item.notes ? ` <span style="color:#666; font-size:0.8rem;">(${escapeHtml(item.notes)})</span>` : '';
+          html += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #eee;">
+            <span>${escapeHtml(item.name)}${notesStr}</span>
+            <strong>${item.quantity}</strong>
+          </div>`;
+        });
+      });
+      html += '</div></div>';
+      inventoryHtml = html;
+    }
+
+    let checklistHtml = '';
+    if (job.status === 'in_progress' && job.flatChecklist && job.flatChecklist.length > 0) {
+      const state = job.checklistState || [];
+      const tabsHtml = job.flatChecklist.map((cat, i) => {
+        const catTotal = cat.items ? cat.items.length : 0;
+        const catDone = cat.items ? cat.items.filter(it => state.includes(cat.category + '|' + it)).length : 0;
+        const icon = catDone === catTotal && catTotal > 0 ? '✅' : '';
+        const catDisplay = cat.category.split('/')[0].trim();
+        return `<button class="chk-tab ${i === 0 ? 'active' : ''}" onclick="App.switchChecklistTab(this, 'chk-pane-${job.id}-${i}')">${catDisplay} ${icon}</button>`;
+      }).join('');
+      
+      const panesHtml = job.flatChecklist.map((cat, i) => {
+        const itemsHtml = (cat.items || []).map(it => {
+          const val = cat.category + '|' + it;
+          const checked = state.includes(val) ? 'checked' : '';
+          return `
+            <label class="chk-item ${checked ? 'done' : ''}">
+              <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
+              <span>${escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">    let actionsHtml = '';</strong>')}</span>
+            </label>
+          `;
+        }).join('');
+        return `<div id="chk-pane-${job.id}-${i}" class="chk-pane ${i === 0 ? 'active' : ''}">${itemsHtml}</div>`;
+      }).join('');
+
+      checklistHtml = `
+        <div class="chk-container">
+          <div class="chk-header">✓ Checklist Obrigatório</div>
+          <div class="chk-tabs">${tabsHtml}</div>
+          <div class="chk-panes">${panesHtml}</div>
+        </div>
+      `;
+    }
+
+
     let actionsHtml = '';
     let extraHtml   = '';
 
@@ -704,63 +762,6 @@ const App = (() => {
 
     
     
-    let inventoryHtml = '';
-    if ((job.status === 'in_progress' || job.status === 'accepted' || job.status === 'completed') && job.flatInventory && job.flatInventory.length > 0) {
-      let cats = {};
-      job.flatInventory.forEach(item => {
-        if (!cats[item.category]) cats[item.category] = [];
-        cats[item.category].push(item);
-      });
-      let html = '<div class="chk-container" style="margin-top: 16px; border-color: #16756b;"><div class="chk-header" style="background:#16756b;">📦 Inventário do Flat</div><div style="padding: 12px; font-size: 0.9rem;">';
-      
-      Object.keys(cats).forEach(cat => {
-        html += `<div style="font-weight:bold; margin-top:8px; margin-bottom:4px; color:#16756b;">${escapeHtml(cat)}</div>`;
-        cats[cat].forEach(item => {
-          const notesStr = item.notes ? ` <span style="color:#666; font-size:0.8rem;">(${escapeHtml(item.notes)})</span>` : '';
-          html += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #eee;">
-            <span>${escapeHtml(item.name)}${notesStr}</span>
-            <strong>${item.quantity}</strong>
-          </div>`;
-        });
-      });
-      html += '</div></div>';
-      inventoryHtml = html;
-    }
-
-    let checklistHtml = '';
-    if (job.status === 'in_progress' && job.flatChecklist && job.flatChecklist.length > 0) {
-      const state = job.checklistState || [];
-      const tabsHtml = job.flatChecklist.map((cat, i) => {
-        const catTotal = cat.items ? cat.items.length : 0;
-        const catDone = cat.items ? cat.items.filter(it => state.includes(cat.category + '|' + it)).length : 0;
-        const icon = catDone === catTotal && catTotal > 0 ? '✅' : '';
-        const catDisplay = cat.category.split('/')[0].trim();
-        return `<button class="chk-tab ${i === 0 ? 'active' : ''}" onclick="App.switchChecklistTab(this, 'chk-pane-${job.id}-${i}')">${catDisplay} ${icon}</button>`;
-      }).join('');
-      
-      const panesHtml = job.flatChecklist.map((cat, i) => {
-        const itemsHtml = (cat.items || []).map(it => {
-          const val = cat.category + '|' + it;
-          const checked = state.includes(val) ? 'checked' : '';
-          return `
-            <label class="chk-item ${checked ? 'done' : ''}">
-              <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
-              <span>${escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">$&</strong>')}</span>
-            </label>
-          `;
-        }).join('');
-        return `<div id="chk-pane-${job.id}-${i}" class="chk-pane ${i === 0 ? 'active' : ''}">${itemsHtml}</div>`;
-      }).join('');
-
-      checklistHtml = `
-        <div class="chk-container">
-          <div class="chk-header">✓ Checklist Obrigatório</div>
-          <div class="chk-tabs">${tabsHtml}</div>
-          <div class="chk-panes">${panesHtml}</div>
-        </div>
-      `;
-    }
-
     if (job.status === 'in_progress') {
       actionsHtml = `
         ${checklistHtml}
