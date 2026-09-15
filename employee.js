@@ -699,7 +699,7 @@ const App = (() => {
           return `
             <label class="chk-item ${checked ? 'done' : ''}">
               <input type="checkbox" value="${escapeHtml(val)}" ${checked} onchange="App.toggleChecklistItem('${job.id}', this)">
-              <span>${escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger, red); font-weight:800;">    let actionsHtml = '';</strong>')}</span>
+              <span>${escapeHtml(it.split('/')[0].trim()).replace(/\(FOTOS?\)/gi, '<strong style="color:var(--danger,red);font-weight:800;">(FOTOS)</strong>')}</span>
             </label>
           `;
         }).join('');
