@@ -5724,6 +5724,7 @@ function renderFlats() {
               ${f.city ? '<br/>Cidade: ' + escapeHtml(f.city) : ''}
             </div>
             <div class="toolbar-actions" style="margin-top:12px;">
+              <button class="button button-outline" style="border-color:#16756b; color:#16756b; margin-right: 8px;" onclick='openFlatInventory(${f.id})'>📦 Inventário</button>
               <button class="button button-secondary" onclick='openFlatForm(${JSON.stringify(f).replace(/'/g, "&#39;")})'>Editar</button>
               <button class="button button-danger" style="background:var(--danger);border:none;color:#fff;padding:8px 16px;border-radius:4px;" onclick='deleteFlatById(${f.id})'>Excluir</button>
             </div>
