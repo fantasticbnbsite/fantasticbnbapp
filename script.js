@@ -4442,7 +4442,33 @@ async function loadJobs() {
         state.users = uData.users || [];
       } catch (e) {}
     }
-    const data = await api('/api/jobs');
+    
+    // Calculate date_from based on filter
+    const dateFilter = document.getElementById('jobsDateFilter')?.value || 'current_month';
+    let dateFrom = '';
+    const now = new Date();
+    
+    const now = new Date();
+    let dateTo = '';
+    
+    if (dateFilter === 'current_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      dateFrom = firstDay.toISOString().slice(0, 10);
+    } else if (dateFilter === 'last_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+      dateFrom = firstDay.toISOString().slice(0, 10);
+      dateTo = lastDay.toISOString().slice(0, 10);
+    } else if (dateFilter === 'last_3_months') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      dateFrom = firstDay.toISOString().slice(0, 10);
+    }
+
+    let url = '/api/jobs?';
+    if (dateFrom) url += 'date_from=' + dateFrom + '&';
+    if (dateTo) url += 'date_to=' + dateTo;
+    
+    const data = await api(url);
     state.jobs = data.jobs || [];
     renderJobs();
   } catch (err) {

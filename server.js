@@ -1345,6 +1345,16 @@ async function handleApi(req, res, requestUrl) {
     const params = [];
     if (statusFilter) { sql += ' AND j.status = ?'; params.push(statusFilter); }
     if (clientFilter) { sql += ' AND j.client_user_id = ?'; params.push(Number(clientFilter)); }
+    const dateFrom = requestUrl.searchParams.get('date_from');
+    if (dateFrom) {
+      sql += " AND substr(COALESCE(j.requested_date, j.finished_at, j.created_at), 1, 10) >= ?";
+      params.push(dateFrom);
+    }
+    const dateTo = requestUrl.searchParams.get('date_to');
+    if (dateTo) {
+      sql += " AND substr(COALESCE(j.requested_date, j.finished_at, j.created_at), 1, 10) <= ?";
+      params.push(dateTo);
+    }
     if (cleanerFilter === 'unassigned') {
       sql += ' AND j.employee_user_id IS NULL';
     } else if (cleanerFilter) {

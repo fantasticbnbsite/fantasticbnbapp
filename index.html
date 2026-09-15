@@ -919,6 +919,12 @@
             </div>
             <div class="filter-group">
               <button class="button button-primary" onclick="openAdminRequestJobModal()">+ Nova Solicitacao</button>
+              <select id="jobsDateFilter" class="filter-select">
+                <option value="current_month">Mês Atual</option>
+                <option value="last_month">Mês Anterior</option>
+                <option value="last_3_months">Últimos 3 meses</option>
+                <option value="all">Desde Sempre</option>
+              </select>
               <select id="jobsStatusFilter" class="filter-select">
                 <option value="">Todos os status</option>
                 <option value="pending">Pendente</option>
