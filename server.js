@@ -1251,6 +1251,79 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { success: true });
   }
 
+
+  // ── INVENTORY ROUTES ───────────────────────────────────────────────────────
+  
+  if (requestUrl.pathname === '/api/inventory/catalog' && req.method === 'GET') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Sem permissao' });
+    const items = db.prepare('SELECT * FROM inventory_catalog ORDER BY category, name').all();
+    return sendJson(res, 200, { items });
+  }
+  
+  if (requestUrl.pathname === '/api/inventory/catalog' && req.method === 'POST') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Sem permissao' });
+    const body = await parseBody(req);
+    const category = body.category || 'Geral';
+    const name = body.name;
+    if (!name) return sendJson(res, 400, { error: 'Nome obrigatorio' });
+    const result = db.prepare('INSERT INTO inventory_catalog (category, name) VALUES (?, ?)').run(category, name);
+    return sendJson(res, 201, { success: true, id: result.lastInsertRowid });
+  }
+  
+  if (requestUrl.pathname.match(/^\/api\/inventory\/catalog\/\d+$/) && req.method === 'DELETE') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Sem permissao' });
+    const id = Number(requestUrl.pathname.split('/')[4]);
+    db.prepare('DELETE FROM inventory_catalog WHERE id = ?').run(id);
+    return sendJson(res, 200, { success: true });
+  }
+
+  if (requestUrl.pathname.match(/^\/api\/flats\/\d+\/inventory$/) && req.method === 'GET') {
+    const flatId = Number(requestUrl.pathname.split('/')[3]);
+    
+    // Authorization check
+    if (session.user.role === 'client' || session.user.role === 'client_user') {
+      const flat = db.prepare('SELECT client_user_id FROM flats WHERE id = ?').get(flatId);
+      const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+      if (!flat || flat.client_user_id !== targetClientId) return sendJson(res, 403, { error: 'Sem permissao' });
+    } else if (!isCleanerRole(session.user.role) && !isAdminRole(session.user.role)) {
+      return sendJson(res, 403, { error: 'Sem permissao' });
+    }
+    
+    const inventory = db.prepare(`
+      SELECT fi.*, c.name, c.category 
+      FROM flat_inventory fi
+      JOIN inventory_catalog c ON c.id = fi.item_id
+      WHERE fi.flat_id = ?
+      ORDER BY c.category, c.name
+    `).all(flatId);
+    return sendJson(res, 200, { inventory });
+  }
+
+  if (requestUrl.pathname.match(/^\/api\/flats\/\d+\/inventory$/) && req.method === 'PUT') {
+    if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Sem permissao' });
+    const flatId = Number(requestUrl.pathname.split('/')[3]);
+    const body = await parseBody(req);
+    if (!body || !Array.isArray(body.items)) return sendJson(res, 400, { error: 'Formato invalido' });
+    
+    db.exec('BEGIN');
+    try {
+      db.prepare('DELETE FROM flat_inventory WHERE flat_id = ?').run(flatId);
+      const insert = db.prepare('INSERT INTO flat_inventory (flat_id, item_id, quantity, notes) VALUES (?, ?, ?, ?)');
+      for (const item of body.items) {
+        if (Number(item.quantity) >= 0) {
+          insert.run(flatId, item.item_id, Number(item.quantity), item.notes || '');
+        }
+      }
+      db.exec('COMMIT');
+    } catch(err) {
+      db.exec('ROLLBACK');
+      console.error(err);
+      return sendJson(res, 500, { error: 'Erro ao salvar inventario' });
+    }
+    
+    return sendJson(res, 200, { success: true });
+  }
+
   if (requestUrl.pathname === '/api/flats' && req.method === 'GET') {
     if (!canManageClientsFlats(session.user) && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const flats = db.prepare(`
