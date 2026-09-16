@@ -686,7 +686,7 @@ textarea {
 /* Responsive / CleanOps Services Table (Desktop & Tablet) */
 @media (min-width: 769px) {
   .data-table.responsive-table {
-    table-layout: fixed;
+    table-layout: auto;
     width: 100%;
     min-width: 1020px;
   }
@@ -2717,7 +2717,7 @@ input[type="radio"] {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.83rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .report-table thead th {
