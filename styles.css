@@ -2647,11 +2647,13 @@ input[type="radio"] {
 /* ── Subtables: Clientes & Cleaners ───────────────────────────── */
 .report-subtables-grid {
   display: grid;
+  min-width: 0;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
 
 .report-subtable-card {
+  min-width: 0;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
