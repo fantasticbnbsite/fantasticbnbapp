@@ -786,7 +786,7 @@ const App = (() => {
       extraHtml = `
         ${inventoryHtml}
         <div class="photo-section">
-          <div class="photo-section-title">📸 Fotos do Serviço</div>
+          <div class="photo-section-title">📸 Fotos: <strong style="color:var(--primary);">${escapeHtml(job.flatName)}</strong></div>
           <div class="photo-thumbnails" id="photos-${job.id}">
             <!-- loaded async -->
           </div>
