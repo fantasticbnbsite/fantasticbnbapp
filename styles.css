@@ -836,8 +836,7 @@ textarea {
   line-height: 1.25;
   margin-bottom: 4px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
 }
 .user-badges {
   display: flex;
@@ -872,8 +871,7 @@ textarea {
   gap: 6px;
   font-size: 0.84rem;
   color: #64748b;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
   white-space: nowrap;
 }
 .user-email-row i { width: 13px; height: 13px; color: #94a3b8; flex-shrink: 0; }
@@ -962,8 +960,7 @@ textarea {
   font-size: 0.74rem;
   color: #64748b;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
 }
 
 .user-parent-link {
@@ -2045,8 +2042,7 @@ textarea {
   padding-right: 24px;
   width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right center;
@@ -2060,8 +2056,7 @@ textarea {
   color: var(--text);
   width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
 }
 .dash-filter-btn {
   background: white !important;
@@ -2738,8 +2733,7 @@ input[type="radio"] {
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
   z-index: 1;
 }
 
@@ -2763,8 +2757,7 @@ input[type="radio"] {
   padding: 8px 6px;
   vertical-align: middle;
   color: #334155;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
   white-space: nowrap;
 }
 
@@ -2803,8 +2796,7 @@ input[type="radio"] {
   font-weight: 600;
   color: #1e293b;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
   max-width: 100%;
 }
 
