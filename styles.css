@@ -2701,7 +2701,7 @@ input[type="radio"] {
 .subtable-scroll {
   max-height: 380px;
   overflow-y: auto;
-  overflow-x: hidden !important;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
   width: 100%;
 }
 
