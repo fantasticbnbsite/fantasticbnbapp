@@ -628,14 +628,14 @@
                       <span class="subtable-badge" id="prevClientsCountBadge">0 clientes</span>
                     </div>
                     <div class="subtable-scroll">
-                      <table class="report-table" style="table-layout:fixed; width:100%;">
+                      <table class="report-table" style="width:100%; white-space: nowrap;">
                         <thead>
                           <tr>
-                            <th style="width:34%;">Cliente</th>
-                            <th class="th-center" style="width:12%;">Jobs</th>
-                            <th class="th-right" style="width:18%;">Fat. (£)</th>
-                            <th class="th-right" style="width:18%;">Desp. (£)</th>
-                            <th class="th-right" style="width:18%;">Lucro (£)</th>
+                            <th>Cliente</th>
+                            <th class="th-center">Jobs</th>
+                            <th class="th-right">Fat. (£)</th>
+                            <th class="th-right">Desp. (£)</th>
+                            <th class="th-right">Lucro (£)</th>
                           </tr>
                         </thead>
                         <tbody id="prevClientsTableBody">
@@ -655,13 +655,13 @@
                       <span class="subtable-badge" id="prevEmployeesCountBadge">0 cleaners</span>
                     </div>
                     <div class="subtable-scroll">
-                      <table class="report-table" style="table-layout:fixed; width:100%;">
+                      <table class="report-table" style="width:100%; white-space: nowrap;">
                         <thead>
                           <tr>
-                            <th style="width:40%;">Profissional</th>
-                            <th class="th-center" style="width:14%;">Jobs</th>
-                            <th class="th-center" style="width:18%;">Horas</th>
-                            <th class="th-right" style="width:28%;">Total Pago (£)</th>
+                            <th>Profissional</th>
+                            <th class="th-center">Jobs</th>
+                            <th class="th-center">Horas</th>
+                            <th class="th-right">Total Pago (£)</th>
                           </tr>
                         </thead>
                         <tbody id="prevEmployeesTableBody">
@@ -682,15 +682,15 @@
                     <span class="subtable-badge" id="prevExtrasCountBadge">0 extras</span>
                   </div>
                   <div class="subtable-scroll">
-                    <table class="report-table" style="table-layout:fixed; width:100%;">
+                    <table class="report-table" style="width:100%; white-space: nowrap;">
                       <thead>
                         <tr>
-                          <th style="width:18%;">Tipo</th>
-                          <th style="width:18%;">Referência</th>
-                          <th style="width:22%;">Destinatário</th>
-                          <th style="width:24%;">Descrição</th>
-                          <th class="th-center" style="width:8%;">Qtd</th>
-                          <th class="th-right" style="width:10%;">Total (£)</th>
+                          <th>Tipo</th>
+                          <th>Referência</th>
+                          <th>Destinatário</th>
+                          <th>Descrição</th>
+                          <th class="th-center">Qtd</th>
+                          <th class="th-right">Total (£)</th>
                         </tr>
                       </thead>
                       <tbody id="prevExtrasTableBody">
@@ -1928,7 +1928,13 @@
       70%  { box-shadow: 0 0 0 22px rgba(22,117,107,0); }
       100% { box-shadow: 0 0 0 0 rgba(22,117,107,0); }
     }
-  </style>
+  
+      .subtable-scroll {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+</style>
 
 
   <!-- ── Flat Inventory Modal ────────────────────────────────────────── -->

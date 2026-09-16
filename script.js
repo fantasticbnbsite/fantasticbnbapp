@@ -3822,7 +3822,7 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
           const hasExtras = Number(c.extras_amount || 0) > 0;
           return `
           <tr>
-            <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <td title="${escapeHtml(c.name)}" >
               <strong>${escapeHtml(c.name)}</strong>
               ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(c.extras_amount)} em serviços extras">+${_formatCurrencyPounds(c.extras_amount)} extras</span>` : ''}
             </td>
@@ -3845,7 +3845,7 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
           const hasExtras = Number(e.extras_amount || 0) !== 0;
           return `
           <tr>
-            <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <td title="${escapeHtml(e.name)}" >
               <strong>${escapeHtml(e.name)}</strong>
               ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(e.extras_amount)} em lançamentos/ajustes extras">${e.extras_amount > 0 ? '+' : ''}${_formatCurrencyPounds(e.extras_amount)} extra</span>` : ''}
             </td>
@@ -4056,15 +4056,15 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="subtable-badge">${(data.by_client || []).length} clientes</span>
           </div>
           <div class="subtable-scroll">
-            <table class="report-table" style="table-layout:fixed; width:100%;">
+            <table class="report-table" style="width:100%; white-space: nowrap;">
               <thead>
                 <tr>
-                  <th style="width:30%;">Cliente</th>
-                  <th class="th-center" style="width:10%;">Jobs</th>
-                  <th class="th-right" style="width:18%;">Fat. (£)</th>
-                  <th class="th-right" style="width:18%;">Desp. (£)</th>
-                  <th class="th-right" style="width:18%;">Lucro (£)</th>
-                  <th class="th-right" style="width:14%;">Margem</th>
+                  <th>Cliente</th>
+                  <th class="th-center">Jobs</th>
+                  <th class="th-right">Fat. (£)</th>
+                  <th class="th-right">Desp. (£)</th>
+                  <th class="th-right">Lucro (£)</th>
+                  <th class="th-right">Margem</th>
                 </tr>
               </thead>
               <tbody>
@@ -4072,7 +4072,7 @@ window.viewMonthlyReportModal = async function(id) {
                   const hasExtras = Number(c.extras_amount || 0) > 0;
                   return `
                   <tr>
-                    <td title="${escapeHtml(c.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <td title="${escapeHtml(c.name)}" >
                       <strong>${escapeHtml(c.name)}</strong>
                       ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#ECFDF5; color:#059669; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(c.extras_amount)} em serviços extras">+${_formatCurrencyPounds(c.extras_amount)} extras</span>` : ''}
                     </td>
@@ -4099,14 +4099,14 @@ window.viewMonthlyReportModal = async function(id) {
             <span class="subtable-badge">${(data.by_employee || []).length} cleaners</span>
           </div>
           <div class="subtable-scroll">
-            <table class="report-table" style="table-layout:fixed; width:100%;">
+            <table class="report-table" style="width:100%; white-space: nowrap;">
               <thead>
                 <tr>
-                  <th style="width:36%;">Profissional</th>
-                  <th class="th-center" style="width:16%;">Papel</th>
-                  <th class="th-center" style="width:10%;">Jobs</th>
-                  <th class="th-center" style="width:14%;">Horas</th>
-                  <th class="th-right" style="width:24%;">Total Pago (£)</th>
+                  <th>Profissional</th>
+                  <th class="th-center">Papel</th>
+                  <th class="th-center">Jobs</th>
+                  <th class="th-center">Horas</th>
+                  <th class="th-right">Total Pago (£)</th>
                 </tr>
               </thead>
               <tbody>
@@ -4114,7 +4114,7 @@ window.viewMonthlyReportModal = async function(id) {
                   const hasExtras = Number(e.extras_amount || 0) !== 0;
                   return `
                   <tr>
-                    <td title="${escapeHtml(e.name)}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <td title="${escapeHtml(e.name)}" >
                       <strong>${escapeHtml(e.name)}</strong>
                       ${hasExtras ? `<span class="report-badge" style="font-size:0.68rem; background:#EFF6FF; color:#2563EB; padding:2px 6px; border-radius:4px; margin-left:6px;" title="Inclui ${_formatCurrencyPounds(e.extras_amount)} em lançamentos/ajustes extras">${e.extras_amount > 0 ? '+' : ''}${_formatCurrencyPounds(e.extras_amount)} extra</span>` : ''}
                     </td>
@@ -4142,15 +4142,15 @@ window.viewMonthlyReportModal = async function(id) {
           <span class="subtable-badge">${_formatCurrencyPounds(data.total_invoice_extras || 0)} faturas / ${_formatCurrencyPounds(data.total_payroll_extras || 0)} holerites</span>
         </div>
         <div class="subtable-scroll" style="max-height:350px;">
-          <table class="report-table" style="font-size:0.82rem; table-layout:fixed; width:100%;">
+          <table class="report-table" style="font-size:0.82rem; width:100%; white-space: nowrap;">
             <thead>
               <tr>
-                <th style="width:18%;">Tipo</th>
-                <th style="width:16%;">Referência</th>
-                <th style="width:22%;">Destinatário</th>
-                <th style="width:26%;">Descrição</th>
-                <th class="th-center" style="width:8%;">Qtd</th>
-                <th class="th-right" style="width:10%;">Total (£)</th>
+                <th>Tipo</th>
+                <th>Referência</th>
+                <th>Destinatário</th>
+                <th>Descrição</th>
+                <th class="th-center">Qtd</th>
+                <th class="th-right">Total (£)</th>
               </tr>
             </thead>
             <tbody>
@@ -4162,10 +4162,10 @@ window.viewMonthlyReportModal = async function(id) {
                     </span>
                   </td>
                   <td style="font-weight:600; color:var(--text);">${escapeHtml(ex.ref_label || '')}</td>
-                  <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  <td >
                     <strong>${escapeHtml(ex.client_name !== '-' ? ex.client_name : ex.employee_name)}</strong>
                   </td>
-                  <td style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(ex.description)}">
+                  <td  title="${escapeHtml(ex.description)}">
                     ${escapeHtml(ex.description)}
                   </td>
                   <td style="text-align:center; font-weight:600;">${ex.quantity || 1}</td>
