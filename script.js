@@ -4760,8 +4760,8 @@ document.getElementById('jobsDateFilter')?.addEventListener('change', () => {
 document.getElementById('jobsStatusFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsClientFilter')?.addEventListener('change', renderJobs);
 document.getElementById('jobsCleanerFilter')?.addEventListener('change', renderJobs);
-document.getElementById('jobsDateFrom')?.addEventListener('change', renderJobs);
-document.getElementById('jobsDateTo')?.addEventListener('change', renderJobs);
+document.getElementById('jobsDateFrom')?.addEventListener('change', loadJobs);
+document.getElementById('jobsDateTo')?.addEventListener('change', loadJobs);
 
 
 window.openAssignEmployeeModal = async function(jobId) {
