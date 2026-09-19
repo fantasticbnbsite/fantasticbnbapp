@@ -5315,18 +5315,22 @@ async function openJobPhotos(jobId, address) {
         bottomDlBtn.style.display = 'inline-flex';
       }
       const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
-      const allSrcsJson = escapeHtml(JSON.stringify(allSrcs));
       photoGrid.innerHTML = photos.map(p => {
         const src = `/uploads/${escapeHtml(p.filename)}`;
         return `
         <div style="display:flex; flex-direction:column; gap:8px; background:#fafafa; p:8px; border-radius:12px; border:1px solid #eee; padding:6px;">
           <div class="photo-thumb" style="aspect-ratio:1; border-radius:8px; overflow:hidden; background:#f5f5f5; border:1px solid #ddd; position:relative;">
-            <img src="${src}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="openLightbox('${src}', ${allSrcsJson})" />
+            <img class="job-photo-img" data-src="${src}" src="${src}" alt="Foto" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" />
           </div>
           <button type="button" onclick="downloadPhoto('${src}', '${escapeHtml(p.originalName || p.filename)}', event)" class="button" style="padding: 6px 10px; font-size: 0.85rem; background: #e8efe6; color: var(--primary); text-align: center; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; width: 100%; min-height: 38px;">⬇️ Baixar</button>
         </div>
         `;
       }).join('');
+      
+      const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
+      photoGrid.querySelectorAll('.job-photo-img').forEach(img => {
+        img.addEventListener('click', () => openLightbox(img.dataset.src, allSrcs));
+      });
     }
   } catch (err) {
     photoGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--primary);padding:40px;">Erro ao carregar fotos.</div>`;

@@ -905,16 +905,26 @@ const App = (() => {
 
   function renderPhotoThumbs(container, photos) {
     if (photos.length === 0) return;
-    const html = photos.map(p => `
+    const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
+    const allSrcsJson = JSON.stringify(allSrcs).replace(/"/g, '&quot;');
+    const html = photos.map((p, i) => `
       <img
         class="photo-thumb"
         src="/uploads/${encodeURIComponent(p.filename)}"
         alt="${escapeHtml(p.originalName || p.filename)}"
         title="${escapeHtml(p.originalName || p.filename)}"
-        onclick="App.openLightbox(this.src)"
+        data-src="/uploads/${escapeHtml(p.filename)}"
         loading="lazy"
       />`).join('');
-    container.innerHTML += html;
+    
+    // Create a wrapper and append so we can add event listeners safely
+    const div = document.createElement('div');
+    div.style.display = 'contents';
+    div.innerHTML = html;
+    div.querySelectorAll('.photo-thumb').forEach(img => {
+      img.addEventListener('click', () => App.openLightbox(img.dataset.src, allSrcs));
+    });
+    container.appendChild(div);
   }
 
   function compressImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.7) {
@@ -1258,13 +1268,54 @@ const App = (() => {
   /* ══════════════════════════════════════════════════════════════
      LIGHTBOX
   ══════════════════════════════════════════════════════════════ */
-  function openLightbox(src) {
+  let lbSrcs = [];
+  let lbIndex = 0;
+  
+  function _lbUpdate() {
+    const img = document.getElementById('lightboxImg');
+    const prevBtn = document.getElementById('lightboxPrev');
+    const nextBtn = document.getElementById('lightboxNext');
+    const counter = document.getElementById('lightboxCounter');
+    
+    img.src = lbSrcs[lbIndex];
+    const total = lbSrcs.length;
+    
+    if (counter) counter.textContent = total > 1 ? `${lbIndex + 1} / ${total}` : '';
+    if (prevBtn) prevBtn.style.display = total > 1 ? 'grid' : 'none';
+    if (nextBtn) nextBtn.style.display = total > 1 ? 'grid' : 'none';
+  }
+
+  function _lbNavigate(delta) {
+    lbIndex = (lbIndex + delta + lbSrcs.length) % lbSrcs.length;
+    _lbUpdate();
+  }
+
+  function openLightbox(src, srcsArray) {
     const lb  = document.getElementById('lightbox');
     const img = document.getElementById('lightboxImg');
     const closeBtn = document.getElementById('lightboxClose');
     const downloadBtn = document.getElementById('lightboxDownloadBtn');
     
-    img.src = src;
+    if (Array.isArray(srcsArray) && srcsArray.length > 0) {
+      lbSrcs = srcsArray;
+    } else {
+      // Find the clicked image in the DOM and gather its siblings
+      let found = false;
+      document.querySelectorAll('.photo-thumb').forEach(img => {
+        if (img.src.includes(src) || img.dataset.src === src) {
+          const container = img.parentElement;
+          if (container) {
+            const siblings = Array.from(container.querySelectorAll('.photo-thumb'));
+            lbSrcs = siblings.map(sibling => sibling.dataset.src || sibling.getAttribute('src'));
+            found = true;
+          }
+        }
+      });
+      if (!found || lbSrcs.length === 0) lbSrcs = [src];
+    }
+    lbIndex = Math.max(0, lbSrcs.indexOf(src));
+    
+    _lbUpdate();
     lb.classList.add('open');
     
     if (!lb._iosBound) {
@@ -1280,7 +1331,7 @@ const App = (() => {
       if (downloadBtn) {
         const dlHandler = (e) => {
           if (e && e.type === 'touchend') e.preventDefault();
-          const currentUrl = img.src;
+          const currentUrl = document.getElementById('lightboxImg').src;
           if (currentUrl) {
             const fname = currentUrl.split('/').pop() || 'foto.jpg';
             downloadPhoto(currentUrl, decodeURIComponent(fname), e);
@@ -1289,6 +1340,21 @@ const App = (() => {
         downloadBtn.addEventListener('click', dlHandler);
         downloadBtn.addEventListener('touchend', dlHandler);
       }
+      
+      const prevBtn = document.getElementById('lightboxPrev');
+      const nextBtn = document.getElementById('lightboxNext');
+      if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigate(-1); });
+      if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); _lbNavigate(1); });
+      
+      let _lbTouchX = null;
+      lb.addEventListener('touchstart', (e) => { _lbTouchX = e.touches[0].clientX; }, { passive: true });
+      lb.addEventListener('touchend', (e) => {
+        if (_lbTouchX === null || e.target !== document.getElementById('lightboxImg')) return;
+        const dx = e.changedTouches[0].clientX - _lbTouchX;
+        _lbTouchX = null;
+        if (Math.abs(dx) > 40) _lbNavigate(dx < 0 ? +1 : -1);
+      }, { passive: true });
+      
       lb.addEventListener('click', (e) => {
         if (e.target === lb) closeHandler(e);
       });
