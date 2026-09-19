@@ -5314,7 +5314,6 @@ async function openJobPhotos(jobId, address) {
         bottomDlBtn.href = dlUrl;
         bottomDlBtn.style.display = 'inline-flex';
       }
-      const allSrcs = photos.map(p => `/uploads/${escapeHtml(p.filename)}`);
       photoGrid.innerHTML = photos.map(p => {
         const src = `/uploads/${escapeHtml(p.filename)}`;
         return `
