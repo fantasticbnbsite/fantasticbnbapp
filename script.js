@@ -5403,12 +5403,12 @@ async function addFinanceExtra() {
     
     // Atualiza memoria local
     if (currentFinanceEditType === 'invoice') {
-      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === currentFinanceEditId);
+      const inv = (state.finance?.invoices || []).find(i => i.id === currentFinanceEditId) || (finState.invoices || []).find(i => i.id === currentFinanceEditId);
       inv.extras = res.extras;
       inv.total_amount = res.newTotal;
       renderFinanceExtras('invoice', inv);
     } else {
-      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
+      const pay = (state.finance?.payrolls || []).find(p => p.id === currentFinanceEditId) || (finState.payrolls || []).find(p => p.id === currentFinanceEditId);
       pay.extras = res.extras;
       pay.total_amount = res.newTotal;
       renderFinanceExtras('payroll', pay);
@@ -5441,12 +5441,12 @@ async function removeFinanceExtra(type, parentId, index) {
     
     // Atualiza memoria local
     if (type === 'invoice') {
-      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === parentId);
+      const inv = ((state.finance?.invoices || []).find(i => i.id === parentId) || (finState.invoices || []).find(i => i.id === parentId));
       inv.extras = res.extras;
       inv.total_amount = res.newTotal;
       renderFinanceExtras('invoice', inv);
     } else {
-      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === parentId);
+      const pay = ((state.finance?.payrolls || []).find(p => p.id === parentId) || (finState.payrolls || []).find(p => p.id === parentId));
       pay.extras = res.extras;
       pay.total_amount = res.newTotal;
       renderFinanceExtras('payroll', pay);
@@ -5663,13 +5663,13 @@ async function saveFinanceJob(type, parentId, jobId) {
     
     // Atualiza memoria local
     if (type === 'invoice') {
-      const inv = (state.finance?.invoices || finState.invoices || []).find(i => i.id === parentId);
+      const inv = ((state.finance?.invoices || []).find(i => i.id === parentId) || (finState.invoices || []).find(i => i.id === parentId));
       const j = inv.jobs.find(x => x.id === jobId);
       j.client_amount = payload.clientAmount;
       j.duration_hours = payload.durationHours;
       inv.total_amount = res.newTotal;
     } else {
-      const pay = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === parentId);
+      const pay = ((state.finance?.payrolls || []).find(p => p.id === parentId) || (finState.payrolls || []).find(p => p.id === parentId));
       const j = pay.jobs.find(x => x.id === jobId);
       j.employee_amount = payload.employeeAmount;
       j.duration_hours = payload.durationHours;
@@ -6245,10 +6245,10 @@ async function openManualJobForFinance() {
     let targetPayroll = null;
     
     if (isInvoice) {
-      targetInvoice = (state.finance?.invoices || finState.invoices || []).find(i => i.id === currentFinanceEditId);
+      targetInvoice = ((state.finance?.invoices || []).find(i => i.id === currentFinanceEditId) || (finState.invoices || []).find(i => i.id === currentFinanceEditId));
       if (!targetInvoice) throw new Error("targetInvoice não encontrado");
     } else {
-      targetPayroll = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
+      targetPayroll = ((state.finance?.payrolls || []).find(p => p.id === currentFinanceEditId) || (finState.payrolls || []).find(p => p.id === currentFinanceEditId));
       if (!targetPayroll) throw new Error("targetPayroll não encontrado");
     }
     
@@ -6421,7 +6421,7 @@ async function submitManualJob(e) {
   let targetPayroll = null;
   
   if (!isInvoice) {
-    targetPayroll = (state.finance?.payrolls || finState.payrolls || []).find(p => p.id === currentFinanceEditId);
+    targetPayroll = ((state.finance?.payrolls || []).find(p => p.id === currentFinanceEditId) || (finState.payrolls || []).find(p => p.id === currentFinanceEditId));
   }
   
   let flatId = document.getElementById('manualJobFlat').value;
