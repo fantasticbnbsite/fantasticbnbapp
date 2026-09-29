@@ -3184,15 +3184,28 @@ async function loadNotifications() {
       return;
     }
 
-    list.innerHTML = data.notifications.map(n => `
-      <div onclick="openNotificationJob(${n.job_id}, ${n.id})" style="padding:14px; background:${n.is_read ? 'var(--surface)' : 'rgba(212,85,85,0.06)'}; border:1px solid ${n.is_read ? 'var(--line)' : 'rgba(212,85,85,0.2)'}; border-left:4px solid ${n.is_read ? 'var(--muted)' : '#d45555'}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px;">
+    list.innerHTML = data.notifications.map(n => {
+      const isRead = n.is_read;
+      const bg = isRead ? 'rgba(16, 185, 129, 0.05)' : 'rgba(212,85,85,0.06)';
+      const border = isRead ? 'rgba(16, 185, 129, 0.2)' : 'rgba(212,85,85,0.2)';
+      const borderLeft = isRead ? '#10b981' : '#d45555';
+      const titleColor = isRead ? '#10b981' : '#d45555';
+      const icon = isRead ? 'mail-open' : 'mail';
+      const bodyColor = isRead ? 'var(--muted)' : 'var(--text)';
+
+      return `
+      <div onclick="openNotificationJob(${n.job_id}, ${n.id})" style="padding:14px; background:${bg}; border:1px solid ${border}; border-left:4px solid ${borderLeft}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="margin:0; font-size:0.95rem; color:${n.is_read ? 'var(--text)' : '#d45555'};">${escapeHtml(n.title)}</h4>
+          <h4 style="margin:0; font-size:0.95rem; color:${titleColor}; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="${icon}" style="width:16px;height:16px;"></i> ${escapeHtml(n.title)}
+          </h4>
           <span style="font-size:0.75rem; color:var(--muted);">${new Date(n.created_at).toLocaleDateString('en-GB')}</span>
         </div>
-        <div style="font-size:0.85rem; color:var(--muted); line-height:1.4;">${escapeHtml(n.body)}</div>
+        <div style="font-size:0.85rem; color:${bodyColor}; line-height:1.4;">${escapeHtml(n.body)}</div>
       </div>
-    `).join('');
+      `;
+    }).join('');
+    if (window.lucide) window.lucide.createIcons({ root: list });
   } catch (e) {
     console.error('Failed to load notifications', e);
   }

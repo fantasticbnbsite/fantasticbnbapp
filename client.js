@@ -13,6 +13,69 @@ const state = {
   currentView: 'jobs',
 };
 
+/* ─── Notifications ──────────────────────────────────────── */
+async function loadNotifications() {
+  try {
+    const data = await api('GET', '/api/notifications');
+    if (!data || !data.notifications) return;
+
+    const unreadCount = data.notifications.filter(n => !n.is_read).length;
+    const badge = document.getElementById('clientNotifBadge');
+    if (badge) {
+      badge.textContent = unreadCount;
+      badge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+    }
+
+    const list = document.getElementById('clientNotificationsList');
+    if (!list) return;
+
+    if (data.notifications.length === 0) {
+      list.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted); font-size:14px;">Sem alertas recentes.</div>';
+      return;
+    }
+
+    list.innerHTML = data.notifications.map(n => {
+      const isRead = n.is_read;
+      const bg = isRead ? 'rgba(16, 185, 129, 0.05)' : 'rgba(212,85,85,0.06)';
+      const border = isRead ? 'rgba(16, 185, 129, 0.2)' : 'rgba(212,85,85,0.2)';
+      const borderLeft = isRead ? '#10b981' : '#d45555';
+      const titleColor = isRead ? '#10b981' : '#d45555';
+      const icon = isRead ? 'mail-open' : 'mail';
+      const bodyColor = isRead ? 'var(--muted)' : 'var(--text)';
+
+      return \`
+      <div onclick="openNotificationJob(\${n.job_id}, \${n.id})" style="padding:14px; background:\${bg}; border:1px solid \${border}; border-left:4px solid \${borderLeft}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="margin:0; font-size:0.95rem; color:\${titleColor}; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="\${icon}" style="width:16px;height:16px;"></i> \${escapeHtml(n.title)}
+          </h4>
+          <span style="font-size:0.75rem; color:var(--muted);">\${new Date(n.created_at).toLocaleDateString('en-GB')}</span>
+        </div>
+        <div style="font-size:0.85rem; color:\${bodyColor}; line-height:1.4;">\${escapeHtml(n.body)}</div>
+      </div>
+      \`;
+    }).join('');
+    if (window.lucide) window.lucide.createIcons({ root: list });
+  } catch (e) {
+    console.error('Failed to load notifications', e);
+  }
+}
+
+window.openNotificationJob = async (jobId, notifId) => {
+  if (notifId) await api('PATCH', \`/api/notifications/\${notifId}/read\`);
+  if (jobId) {
+    switchView('jobs');
+    openEditJobModal(jobId);
+  }
+  loadNotifications();
+};
+
+window.markAllNotificationsRead = async () => {
+  await api('PATCH', '/api/notifications/read-all');
+  loadNotifications();
+};
+
+
 /* ─── DOM refs ───────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 const loginScreen   = $('loginScreen');
