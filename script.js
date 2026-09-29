@@ -186,6 +186,7 @@ async function boot() {
     showPushBanner();
     await loadApp();
     showApp();
+    loadNotifications();
   } catch {
     showLogin();
   }
@@ -418,6 +419,7 @@ async function onLogin(event) {
     }
     await loadApp();
     showApp();
+    loadNotifications();
   } catch (error) {
     els.loginFeedback.textContent = error.message;
   }
@@ -435,7 +437,6 @@ async function loadApp() {
   populateClientSelector();
   updateUserUi();
   updateRoleUi();
-  loadNotifications();
   loadCleaners();
   loadCleaningClients();
   loadCleanings();
@@ -3161,6 +3162,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.openLightbox = openLightbox;
+
+// ── Notifications ──────────────────────────────────────────────────────────
+async function loadNotifications() {
+  try {
+    const data = await api('/api/notifications');
+    if (!data || !data.notifications) return;
+
+    const unreadCount = data.notifications.filter(n => !n.is_read).length;
+    const badge = document.getElementById('adminNotifBadge');
+    if (badge) {
+      badge.textContent = unreadCount;
+      badge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+    }
+
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+
+    if (data.notifications.length === 0) {
+      list.innerHTML = '<div style="text-align:center; padding:30px; color:var(--muted); font-size:14px;">Sem alertas recentes.</div>';
+      return;
+    }
+
+    list.innerHTML = data.notifications.map(n => `
+      <div onclick="openNotificationJob(${n.job_id}, ${n.id})" style="padding:14px; background:${n.is_read ? 'var(--surface)' : 'rgba(212,85,85,0.06)'}; border:1px solid ${n.is_read ? 'var(--line)' : 'rgba(212,85,85,0.2)'}; border-left:4px solid ${n.is_read ? 'var(--muted)' : '#d45555'}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="margin:0; font-size:0.95rem; color:${n.is_read ? 'var(--text)' : '#d45555'};">${escapeHtml(n.title)}</h4>
+          <span style="font-size:0.75rem; color:var(--muted);">${new Date(n.created_at).toLocaleDateString('en-GB')}</span>
+        </div>
+        <div style="font-size:0.85rem; color:var(--muted); line-height:1.4;">${escapeHtml(n.body)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load notifications', e);
+  }
+}
+
+window.openNotificationJob = async (jobId, notifId) => {
+  if (notifId) await api(`/api/notifications/${notifId}/read`, { method: 'PATCH' });
+  if (jobId) {
+    switchView('jobs');
+    openAdminEditJobModal(jobId);
+  }
+  loadNotifications();
+};
+
+window.markAllNotificationsRead = async () => {
+  await api('/api/notifications/read-all', { method: 'PATCH' });
+  loadNotifications();
+};
 
 // ── Override switchView to also load new views ─────────────────────────────
 const _origSwitchViewForCleanOps = switchView;
