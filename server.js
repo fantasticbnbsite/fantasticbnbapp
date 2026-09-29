@@ -99,10 +99,12 @@ webpush.setVapidDetails('mailto:suporte@fantasticbnb.app', vapidKeys.publicKey, 
 
 // Helper function to send push notification
 async function sendPushNotification(userId, payload) {
-  try {
-    const now = new Date().toISOString();
-    db.prepare('INSERT INTO notifications (user_id, title, body, job_id, created_at) VALUES (?, ?, ?, ?, ?)').run(userId, payload.title || '', payload.body || '', payload.job_id || null, now);
-  } catch(e) { console.error('Notification insert error:', e); }
+  if (payload.saveToDb) {
+    try {
+      const now = new Date().toISOString();
+      db.prepare('INSERT INTO notifications (user_id, title, body, job_id, created_at) VALUES (?, ?, ?, ?, ?)').run(userId, payload.title || '', payload.body || '', payload.job_id || null, now);
+    } catch(e) { console.error('Notification insert error:', e); }
+  }
   const subs = db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId);
   if (!subs.length) return;
   for (const sub of subs) {
@@ -529,58 +531,7 @@ try {
 }
 migrateUserRoles();
 seedDatabase();
-backfillNotificationsFromLogs();
-
-function backfillNotificationsFromLogs() {
-  try {
-    const count = db.prepare('SELECT COUNT(*) as c FROM notifications').get().c;
-    if (count > 0) return; // já populada, não sobrescrever
-    
-    // Busca todos os admins/superadmins para receber as notificações históricas
-    const admins = db.prepare("SELECT id FROM users WHERE role IN ('admin', 'superadmin')").all();
-    if (!admins.length) return;
-
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const logs = db.prepare(`
-      SELECT sl.*, j.client_user_id 
-      FROM system_logs sl 
-      LEFT JOIN jobs j ON j.id = sl.entity_id AND sl.entity = 'job'
-      WHERE sl.created_at > ? 
-        AND sl.entity IN ('job', 'job_photo')
-        AND sl.action IN ('FINISH', 'CANCEL', 'ASSIGN', 'UPLOAD_PHOTO')
-      ORDER BY sl.created_at DESC LIMIT 100
-    `).all(thirtyDaysAgo);
-
-    const actionTitles = {
-      FINISH: 'Serviço Concluído ✅',
-      CANCEL: 'Serviço Cancelado 🚫',
-      ASSIGN: 'Profissional Designado 👤',
-      UPLOAD_PHOTO: 'Nova Foto Enviada 📸'
-    };
-
-    const insert = db.prepare('INSERT INTO notifications (user_id, title, body, job_id, is_read, created_at) VALUES (?, ?, ?, ?, 1, ?)');
-    
-    for (const log of logs) {
-      const title = actionTitles[log.action] || log.action;
-      const body = log.details || '';
-      const jobId = log.entity === 'job' ? log.entity_id : null;
-      
-      // Salva para cada admin
-      for (const admin of admins) {
-        insert.run(admin.id, title, body, jobId, log.created_at);
-      }
-      
-      // Se tem cliente associado ao job, salva para ele também
-      if (log.client_user_id && (log.action === 'FINISH' || log.action === 'CANCEL')) {
-        insert.run(log.client_user_id, title, body, jobId, log.created_at);
-      }
-    }
-    
-    if (logs.length > 0) console.log(`[Notifications] Backfill: ${logs.length} logs históricos importados.`);
-  } catch (err) {
-    console.error('[Notifications Backfill Error]', err);
-  }
-}
+try { db.exec("DELETE FROM notifications WHERE title NOT LIKE '%Urgente%' AND title NOT LIKE '%Atenção%'"); } catch(e) {}
 
 function cleanupCancelledJobs() {
   try {
@@ -2040,8 +1991,8 @@ async function handleApi(req, res, requestUrl) {
       notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.`, job_id: jobId });
       
       if (isUrgent) {
-        notifyAdmins({ title: '⚠️ Observação Urgente', body: `Flat ${flat.address}: ${body.employeeNotes}`, job_id: jobId });
-        sendPushNotification(job.client_user_id, { title: '⚠️ Atenção', body: `A equipe deixou um alerta importante sobre o seu flat (${flat.address}). Abra o app para ler.`, job_id: jobId }).catch(() => {});
+        notifyAdmins({ title: '⚠️ Observação Urgente', body: `Flat ${flat.address}: ${body.employeeNotes}`, job_id: jobId, saveToDb: true });
+        sendPushNotification(job.client_user_id, { title: '⚠️ Atenção', body: `A equipe deixou um alerta importante sobre o seu flat (${flat.address}). Abra o app para ler.`, job_id: jobId, saveToDb: true }).catch(() => {});
       }
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
