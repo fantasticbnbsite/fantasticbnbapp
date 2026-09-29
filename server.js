@@ -1042,6 +1042,24 @@ async function handleApi(req, res, requestUrl) {
   }
 
   // ── Overview ──
+  // ── Notifications ──
+  if (requestUrl.pathname === '/api/notifications' && req.method === 'GET') {
+    const notifs = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50').all(session.user.id);
+    return sendJson(res, 200, { notifications: notifs });
+  }
+
+  const markReadMatch = requestUrl.pathname.match(/^\/api\/notifications\/(\d+)\/read$/);
+  if (markReadMatch && req.method === 'PATCH') {
+    const notifId = Number(markReadMatch[1]);
+    db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(notifId, session.user.id);
+    return sendJson(res, 200, { success: true });
+  }
+
+  if (requestUrl.pathname === '/api/notifications/read-all' && req.method === 'PATCH') {
+    db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(session.user.id);
+    return sendJson(res, 200, { success: true });
+  }
+
   if (requestUrl.pathname === '/api/system-logs' && req.method === 'GET') {
     const session = getSession(req);
     if (!session) return sendJson(res, 401, { error: 'Sessao expirada.' });
