@@ -146,6 +146,7 @@ const els = {
   adminNavs: [...document.querySelectorAll('.admin-nav')],
   adminOnly: [...document.querySelectorAll('.admin-only')],
   views: {
+    notifications: $('#notificationsView'),
     overview: $('#overviewView'),
     cleaners: $('#cleanersView'),
     cleaningLaunches: $('#cleaningLaunchesView'),
@@ -434,6 +435,7 @@ async function loadApp() {
   populateClientSelector();
   updateUserUi();
   updateRoleUi();
+  loadNotifications();
   loadCleaners();
   loadCleaningClients();
   loadCleanings();
@@ -3167,6 +3169,7 @@ switchView = function(view) {
   if (view === 'jobs') loadJobs();
   else if (view === 'checklists') { loadChecklists().then(renderChecklists); }
   else if (view === 'flats') loadFlats();
+  else if (view === 'notifications') loadNotifications();
   else if (view === 'config') loadConfig();
   else if (view === 'finance') renderFinanceSummary();
 };
@@ -5105,7 +5108,8 @@ function switchView(view) {
     config: 'Configurações',
     logs: 'Logs do Sistema',
     admin: 'Administração',
-    overview: 'Visão Geral'
+    overview: 'Visão Geral',
+    notifications: 'Notificações'
   };
   const mobileTitle = document.getElementById('mobileTopbarTitle');
   if (mobileTitle) mobileTitle.textContent = viewTitles[view] || 'Fantastic BNB';

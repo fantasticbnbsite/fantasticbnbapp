@@ -591,7 +591,8 @@ textarea {
 .modal-card,
 .drawer-card {
   position: relative;
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: clip;
 }
 
 .panel::before,
@@ -677,6 +678,8 @@ textarea {
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.52);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table th {

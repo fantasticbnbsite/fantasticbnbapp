@@ -99,6 +99,10 @@ webpush.setVapidDetails('mailto:suporte@fantasticbnb.app', vapidKeys.publicKey, 
 
 // Helper function to send push notification
 async function sendPushNotification(userId, payload) {
+  try {
+    const now = new Date().toISOString();
+    db.prepare('INSERT INTO notifications (user_id, title, body, job_id, created_at) VALUES (?, ?, ?, ?, ?)').run(userId, payload.title || '', payload.body || '', payload.job_id || null, now);
+  } catch(e) { console.error('Notification insert error:', e); }
   const subs = db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId);
   if (!subs.length) return;
   for (const sub of subs) {
@@ -355,6 +359,17 @@ CREATE TABLE IF NOT EXISTS config (
   account_number TEXT DEFAULT ''
 );
 INSERT OR IGNORE INTO config (id) VALUES (1);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  title TEXT,
+  body TEXT,
+  job_id INTEGER,
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS system_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1515,11 +1530,11 @@ async function handleApi(req, res, requestUrl) {
     const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, cleaning_type, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, isPriority, cleaningType, createdBy, now, now);
     
     if (status === 'assigned' && empId) {
-      sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}` }).catch(() => {});
+      sendPushNotification(empId, { title: 'Novo Serviço', body: `Serviço agendado no flat ${flat.address}`, job_id: result.lastInsertRowid }).catch(() => {});
     }
 
     if (!canCreateJobs(session.user)) {
-      notifyAdmins({ title: 'Nova Limpeza Solicitada 🧹', body: `O flat ${flat.address} tem um novo pedido de limpeza para o dia ${body.requestedDate.split('T')[0]}` }).catch(()=>{});
+      notifyAdmins({ title: 'Nova Limpeza Solicitada 🧹', body: `O flat ${flat.address} tem um novo pedido de limpeza para o dia ${body.requestedDate.split('T')[0]}`, job_id: result.lastInsertRowid }).catch(()=>{});
     }
 
     logSystemActivity(session.user.id, 'CREATE', 'job', result.lastInsertRowid, `Serviço agendado no flat ${flat.address}`);
@@ -1769,7 +1784,7 @@ async function handleApi(req, res, requestUrl) {
 
     if (updatedEmployeeUserId && updatedEmployeeUserId !== job.employee_user_id) {
       const flatName = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id).address;
-      sendPushNotification(updatedEmployeeUserId, { title: 'Novo Serviço Designado 📅', body: `Você foi escalado para limpar o flat ${flatName}.` }).catch(() => {});
+      sendPushNotification(updatedEmployeeUserId, { title: 'Novo Serviço Designado 📅', body: `Você foi escalado para limpar o flat ${flatName}.`, job_id: jobId }).catch(() => {});
     }
 
     const updatedJob = db.prepare(`
@@ -1830,23 +1845,23 @@ async function handleApi(req, res, requestUrl) {
       if (!employee) return sendJson(res, 404, { error: 'Funcionario nao encontrado.' });
       db.prepare('UPDATE jobs SET employee_user_id=?, status=?, designated_by_user_id=?, updated_at=? WHERE id=?').run(employee.id, 'assigned', session.user.id, now, jobId);
         logSystemActivity(session.user.id, 'ASSIGN', 'job', jobId, `Designado ao profissional ID ${employee.id}`);
-      sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.' }).catch(() => {});
+      sendPushNotification(employee.id, { title: 'Novo Serviço', body: 'Você foi designado para um novo serviço.', job_id: jobId }).catch(() => {});
     } else if (action === 'accept') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
       if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem aceitar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel aceitar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, updated_at=? WHERE id=?').run('accepted', now, jobId);
-      notifyAdmins({ title: 'Serviço Aceito ✅', body: `O serviço #${jobId} foi aceito.` });
+      notifyAdmins({ title: 'Serviço Aceito ✅', body: `O serviço #${jobId} foi aceito.`, job_id: jobId });
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
-      sendPushNotification(job.client_user_id, { title: 'Serviço Aceito ✅', body: `A limpeza no flat ${flat.address} foi confirmada pelo funcionário.` }).catch(() => {});
+      sendPushNotification(job.client_user_id, { title: 'Serviço Aceito ✅', body: `A limpeza no flat ${flat.address} foi confirmada pelo funcionário.`, job_id: jobId }).catch(() => {});
     } else if (action === 'reject') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
       if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem recusar servicos.' });
       if (job.employee_user_id !== session.user.id) return sendJson(res, 403, { error: 'Este servico nao esta designado para voce.' });
       if (job.status !== 'assigned') return sendJson(res, 400, { error: `Nao e possivel recusar um servico com status '${job.status}'.` });
       db.prepare('UPDATE jobs SET status=?, employee_user_id=NULL, updated_at=? WHERE id=?').run('pending', now, jobId);
-      notifyAdmins({ title: 'Serviço Recusado ❌', body: `O serviço #${jobId} foi recusado.` });
+      notifyAdmins({ title: 'Serviço Recusado ❌', body: `O serviço #${jobId} foi recusado.`, job_id: jobId });
     } else if (action === 'start') {
       if (job.status !== 'accepted') return sendJson(res, 400, { error: 'O servico precisa estar aceito para iniciar.' });
       if (job.employee_user_id !== session.user.id && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
@@ -1866,7 +1881,7 @@ async function handleApi(req, res, requestUrl) {
 
       db.prepare('UPDATE jobs SET status=?, started_at=?, updated_at=? WHERE id=?').run('in_progress', now, now, jobId);
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id);
-      notifyAdmins({ title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} foi iniciada.` });
+      notifyAdmins({ title: 'Serviço Iniciado ⏱️', body: `A limpeza no flat ${flat.address} foi iniciada.`, job_id: jobId });
     } else if (action === 'finish') {
       const isEmployeeView = ['employee', 'admin', 'superadmin', 'manager', 'analyst'].includes(session.user.role);
       if (!isEmployeeView) return sendJson(res, 403, { error: 'Apenas funcionarios podem finalizar servicos.' });
@@ -1952,11 +1967,11 @@ async function handleApi(req, res, requestUrl) {
       // Send invoice email (fire and forget)
       const updatedJob = db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, cu.name AS client_name, cu.email AS client_email FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.id = ?').get(jobId);
       // sendInvoiceEmail(updatedJob, durationHours, clientAmount).catch((e) => console.error('Invoice email error:', e)); // DISABLED BY USER REQUEST
-      notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.` });
+      notifyAdmins({ title: 'Serviço Concluído 🔴', body: `A limpeza no flat ${flat.address} foi finalizada.`, job_id: jobId });
       
       if (isUrgent) {
-        notifyAdmins({ title: '⚠️ Observação Urgente', body: `Flat ${flat.address}: ${body.employeeNotes}` });
-        sendPushNotification(job.client_user_id, { title: '⚠️ Atenção', body: `A equipe deixou um alerta importante sobre o seu flat (${flat.address}). Abra o app para ler.` }).catch(() => {});
+        notifyAdmins({ title: '⚠️ Observação Urgente', body: `Flat ${flat.address}: ${body.employeeNotes}`, job_id: jobId });
+        sendPushNotification(job.client_user_id, { title: '⚠️ Atenção', body: `A equipe deixou um alerta importante sobre o seu flat (${flat.address}). Abra o app para ler.`, job_id: jobId }).catch(() => {});
       }
     } else if (action === 'cancel') {
       if (session.user.role === 'client' || session.user.role === 'client_user') {
@@ -2011,7 +2026,7 @@ async function handleApi(req, res, requestUrl) {
       logSystemActivity(session.user.id, 'CANCEL', 'job', jobId, `Serviço cancelado (${cancelStatus})`);
       recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
-        sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.` }).catch(() => {});
+        sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.`, job_id: jobId }).catch(() => {});
       }
     }
 

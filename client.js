@@ -333,6 +333,8 @@ function switchView(view) {
   if (viewJobs) viewJobs.style.display = view === 'jobs' ? 'block' : 'none';
   if (viewRequest) viewRequest.style.display = view === 'request' ? 'block' : 'none';
   const viewFlats = document.getElementById('viewFlats');
+  const viewNotif = document.getElementById('viewNotifications');
+  if (viewNotif) viewNotif.style.display = view === 'notifications' ? 'block' : 'none';
   if (viewFlats) viewFlats.style.display = view === 'flats' ? 'block' : 'none';
 
   tabJobs.classList.toggle('active', view === 'jobs');
@@ -340,6 +342,8 @@ function switchView(view) {
   const tabInvoices = document.getElementById('tabInvoices');
   if (tabInvoices) tabInvoices.classList.toggle('active', view === 'invoices');
   const tabFlats = document.getElementById('tabFlats');
+  const tabNotif = document.getElementById('tabNotifications');
+  if (tabNotif) tabNotif.classList.toggle('active', view === 'notifications');
   if (tabFlats) tabFlats.classList.toggle('active', view === 'flats');
 
   if (tabJobsDesk) tabJobsDesk.classList.toggle('active', view === 'jobs');
@@ -353,9 +357,13 @@ function switchView(view) {
   tabRequest.setAttribute('aria-selected', view === 'request');
   if (tabInvoices) tabInvoices.setAttribute('aria-selected', view === 'invoices');
   if (tabFlats) tabFlats.setAttribute('aria-selected', view === 'flats');
+  if (tabNotif) tabNotif.setAttribute('aria-selected', view === 'notifications');
   
   if (view === 'invoices') {
     loadInvoices();
+  }
+  if (view === 'notifications') {
+    loadNotifications();
   }
   if (view === 'flats') {
     renderClientFlats();
@@ -366,6 +374,7 @@ if (tabJobs) tabJobs.addEventListener('click', () => switchView('jobs'));
 if (tabRequest) tabRequest.addEventListener('click', () => switchView('request'));
 if (document.getElementById('tabInvoices')) document.getElementById('tabInvoices').addEventListener('click', () => switchView('invoices'));
 if (document.getElementById('tabFlats')) document.getElementById('tabFlats').addEventListener('click', () => switchView('flats'));
+if (document.getElementById('tabNotifications')) document.getElementById('tabNotifications').addEventListener('click', () => switchView('notifications'));
 
 if (tabJobsDesk) tabJobsDesk.addEventListener('click', () => switchView('jobs'));
 if (document.getElementById('tabRequestDesk')) document.getElementById('tabRequestDesk').addEventListener('click', () => switchView('request'));
