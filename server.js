@@ -529,6 +529,58 @@ try {
 }
 migrateUserRoles();
 seedDatabase();
+backfillNotificationsFromLogs();
+
+function backfillNotificationsFromLogs() {
+  try {
+    const count = db.prepare('SELECT COUNT(*) as c FROM notifications').get().c;
+    if (count > 0) return; // já populada, não sobrescrever
+    
+    // Busca todos os admins/superadmins para receber as notificações históricas
+    const admins = db.prepare("SELECT id FROM users WHERE role IN ('admin', 'superadmin')").all();
+    if (!admins.length) return;
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const logs = db.prepare(`
+      SELECT sl.*, j.client_user_id 
+      FROM system_logs sl 
+      LEFT JOIN jobs j ON j.id = sl.entity_id AND sl.entity = 'job'
+      WHERE sl.created_at > ? 
+        AND sl.entity IN ('job', 'job_photo')
+        AND sl.action IN ('FINISH', 'CANCEL', 'ASSIGN', 'UPLOAD_PHOTO')
+      ORDER BY sl.created_at DESC LIMIT 100
+    `).all(thirtyDaysAgo);
+
+    const actionTitles = {
+      FINISH: 'Serviço Concluído ✅',
+      CANCEL: 'Serviço Cancelado 🚫',
+      ASSIGN: 'Profissional Designado 👤',
+      UPLOAD_PHOTO: 'Nova Foto Enviada 📸'
+    };
+
+    const insert = db.prepare('INSERT INTO notifications (user_id, title, body, job_id, is_read, created_at) VALUES (?, ?, ?, ?, 1, ?)');
+    
+    for (const log of logs) {
+      const title = actionTitles[log.action] || log.action;
+      const body = log.details || '';
+      const jobId = log.entity === 'job' ? log.entity_id : null;
+      
+      // Salva para cada admin
+      for (const admin of admins) {
+        insert.run(admin.id, title, body, jobId, log.created_at);
+      }
+      
+      // Se tem cliente associado ao job, salva para ele também
+      if (log.client_user_id && (log.action === 'FINISH' || log.action === 'CANCEL')) {
+        insert.run(log.client_user_id, title, body, jobId, log.created_at);
+      }
+    }
+    
+    if (logs.length > 0) console.log(`[Notifications] Backfill: ${logs.length} logs históricos importados.`);
+  } catch (err) {
+    console.error('[Notifications Backfill Error]', err);
+  }
+}
 
 function cleanupCancelledJobs() {
   try {
