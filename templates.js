@@ -184,7 +184,7 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
             <tr><td>Period:</td><td>${new Date(invoice.period_from).toLocaleDateString('en-GB')} - ${new Date(invoice.period_to).toLocaleDateString('en-GB')}</td></tr>
             <tr><td>Bill To:</td><td style="color:#0044cc;">${esc(invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default' ? invoice.invoice_group : client.name)}</td></tr>
 
-            <tr><td>Email:</td><td>${esc(client.email)}</td></tr>
+            <tr><td>Email:</td><td>${esc(invoice.override_email || client.email)}</td></tr>
           </table>
         </td>
       </tr>
