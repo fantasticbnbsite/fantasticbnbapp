@@ -729,10 +729,11 @@ function checkOverdueInvoices() {
     });
 
     for (const inv of invoicesToCharge) {
-      if (!inv.client_email) continue;
+      const sendTo = inv.override_email || inv.client_email;
+      if (!sendTo) continue;
       const mailOptions = {
         from: `"Fantastic BNB" <${smtpUser}>`,
-        to: inv.client_email,
+        to: sendTo,
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
         text: `Dear ${inv.client_name},\n\nThis is a friendly reminder that your invoice (period: ${inv.period_from} to ${inv.period_to}) for £${Number(inv.total_amount).toFixed(2)} was due on ${inv.due_date}.\n\nPlease make the payment at your earliest convenience. If you have already made the payment, please disregard this email.\n\nKind regards,\nFantastic BNB Team`,
         html: `
@@ -768,6 +769,7 @@ function checkOverdueInvoices() {
 
 // Add overdue_notified_date column if it doesn't exist (idempotent migration)
 try { db.exec('ALTER TABLE invoices ADD COLUMN overdue_notified_date TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN override_email TEXT;'); } catch {}
 
 // Run billing check every 2 hours; first run 10s after boot
 setInterval(checkOverdueInvoices, 1000 * 60 * 60 * 2).unref();
@@ -1101,7 +1103,7 @@ async function handleApi(req, res, requestUrl) {
       const inv = invoicesToCharge[0];
       const emailPayload = {
         from: `Fantastic BNB <info@fantasticbnb.co.uk>`,
-        to: [inv.client_email],
+        to: [inv.override_email || inv.client_email],
         subject: `Payment Reminder: Invoice #${inv.invoice_number || inv.id}`,
         html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: auto;">
             <h2 style="color: #10B981;">Payment Reminder</h2>
@@ -2641,12 +2643,13 @@ async function handleApi(req, res, requestUrl) {
     }
 
     // Fetch current values to avoid overwriting fields not included in the request
-    const currentInvoice = db.prepare('SELECT due_date, is_paid, invoice_number FROM invoices WHERE id = ?').get(invoiceId);
+    const currentInvoice = db.prepare('SELECT due_date, is_paid, invoice_number, override_email FROM invoices WHERE id = ?').get(invoiceId);
     const dueDate = body.due_date !== undefined ? (body.due_date || null) : (currentInvoice?.due_date || null);
     const isPaid = body.is_paid !== undefined ? (body.is_paid ? 1 : 0) : (currentInvoice?.is_paid ?? 0);
     const finalInvoiceNumber = body.invoiceNumber !== undefined ? (body.invoiceNumber || null) : (currentInvoice?.invoice_number || null);
+    const overrideEmail = body.override_email !== undefined ? (body.override_email || null) : (currentInvoice?.override_email || null);
     
-    db.prepare('UPDATE invoices SET invoice_number = ?, extras_json = ?, due_date = ?, is_paid = ? WHERE id = ?').run(finalInvoiceNumber, JSON.stringify(extras), dueDate, isPaid, invoiceId);
+    db.prepare('UPDATE invoices SET invoice_number = ?, extras_json = ?, due_date = ?, is_paid = ?, override_email = ? WHERE id = ?').run(finalInvoiceNumber, JSON.stringify(extras), dueDate, isPaid, overrideEmail, invoiceId);
     return sendJson(res, 200, { success: true });
   }
 

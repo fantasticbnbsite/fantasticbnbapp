@@ -5557,6 +5557,8 @@ function openEditInvoiceModal(id) {
     document.getElementById('financeEditInvoiceNumber').value = invoice.invoice_number || '';
     document.getElementById('financeEditDueDate').value = invoice.due_date || '';
     document.getElementById('financeEditIsPaid').checked = !!invoice.is_paid;
+    const overrideEmailEl = document.getElementById('financeEditOverrideEmail');
+    if (overrideEmailEl) overrideEmailEl.value = invoice.override_email || '';
     
     let overrides = {};
     try {
@@ -5677,6 +5679,7 @@ async function saveFinanceInvoiceNumber() {
   const invoiceNumber = document.getElementById('financeEditInvoiceNumber').value.trim();
   const due_date = document.getElementById('financeEditDueDate').value;
   const is_paid = document.getElementById('financeEditIsPaid').checked;
+  const override_email = document.getElementById('financeEditOverrideEmail')?.value.trim() || null;
   
   const manualWeekdaysHours = document.getElementById('financeEditManualWeekdaysHours')?.value.trim();
   const manualWeekdaysAmount = document.getElementById('financeEditManualWeekdaysAmount')?.value.trim();
@@ -5688,7 +5691,7 @@ async function saveFinanceInvoiceNumber() {
   try {
     await api(`/api/finance/invoices/${invoiceId}/number`, {
       method: 'PATCH',
-      body: { invoiceNumber, due_date, is_paid, manualWeekdaysHours, manualWeekdaysAmount, manualWeekendsHours, manualWeekendsAmount }
+      body: { invoiceNumber, due_date, is_paid, override_email, manualWeekdaysHours, manualWeekdaysAmount, manualWeekendsHours, manualWeekendsAmount }
     });
     toast('Fatura atualizada com sucesso', 'success');
     
@@ -5698,6 +5701,7 @@ async function saveFinanceInvoiceNumber() {
       inv.invoice_number = invoiceNumber || null;
       inv.due_date = due_date || null;
       inv.is_paid = is_paid ? 1 : 0;
+      inv.override_email = override_email || null;
     };
     updateInv((state.finance?.invoices || []).find(i => i.id === invoiceId));
     updateInv((finState.invoices || []).find(i => i.id === invoiceId));
