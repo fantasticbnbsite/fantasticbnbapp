@@ -4669,6 +4669,7 @@ function renderJobs() {
         }
       } else {
         actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
+        actions += `<button class="ghost-button" onclick="duplicateJob(${job.id})" title="Duplicar Serviço (Mesmo dia e flat)"><i data-lucide="copy"></i></button>`;
       }
       
       if (state.user.role !== 'client' && state.user.role !== 'client_user') {
@@ -5344,6 +5345,31 @@ async function deleteJob(jobId) {
     toast(err.message || 'Erro ao excluir limpeza', 'error');
   }
 }
+
+window.duplicateJob = async function(jobId) {
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!job) return;
+  if (!confirm('Deseja duplicar este serviço para o mesmo flat e data?')) return;
+  
+  try {
+    const payload = {
+      flatId: job.flatId,
+      clientId: job.clientUserId,
+      requestedDate: job.requestedDate || (job.finishedAt ? job.finishedAt.slice(0,10) : ''),
+      isHoliday: job.isHoliday || job.is_holiday,
+      isPriority: job.isPriority || job.is_priority,
+      cleaningType: job.cleaningType,
+      notes: job.notes ? '(Duplicado) ' + job.notes : '(Duplicado)'
+    };
+    
+    await api('/api/jobs', { method: 'POST', body: payload });
+    toast('Serviço duplicado com sucesso!', 'success');
+    if (typeof loadJobs === 'function') loadJobs();
+  } catch(err) {
+    console.error(err);
+    toast('Erro ao duplicar serviço: ' + err.message, 'error');
+  }
+};
 
 const photosModal = document.getElementById('jobPhotosModal');
 const photoGrid = document.getElementById('jobPhotosGrid');
