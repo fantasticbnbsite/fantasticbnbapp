@@ -2518,6 +2518,8 @@ function openFlatForm(flat) {
   document.getElementById('flatAccessCode').value = flat && flat.access_code ? flat.access_code : '';
   const guestyInput = document.getElementById('flatGuestyListingId');
   if (guestyInput) guestyInput.value = flat && flat.guesty_listing_id ? flat.guesty_listing_id : '';
+  const externalUnitInput = document.getElementById('flatExternalUnitId');
+  if (externalUnitInput) externalUnitInput.value = flat && flat.external_unit_id ? flat.external_unit_id : '';
   const cityInput = document.getElementById('flatCity');
   if (cityInput) cityInput.value = flat && flat.city ? flat.city : '';
   document.getElementById('flatBillingType').value = flat ? flat.billing_type : 'hourly';
@@ -2565,6 +2567,7 @@ async function onFlatSubmit(e) {
     fullAddress: document.getElementById('flatFullAddress').value.trim(),
     accessCode: document.getElementById('flatAccessCode').value.trim(),
     guestyListingId: document.getElementById('flatGuestyListingId') ? document.getElementById('flatGuestyListingId').value.trim() : '',
+    externalUnitId: document.getElementById('flatExternalUnitId') ? document.getElementById('flatExternalUnitId').value.trim() : '',
     city: document.getElementById('flatCity') ? document.getElementById('flatCity').value.trim() : '',
     clientUserId: document.getElementById('flatClientUser').value || null,
     billingType: document.getElementById('flatBillingType').value,

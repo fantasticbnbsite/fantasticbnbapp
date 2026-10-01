@@ -770,6 +770,19 @@ function checkOverdueInvoices() {
 // Add overdue_notified_date column if it doesn't exist (idempotent migration)
 try { db.exec('ALTER TABLE invoices ADD COLUMN overdue_notified_date TEXT;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN override_email TEXT;'); } catch {}
+try { db.exec('ALTER TABLE flats ADD COLUMN external_unit_id TEXT;'); } catch {}
+try { db.exec('ALTER TABLE config ADD COLUMN webhook_api_key TEXT;'); } catch {}
+
+// Auto-generate webhook API key if not set
+{
+  const cfg = db.prepare('SELECT webhook_api_key FROM config WHERE id = 1').get();
+  if (!cfg?.webhook_api_key) {
+    const { randomBytes } = await import('crypto');
+    const key = 'wh_' + randomBytes(24).toString('hex');
+    db.prepare('UPDATE config SET webhook_api_key = ? WHERE id = 1').run(key);
+    console.log('[Webhook] API Key gerada:', key);
+  }
+}
 
 // Run billing check every 2 hours; first run 10s after boot
 setInterval(checkOverdueInvoices, 1000 * 60 * 60 * 2).unref();
@@ -871,6 +884,74 @@ async function handleApi(req, res, requestUrl) {
   // Legacy login endpoint
   if (requestUrl.pathname === '/api/login' && req.method === 'POST') {
     return handleApi(req, res, new URL('/api/auth/login', `http://${req.headers.host}`));
+  }
+
+  // ── TuumHost Webhook ──────────────────────────────────────────────────────
+  if (requestUrl.pathname === '/api/webhook/reservation' && req.method === 'POST') {
+    const cfg = db.prepare('SELECT webhook_api_key FROM config WHERE id = 1').get();
+    const expectedKey = cfg?.webhook_api_key;
+    const providedKey = req.headers['x-api-key'];
+    if (!expectedKey || providedKey !== expectedKey) {
+      return sendJson(res, 401, { error: 'Invalid or missing x-api-key.' });
+    }
+
+    const body = await parseBody(req);
+    const { event, reservation_id, unit_id, flat_name, guest_name, check_out_date } = body || {};
+
+    if (!event || !reservation_id || !check_out_date) {
+      return sendJson(res, 400, { error: 'Missing required fields: event, reservation_id, check_out_date.' });
+    }
+
+    if (event === 'RESERVATION_CREATED') {
+      // Find flat by external_unit_id
+      const flat = unit_id
+        ? db.prepare('SELECT * FROM flats WHERE external_unit_id = ? AND active = 1').get(unit_id)
+        : null;
+
+      if (!flat) {
+        return sendJson(res, 404, {
+          error: `Flat not found for unit_id: ${unit_id}. Please link the flat in the admin panel (Cadastros → Flats → External Unit ID).`
+        });
+      }
+
+      // Check if job for this reservation already exists
+      const existing = db.prepare('SELECT id FROM jobs WHERE guesty_reservation_id = ?').get(reservation_id);
+      if (existing) {
+        return sendJson(res, 200, { success: true, message: 'Job already exists.', job_id: existing.id });
+      }
+
+      const result = db.prepare(
+        `INSERT INTO jobs (flat_id, client_user_id, status, requested_date, cleaning_type, guest_name, guesty_reservation_id, notes, created_at)
+         VALUES (?, ?, 'pending', ?, 'end_of_stay', ?, ?, ?, datetime('now'))`
+      ).run(
+        flat.id,
+        flat.client_user_id,
+        check_out_date,
+        guest_name || '',
+        reservation_id,
+        `Reserva TuumHost #${reservation_id}`
+      );
+
+      logSystemActivity(null, 'WEBHOOK_CREATE', 'job', result.lastInsertRowid,
+        `Job criado via webhook TuumHost — Reserva: ${reservation_id} | Flat: ${flat.address}`);
+
+      return sendJson(res, 201, { success: true, job_id: result.lastInsertRowid });
+    }
+
+    if (event === 'RESERVATION_CANCELLED') {
+      const job = db.prepare("SELECT * FROM jobs WHERE guesty_reservation_id = ? AND status NOT LIKE 'cancelled%'").get(reservation_id);
+      if (!job) {
+        return sendJson(res, 200, { success: true, message: 'No active job found for this reservation.' });
+      }
+
+      db.prepare("UPDATE jobs SET status = 'cancelled_company' WHERE id = ?").run(job.id);
+      logSystemActivity(null, 'WEBHOOK_CANCEL', 'job', job.id,
+        `Job cancelado via webhook TuumHost — Reserva: ${reservation_id}`);
+
+      return sendJson(res, 200, { success: true, job_id: job.id });
+    }
+
+    return sendJson(res, 400, { error: `Unknown event: ${event}. Expected RESERVATION_CREATED or RESERVATION_CANCELLED.` });
   }
 
   // ── Push Notifications ──
@@ -1389,7 +1470,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/flats' && req.method === 'POST') {
     if (!canManageClientsFlats(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const body = await parseBody(req);
-    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id, checklist_template_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const result = db.prepare('INSERT INTO flats (client_user_id, address, full_address, access_code, billing_type, hourly_rate, hourly_weekend_rate, hourly_holiday_rate, project_rate, project_weekend_rate, project_holiday_rate, city, show_project_hours, guesty_listing_id, external_unit_id, checklist_template_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
       body.clientUserId ? Number(body.clientUserId) : null,
       body.address || 'Novo flat',
       body.fullAddress || '',
@@ -1404,6 +1485,7 @@ async function handleApi(req, res, requestUrl) {
       body.city || '',
       body.showProjectHours ? 1 : 0,
       (body.guestyListingId || '').trim(),
+      (body.externalUnitId || '').trim(),
       body.checklistTemplateId ? Number(body.checklistTemplateId) : null
     );
     logSystemActivity(session.user.id, 'CREATE', 'flat', result.lastInsertRowid, `Flat criado: ${body.address || 'Novo flat'}`);
@@ -1417,7 +1499,7 @@ async function handleApi(req, res, requestUrl) {
     const flat = db.prepare('SELECT * FROM flats WHERE id = ?').get(flatId);
     if (!flat) return sendJson(res, 404, { error: 'Flat nao encontrado.' });
     const body = await parseBody(req);
-    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=?, checklist_template_id=? WHERE id=?').run(
+    db.prepare('UPDATE flats SET client_user_id=?, address=?, full_address=?, access_code=?, billing_type=?, hourly_rate=?, hourly_weekend_rate=?, hourly_holiday_rate=?, project_rate=?, project_weekend_rate=?, project_holiday_rate=?, city=?, active=?, show_project_hours=?, guesty_listing_id=?, external_unit_id=?, checklist_template_id=? WHERE id=?').run(
       body.clientUserId !== undefined ? (body.clientUserId ? Number(body.clientUserId) : null) : flat.client_user_id,
       body.address || flat.address,
       body.fullAddress !== undefined ? body.fullAddress : flat.full_address,
@@ -1433,6 +1515,7 @@ async function handleApi(req, res, requestUrl) {
       body.active === false ? 0 : 1,
       body.showProjectHours !== undefined ? (body.showProjectHours ? 1 : 0) : (flat.show_project_hours || 0),
       body.guestyListingId !== undefined ? body.guestyListingId.trim() : (flat.guesty_listing_id || ''),
+      body.externalUnitId !== undefined ? body.externalUnitId.trim() : (flat.external_unit_id || ''),
       body.checklistTemplateId !== undefined ? (body.checklistTemplateId ? Number(body.checklistTemplateId) : null) : flat.checklist_template_id,
       flatId
     );
@@ -2242,6 +2325,17 @@ async function handleApi(req, res, requestUrl) {
     const config = {};
     rows.forEach((r) => { config[r.config_key] = r.value_text; });
     return sendJson(res, 200, { config });
+  }
+
+  // ── Webhook API Key ──
+  if (requestUrl.pathname === '/api/webhook/key' && req.method === 'GET') {
+    if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const cfg = db.prepare('SELECT webhook_api_key FROM config WHERE id = 1').get();
+    return sendJson(res, 200, {
+      api_key: cfg?.webhook_api_key || null,
+      endpoint: 'POST /api/webhook/reservation',
+      header: 'x-api-key'
+    });
   }
 
   // ── Financial Report ──
