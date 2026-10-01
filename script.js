@@ -4715,7 +4715,14 @@ function renderJobs() {
       const isUrg = (job.isUrgent || job.is_urgent);
       const b2bFlag = isB2B ? `<div style="margin-top:4px; display:inline-block; background:#ea580c; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap;"><i data-lucide="repeat" style="width:10px;height:10px;display:inline;vertical-align:-1px;"></i> BACK-TO-BACK</div>` : '';
       const urgentFlag = isUrg && !isB2B ? `<div style="margin-top:4px; display:inline-block; background:var(--danger); color:#fff; padding:2px 7px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap;"><i data-lucide="alert-circle" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> URGENTE</div>` : '';
-      const guestyBadge = job.guestyReservationId ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#e0e7ff; color:#3730a3; padding:2px 7px; border-radius:12px; font-size:0.7rem; font-weight:600; white-space:nowrap;"><i data-lucide="calendar-check" style="width:10px;height:10px;"></i> Guesty</span></div>` : '';
+      let guestyBadge = '';
+      if (job.guestyReservationId) {
+        if ((job.notes || '').includes('TuumHost')) {
+          guestyBadge = `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#fce7f3; color:#be185d; padding:2px 7px; border-radius:12px; font-size:0.7rem; font-weight:600; white-space:nowrap;"><i data-lucide="calendar-check" style="width:10px;height:10px;"></i> TuumHost</span></div>`;
+        } else {
+          guestyBadge = `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:3px; background:#e0e7ff; color:#3730a3; padding:2px 7px; border-radius:12px; font-size:0.7rem; font-weight:600; white-space:nowrap;"><i data-lucide="calendar-check" style="width:10px;height:10px;"></i> Guesty</span></div>`;
+        }
+      }
 
       return `
         <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
