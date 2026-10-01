@@ -2329,6 +2329,8 @@ async function handleApi(req, res, requestUrl) {
 
   // ── Webhook API Key ──
   if (requestUrl.pathname === '/api/webhook/key' && req.method === 'GET') {
+    const session = requireSession(req, res);
+    if (!session) return;
     if (!isAdminRole(session.user.role)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const cfg = db.prepare('SELECT webhook_api_key FROM config WHERE id = 1').get();
     return sendJson(res, 200, {
