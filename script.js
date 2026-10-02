@@ -3178,6 +3178,11 @@ async function loadNotifications() {
       badge.textContent = unreadCount;
       badge.style.display = unreadCount > 0 ? 'inline-block' : 'none';
     }
+    const mobileBadge = document.getElementById('mobileNotifBadge');
+    if (mobileBadge) {
+      mobileBadge.textContent = unreadCount;
+      mobileBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+    }
 
     const list = document.getElementById('notificationsList');
     if (!list) return;

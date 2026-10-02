@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261003" />
+  <link rel="stylesheet" href="styles.css?v=20261004" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -49,7 +49,7 @@
       <nav class="side-nav">
         <button class="nav-link admin-nav" data-view="overview" style="display: none;"><i data-lucide="layout-dashboard"></i> Visão Geral</button>
         <button class="nav-link active admin-nav" data-view="dashboard"><i data-lucide="pie-chart"></i> Dashboard</button>
-        <button class="nav-link admin-nav" data-view="notifications"><i data-lucide="bell"></i> Notificações <span id="adminNotifBadge" style="background:#e53e3e;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;margin-left:4px;display:none;">0</span></button>
+        <button class="nav-link" data-view="notifications"><i data-lucide="bell"></i> Notificações <span id="adminNotifBadge" style="background:#e53e3e;color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:bold;margin-left:4px;display:none;">0</span></button>
 
         <button class="nav-link admin-nav" data-view="checklists"><i data-lucide="check-square"></i> Modelos de Checklist</button>
         <button class="nav-link admin-nav" data-view="jobs"><i data-lucide="calendar-check"></i> Serviços</button>
@@ -76,7 +76,11 @@
           <i data-lucide="menu" style="color: white;"></i>
         </button>
         <h1 id="mobileTopbarTitle" class="mobile-app-title">Fantastic BNB</h1>
-        <div class="mobile-app-actions">
+        <div class="mobile-app-actions" style="display: flex; align-items: center;">
+          <button class="icon-button" onclick="switchView('notifications')" style="position: relative; margin-right: 4px;">
+            <i data-lucide="bell" style="color: white;"></i>
+            <span id="mobileNotifBadge" style="position: absolute; top: 0px; right: 0px; background: #ef4444; color: white; font-size: 10px; font-weight: bold; border-radius: 50%; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; display: none;">0</span>
+          </button>
           <button class="icon-button" onclick="startSmartVoiceAssistant()">
             <i data-lucide="mic" style="color: white;"></i>
           </button>
@@ -2014,7 +2018,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261003" defer></script>
+  <script src="script.js?v=20261004" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
