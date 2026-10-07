@@ -43,17 +43,17 @@ async function loadNotifications() {
       const icon = isRead ? 'mail-open' : 'mail';
       const bodyColor = isRead ? 'var(--muted)' : 'var(--text)';
 
-      return \`
-      <div onclick="openNotificationJob(\${n.job_id}, \${n.id})" style="padding:14px; background:\${bg}; border:1px solid \${border}; border-left:4px solid \${borderLeft}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+      return `
+      <div onclick="openNotificationJob(${n.job_id}, ${n.id})" style="padding:14px; background:${bg}; border:1px solid ${border}; border-left:4px solid ${borderLeft}; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="margin:0; font-size:0.95rem; color:\${titleColor}; display:flex; align-items:center; gap:6px;">
-            <i data-lucide="\${icon}" style="width:16px;height:16px;"></i> \${escapeHtml(n.title)}
+          <h4 style="margin:0; font-size:0.95rem; color:${titleColor}; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="${icon}" style="width:16px;height:16px;"></i> ${escapeHtml(n.title)}
           </h4>
-          <span style="font-size:0.75rem; color:var(--muted);">\${new Date(n.created_at).toLocaleDateString('en-GB')}</span>
+          <span style="font-size:0.75rem; color:var(--muted);">${new Date(n.created_at).toLocaleDateString('en-GB')}</span>
         </div>
-        <div style="font-size:0.85rem; color:\${bodyColor}; line-height:1.4;">\${escapeHtml(n.body)}</div>
+        <div style="font-size:0.85rem; color:${bodyColor}; line-height:1.4;">${escapeHtml(n.body)}</div>
       </div>
-      \`;
+      `;
     }).join('');
     if (window.lucide) window.lucide.createIcons({ root: list });
   } catch (e) {
@@ -62,7 +62,7 @@ async function loadNotifications() {
 }
 
 window.openNotificationJob = async (jobId, notifId) => {
-  if (notifId) await api('PATCH', \`/api/notifications/\${notifId}/read\`);
+  if (notifId) await api('PATCH', `/api/notifications/${notifId}/read`);
   if (jobId) {
     switchView('jobs');
     openEditJobModal(jobId);
