@@ -689,9 +689,15 @@ textarea {
 /* Responsive / CleanOps Services Table (Desktop & Tablet) */
 @media (min-width: 769px) {
   .data-table.responsive-table {
-    table-layout: auto;
+    table-layout: fixed;
     width: 100%;
     min-width: 0;
+  }
+  .data-table.responsive-table td.td-prop,
+  .data-table.responsive-table td.td-meta1,
+  .data-table.responsive-table td.td-meta2 {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .data-table.responsive-table th,
   .data-table.responsive-table td {
