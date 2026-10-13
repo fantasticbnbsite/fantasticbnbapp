@@ -691,30 +691,33 @@ textarea {
   .data-table.responsive-table {
     table-layout: auto;
     width: 100%;
-    min-width: 1020px;
+    min-width: 0;
   }
   .data-table.responsive-table th,
   .data-table.responsive-table td {
     vertical-align: top !important;
-    padding: 14px 12px !important;
+    padding: 12px 8px !important;
     box-sizing: border-box;
   }
   .data-table.responsive-table th.col-status,
   .data-table.responsive-table td.td-status {
-    width: 130px;
+    width: 105px;
   }
   .data-table.responsive-table th.col-prop,
   .data-table.responsive-table td.td-prop {
     width: auto;
+    min-width: 180px;
     overflow: hidden;
   }
   .data-table.responsive-table th.col-datetime,
   .data-table.responsive-table td.td-meta1 {
-    width: 175px;
+    width: 110px;
+    font-size: 12px;
   }
   .data-table.responsive-table th.col-cleaner,
   .data-table.responsive-table td.td-meta2 {
-    width: 240px;
+    width: 140px;
+    font-size: 12px;
   }
   .data-table.responsive-table th.col-actions,
   .data-table.responsive-table td.td-actions {
