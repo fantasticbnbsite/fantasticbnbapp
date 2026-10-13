@@ -4771,14 +4771,14 @@ function renderJobs() {
           </td>
           <td class="td-meta2" data-label="Profissional / Cliente">
             <!-- Desktop cleaner copy -->
-            <div class="desktop-only" style="font-weight:600; font-size:13px; margin-bottom:3px; color:var(--text); display:flex; align-items:center; gap:5px;">
-              <i data-lucide="user" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;"></i> 
-              <span title="${escapeHtml(job.employeeName || 'Sem Profissional')}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:210px;">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
+            <div class="desktop-only meta-person">
+              <span class="meta-label"><i data-lucide="user" style="width:11px;height:11px;"></i> Profissional</span>
+              <span class="meta-name meta-employee">${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
             </div>
             ${job.clientName ? `
-              <div style="color:var(--muted); font-size:13px; margin-bottom:3px; display:flex; align-items:center; gap:4px;" title="${escapeHtml(job.clientName)}">
-                <span style="opacity:0.8;">Cliente:</span>
-                <strong style="color:var(--text); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:170px;">${escapeHtml(job.clientName)}</strong>
+              <div class="meta-person">
+                <span class="meta-label"><i data-lucide="building-2" style="width:11px;height:11px;"></i> Cliente</span>
+                <span class="meta-name meta-client">${escapeHtml(job.clientName)}</span>
               </div>` : ''}
             ${job.guestName ? `
               <div style="color:var(--text); font-size:12px; margin-bottom:3px; display:flex; align-items:center; gap:4px;">
