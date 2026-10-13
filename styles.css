@@ -718,9 +718,17 @@ textarea {
   }
   .data-table.responsive-table th.col-actions,
   .data-table.responsive-table td.td-actions {
-    width: 160px;
+    width: 200px;
+    min-width: 200px;
     text-align: right;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #fff;
+    box-shadow: -6px 0 8px -6px rgba(0,0,0,0.15);
   }
+  .data-table.responsive-table th.col-actions { background: #f1f5f9; }
+  .data-table.responsive-table .table-actions { flex-wrap: wrap !important; }
   .data-table.responsive-table .table-actions {
     display: flex;
     justify-content: flex-end;
