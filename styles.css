@@ -718,33 +718,36 @@ textarea {
   }
   .data-table.responsive-table th.col-actions,
   .data-table.responsive-table td.td-actions {
-    width: 200px;
-    min-width: 200px;
+    width: 210px;
+    min-width: 210px;
     text-align: right;
     position: sticky;
     right: 0;
     z-index: 2;
     background: #fff;
     box-shadow: -6px 0 8px -6px rgba(0,0,0,0.15);
+    padding-left: 6px !important;
+    padding-right: 10px !important;
   }
   .data-table.responsive-table th.col-actions { background: #f1f5f9; }
-  .data-table.responsive-table .table-actions { flex-wrap: wrap !important; }
   .data-table.responsive-table .table-actions {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 4px;
-    flex-wrap: nowrap;
+    gap: 2px;
+    flex-wrap: nowrap !important;
   }
   .data-table.responsive-table .table-actions .ghost-button {
-    min-height: 34px;
-    width: 34px;
-    height: 34px;
+    min-height: 28px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
     padding: 0;
+    flex: 0 0 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid transparent;
     transition: all 0.15s ease;
   }
@@ -752,9 +755,10 @@ textarea {
     background: var(--surface-alt);
     border-color: var(--line);
   }
-  .data-table.responsive-table .table-actions .ghost-button i {
-    width: 16px;
-    height: 16px;
+  .data-table.responsive-table .table-actions .ghost-button i,
+  .data-table.responsive-table .table-actions .ghost-button svg {
+    width: 15px;
+    height: 15px;
   }
 }
 
