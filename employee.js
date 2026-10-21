@@ -870,7 +870,7 @@ const App = (() => {
       <div class="job-card" id="card-${job.id}">
         <div class="job-card-header">
           <div class="job-card-info">
-            ${job.isPriority ? `<div style="margin-bottom:6px;"><span style="display:inline-flex;align-items:center;gap:4px;background:#dc2626;color:#fff;font-size:0.72rem;font-weight:800;letter-spacing:0.05em;padding:3px 10px;border-radius:999px;">🚩 PRIORITY</span></div>` : ''}
+            ${(job.isPriority || job.cleaningType === 'mid_stay') ? `<div style="margin-bottom:6px;display:flex;gap:6px;flex-wrap:wrap;">${job.isPriority ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#dc2626;color:#fff;font-size:0.72rem;font-weight:800;letter-spacing:0.05em;padding:3px 10px;border-radius:999px;">🚩 PRIORITY</span>` : ''}${job.cleaningType === 'mid_stay' ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#3b82f6;color:#fff;font-size:0.72rem;font-weight:800;letter-spacing:0.05em;padding:3px 10px;border-radius:999px;">🛏️ MID STAY</span>` : ''}</div>` : ''}
             <div class="job-address">${escapeHtml(job.flatAddress || 'Endereço não informado')}</div>
             ${job.flatFullAddress ? `<div class="job-meta" style="margin-top:2px;font-size:0.85rem;color:var(--muted);"><span style="margin-right:4px;">📍</span> ${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${job.flatAccessCode ? `<div class="job-meta" style="margin-top:2px;font-size:0.85rem;color:var(--primary);font-weight:600;"><span style="margin-right:4px;">🔑</span> ${escapeHtml(job.flatAccessCode)}</div>` : ''}
