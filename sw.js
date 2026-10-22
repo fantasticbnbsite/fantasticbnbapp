@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fantastic-bnb-v49';
+const CACHE_NAME = 'fantastic-bnb-v50';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
