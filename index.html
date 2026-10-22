@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261022" />
+  <link rel="stylesheet" href="styles.css?v=20261023" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -72,7 +72,7 @@
     <main class="content">
       <!-- Mobile Native App Bar -->
       <header class="mobile-app-bar mobile-only">
-        <button class="icon-button" aria-hidden="true" tabindex="-1" style="visibility:hidden; pointer-events:none;">
+        <button class="icon-button" onclick="document.querySelector('.sidebar').classList.toggle('active')">
           <i data-lucide="menu" style="color: white;"></i>
         </button>
         <h1 id="mobileTopbarTitle" class="mobile-app-title">Fantastic BNB</h1>
@@ -1398,7 +1398,7 @@
           <i data-lucide="user-check"></i>
           <span>Cleaner</span>
         </a>
-        <button class="nav-link" id="mobileNavMenuBtn" onclick="document.querySelector('.sidebar').classList.toggle('active')">
+        <button class="nav-link hidden" id="mobileNavMenuBtn" style="display:none;" onclick="document.querySelector('.sidebar').classList.toggle('active')">
           <i data-lucide="menu"></i>
           <span>Menu</span>
         </button>
@@ -2018,7 +2018,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261022" defer></script>
+  <script src="script.js?v=20261023" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
