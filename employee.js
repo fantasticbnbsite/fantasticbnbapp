@@ -1469,8 +1469,9 @@ const App = (() => {
 
   function formatHours(h) {
     if (h == null) return '—';
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
+    const totalMinutes = Math.round(Number(h || 0) * 60);
+    const hh = Math.floor(totalMinutes / 60);
+    const mm = totalMinutes % 60;
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
 

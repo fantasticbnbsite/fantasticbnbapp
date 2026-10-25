@@ -2445,8 +2445,8 @@ function formatDateShort(value) { return value ? new Date(`${value}T00:00:00`).t
 function formatFieldValue(value, type) { if (!value) return '-'; if (type === 'date') return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR'); return String(value); }
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }
-function formatHours(h) { if (h == null) return '—'; const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
-function decimalToTimeStr(h) { if (h == null || h === '') return ''; const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
+function formatHours(h) { if (h == null) return '—'; const totalMinutes = Math.round(Number(h || 0) * 60); const hh = Math.floor(totalMinutes / 60); const mm = totalMinutes % 60; return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
+function decimalToTimeStr(h) { if (h == null || h === '') return ''; const totalMinutes = Math.round(Number(h || 0) * 60); const hh = Math.floor(totalMinutes / 60); const mm = totalMinutes % 60; return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
 function timeStrToDecimal(t) { if (!t) return null; const [hh, mm] = t.split(':').map(Number); return hh + (mm / 60); }
 function roundToTwo(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function debounce(fn, delay) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; }

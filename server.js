@@ -4858,7 +4858,7 @@ function validateRole(role) {
 function calculateEntryClientTotal(item) { const rate = Number(item.clientRate || 0); if (String(item.billingType) === 'project') return roundCurrency(rate); const hours = parseHourLabelToMinutes(item.hours) / 60; return roundCurrency(hours * rate); }
 function formatServerDate(value = '') { const [year, month, day] = String(value || '').split('-'); return year && month && day ? `${day}/${month}/${year}` : value || '-'; }
 function getServerDisplayDocumentNumber(value = '') { return String(value || '').trim() || '#-'; }
-function formatHours(decimalHours) { const h = Math.floor(Number(decimalHours || 0)); const m = Math.round((Number(decimalHours || 0) - h) * 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
+function formatHours(decimalHours) { const totalMinutes = Math.round(Number(decimalHours || 0) * 60); const h = Math.floor(totalMinutes / 60); const m = totalMinutes % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
 function roundCurrency(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }

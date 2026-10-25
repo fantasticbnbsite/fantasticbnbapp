@@ -3,8 +3,9 @@ function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g
 export function renderInvoiceHtml(invoice, jobs, client, config, isClient = false) {
   function formatHours(h) {
     if (h == null) return '00:00';
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
+    const totalMinutes = Math.round(Number(h || 0) * 60);
+    const hh = Math.floor(totalMinutes / 60);
+    const mm = totalMinutes % 60;
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
   // calculate subtotals
@@ -262,8 +263,9 @@ export function renderInvoiceHtml(invoice, jobs, client, config, isClient = fals
 export function renderPayslipHtml(payroll, jobs, employee) {
   function formatHours(h) {
     if (h == null) return '00:00';
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
+    const totalMinutes = Math.round(Number(h || 0) * 60);
+    const hh = Math.floor(totalMinutes / 60);
+    const mm = totalMinutes % 60;
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
 
