@@ -1821,6 +1821,9 @@ textarea {
 .fin-action-btn:hover { background: #f0f0f0; transform: scale(1.1); }
 .fin-action-btn.delete { border-color: rgba(220,38,38,0.25); color: var(--danger); }
 .fin-action-btn.delete:hover { background: #fff0f0; }
+.fin-action-btn.email { border-color: rgba(59,130,246,0.3); color: var(--primary); }
+.fin-action-btn.email:hover { background: #eff6ff; }
+.fin-action-btn.email i { color: var(--primary); }
 .fin-action-btn i { width: 16px; height: 16px; color: var(--muted); }
 .fin-action-btn.delete i { color: var(--danger); }
 

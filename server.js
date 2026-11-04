@@ -8,6 +8,7 @@ import zlib from 'node:zlib';
 import nodemailer from 'nodemailer';
 import { DatabaseSync } from 'node:sqlite';
 import { renderInvoiceHtml, renderPayslipHtml } from './templates.js';
+import { getOrGenerateInvoicePdf, buildInvoiceEmail } from './invoice-pdf.js';
 import { processGuestyReservation } from './guesty.js';
 import webpush from 'web-push';
 const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,7 @@ const OPERATIONS_CLIENT_SEED = [
 mkdirSync(DB_DIR, { recursive: true });
 mkdirSync(BACKUP_DIR, { recursive: true });
 mkdirSync(UPLOAD_DIR, { recursive: true });
+mkdirSync(path.join(DB_DIR, 'invoices'), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA foreign_keys = ON;');
@@ -770,8 +772,44 @@ function checkOverdueInvoices() {
 // Add overdue_notified_date column if it doesn't exist (idempotent migration)
 try { db.exec('ALTER TABLE invoices ADD COLUMN overdue_notified_date TEXT;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN override_email TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN last_sent_email_at TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN last_sent_email_to TEXT;'); } catch {}
 try { db.exec('ALTER TABLE flats ADD COLUMN external_unit_id TEXT;'); } catch {}
 try { db.exec('ALTER TABLE config ADD COLUMN webhook_api_key TEXT;'); } catch {}
+
+// Helper to get SMTP mail transporter using existing system settings
+function getMailTransporter() {
+  const config = {};
+  try {
+    db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
+  } catch (e) {}
+
+  const smtpHost = config.smtp_host || SMTP_HOST;
+  const smtpPort = Number(config.smtp_port || SMTP_PORT || 587);
+  const smtpUser = config.smtp_user || SMTP_USER;
+  const smtpPass = config.smtp_pass || SMTP_PASS;
+  const smtpFrom = config.smtp_from || SMTP_FROM || (smtpUser ? `"Fantastic BNB" <${smtpUser}>` : '"Fantastic BNB" <info@fantasticbnb.co.uk>');
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    return {
+      transporter: null,
+      error: 'Serviço de e-mail não configurado no servidor. Configure as variáveis SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) no servidor para habilitar o envio de faturas.'
+    };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+    family: 4 // Force IPv4 to prevent ENETUNREACH on Railway
+  });
+
+  return { transporter, smtpFrom, smtpUser };
+}
 
 // Auto-generate webhook API key if not set
 {
@@ -2494,7 +2532,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/finance/summary' && req.method === 'GET') {
     if (!canGenInvoices(session.user) && !canGenPayrolls(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
     const invoices = db.prepare(`
-      SELECT i.*, u.name as client_name
+      SELECT i.*, u.name as client_name, u.email as client_email
       FROM invoices i LEFT JOIN users u ON u.id = i.client_user_id
       ORDER BY i.created_at DESC
     `).all();
@@ -2881,6 +2919,165 @@ async function handleApi(req, res, requestUrl) {
     const { due_date, is_paid } = body;
     db.prepare('UPDATE invoices SET due_date = ?, is_paid = ? WHERE id = ?').run(due_date || null, is_paid ? 1 : 0, invoiceId);
     return sendJson(res, 200, { success: true });
+  }
+
+  // ── Invoice Email Preview ──
+  const matchFinanceInvoiceEmailPreview = requestUrl.pathname.match(/^\/api\/(?:finance\/)?invoices\/(\d+)\/email-preview$/);
+  if (matchFinanceInvoiceEmailPreview && req.method === 'GET') {
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(matchFinanceInvoiceEmailPreview[1]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
+    if (!invoice) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
+    const client = db.prepare('SELECT * FROM users WHERE id = ?').get(invoice.client_user_id) || {};
+
+    let pdfAvailable = true;
+    try {
+      await getOrGenerateInvoicePdf(db, invoice.id);
+    } catch (e) {
+      console.warn('[EmailPreview] PDF check failed:', e.message);
+      pdfAvailable = false;
+    }
+
+    const clientDisplayName = invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default'
+      ? invoice.invoice_group
+      : (client.name || 'Cliente');
+    const recipientEmail = (invoice.override_email || client.email || '').trim();
+
+    return sendJson(res, 200, {
+      invoice_id: invoice.id,
+      client_name: clientDisplayName,
+      invoice_number: invoice.invoice_number || String(invoice.id),
+      period_from: invoice.period_from,
+      period_to: invoice.period_to,
+      period_formatted: `${new Date(invoice.period_from).toLocaleDateString('en-GB')} a ${new Date(invoice.period_to).toLocaleDateString('en-GB')}`,
+      total_amount_formatted: `£${Number(invoice.total_amount || 0).toFixed(2)}`,
+      recipient_email: recipientEmail,
+      has_override_email: Boolean(invoice.override_email),
+      due_date: invoice.due_date || '',
+      last_sent_email_at: invoice.last_sent_email_at || null,
+      last_sent_email_to: invoice.last_sent_email_to || null,
+      pdf_available: pdfAvailable
+    });
+  }
+
+  // ── Send Invoice by Email ──
+  const matchFinanceInvoiceSendEmail = requestUrl.pathname.match(/^\/api\/(?:finance\/)?invoices\/(\d+)\/send-email$/);
+  if (matchFinanceInvoiceSendEmail && req.method === 'POST') {
+    if (!canGenInvoices(session.user)) return sendJson(res, 403, { error: 'Permissao insuficiente.' });
+    const invoiceId = Number(matchFinanceInvoiceSendEmail[1]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
+    if (!invoice) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
+    const client = db.prepare('SELECT * FROM users WHERE id = ?').get(invoice.client_user_id);
+    if (!client) return sendJson(res, 404, { error: 'Cliente vinculado a fatura nao encontrado.' });
+
+    const body = await parseBody(req);
+    // Respect exact rule:
+    // 1. override_email if present
+    // 2. client.email from users table
+    // (or recipientEmail if user explicitly provided it in confirmation modal)
+    let recipient = (body.recipientEmail || invoice.override_email || client.email || '').trim();
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return sendJson(res, 400, { error: 'Endereço de e-mail do destinatário inválido ou não informado.' });
+    }
+
+    // Generate or retrieve the PDF corresponding to this invoice
+    let pdfResult;
+    try {
+      pdfResult = await getOrGenerateInvoicePdf(db, invoice.id);
+    } catch (pdfErr) {
+      console.error('[SendInvoiceEmail] PDF generation failed:', pdfErr);
+      return sendJson(res, 500, { error: `Erro ao gerar o PDF da fatura: ${pdfErr.message}` });
+    }
+
+    if (!pdfResult || !pdfResult.buffer || pdfResult.buffer.length === 0) {
+      return sendJson(res, 500, { error: 'O PDF da fatura gerado está vazio ou inacessível.' });
+    }
+
+    // Configure mail transporter
+    const mailService = getMailTransporter();
+    if (!mailService.transporter) {
+      return sendJson(res, 400, { error: mailService.error });
+    }
+
+    const clientDisplayName = invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default'
+      ? invoice.invoice_group
+      : (client.name || 'Client');
+    const invNum = invoice.invoice_number || String(invoice.id);
+    const startDate = new Date(invoice.period_from).toLocaleDateString('en-GB');
+    const endDate = new Date(invoice.period_to).toLocaleDateString('en-GB');
+    const dueDate = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('en-GB') : null;
+    const totalAmount = `£${Number(invoice.total_amount || 0).toFixed(2)}`;
+
+    const emailContent = buildInvoiceEmail({
+      clientName: clientDisplayName,
+      invoiceNumber: invNum,
+      startDate,
+      endDate,
+      totalAmount,
+      dueDate
+    });
+
+    try {
+      await mailService.transporter.sendMail({
+        from: mailService.smtpFrom,
+        to: recipient,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html,
+        attachments: [
+          {
+            filename: `Invoice_${invNum}.pdf`,
+            content: pdfResult.buffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      const nowIso = new Date().toISOString();
+      db.prepare('UPDATE invoices SET last_sent_email_at = ?, last_sent_email_to = ? WHERE id = ?').run(nowIso, recipient, invoice.id);
+      logSystemActivity(session.user.id, 'SEND_INVOICE_EMAIL', 'invoice', invoice.id, `Fatura #${invNum} enviada com sucesso por e-mail para ${recipient}`);
+
+      return sendJson(res, 200, {
+        success: true,
+        message: `Fatura #${invNum} enviada com sucesso para ${recipient}`,
+        sent_to: recipient,
+        sent_at: nowIso
+      });
+    } catch (mailErr) {
+      console.error('[SendInvoiceEmail] Failed to send email:', mailErr);
+      return sendJson(res, 500, { error: `Erro no envio de e-mail: ${mailErr.message}` });
+    }
+  }
+
+  // ── Download Invoice PDF ──
+  const matchFinanceInvoicePdf = requestUrl.pathname.match(/^\/api\/(?:finance\/)?invoices\/(\d+)\/pdf$/);
+  if (matchFinanceInvoicePdf && req.method === 'GET') {
+    if (session.user.role !== 'client' && session.user.role !== 'client_user' && !canGenInvoices(session.user) && session.user.role !== 'viewer') {
+      return sendJson(res, 403, { error: 'Acesso negado.' });
+    }
+    const invoiceId = Number(matchFinanceInvoicePdf[1]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId);
+    if (!invoice) return sendJson(res, 404, { error: 'Fatura nao encontrada.' });
+
+    if (session.user.role === 'client' || session.user.role === 'client_user') {
+      const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
+      if (String(invoice.client_user_id) !== String(targetClientId)) {
+        return sendJson(res, 403, { error: 'Acesso negado.' });
+      }
+    }
+
+    try {
+      const pdfResult = await getOrGenerateInvoicePdf(db, invoice.id);
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${pdfResult.filename}"`,
+        'Content-Length': pdfResult.buffer.length
+      });
+      return res.end(pdfResult.buffer);
+    } catch (err) {
+      console.error('[InvoicePdf] Error:', err);
+      return sendJson(res, 500, { error: 'Erro ao gerar PDF da fatura.' });
+    }
   }
 
 

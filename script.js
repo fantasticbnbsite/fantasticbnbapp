@@ -3649,7 +3649,11 @@ function _finRender() {
              <i data-lucide="clock" style="width:13px;height:13px;opacity:0.8;"></i>
              <span>Gerado em: <strong>${createdStr}</strong></span>
           </div>
-          <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px;">
+          <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+            ${isInv ? `
+            <button type="button" class="button button-primary" onclick="openSendInvoiceEmailModal(${d.id})" style="flex:1 1 100%; justify-content:center; gap:8px; border-radius:12px; font-size:0.85rem; padding:8px 12px;">
+              <i data-lucide="mail" style="width:16px;height:16px;"></i> Send Invoice by Email
+            </button>` : ''}
             <button type="button" class="ghost-button" onclick="${editFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid var(--line); color:var(--muted); background:transparent;">
               <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Editar
             </button>
@@ -3675,6 +3679,7 @@ function _finRender() {
         <td class="fin-td fin-td-amount desktop-only">${amount}</td>
         <td class="fin-td desktop-only">
           <div class="fin-actions">
+            ${isInv ? `<button type="button" class="fin-action-btn email" onclick="openSendInvoiceEmailModal(${d.id})" title="Send Invoice by Email"><i data-lucide="mail"></i></button>` : ''}
             <button type="button" class="fin-action-btn edit" onclick="${editFn}" title="Editar"><i data-lucide="edit-3"></i></button>
             <button type="button" class="fin-action-btn delete" onclick="${delFn}" title="Excluir"><i data-lucide="trash-2"></i></button>
           </div>
@@ -3708,6 +3713,162 @@ window.deletePayroll = async function(id) {
       loadFinanceDocuments();
     }
   } catch (err) { alert('Erro ao excluir: ' + err.message); }
+};
+
+// ── SEND INVOICE BY EMAIL MODAL ─────────────────────────────────────────────
+let currentSendInvoiceId = null;
+
+window.openSendInvoiceEmailModal = async function(id) {
+  currentSendInvoiceId = id;
+  const modal = document.getElementById('sendInvoiceEmailModal');
+  if (!modal) return;
+
+  const clientNameEl = document.getElementById('sendInvClientName');
+  const numberEl = document.getElementById('sendInvNumber');
+  const periodEl = document.getElementById('sendInvPeriod');
+  const totalEl = document.getElementById('sendInvTotal');
+  const emailInput = document.getElementById('sendInvRecipientEmail');
+  const hintEl = document.getElementById('sendInvEmailHint');
+  const feedbackEl = document.getElementById('sendInvStatusFeedback');
+  const confirmBtn = document.getElementById('btnConfirmSendInvEmail');
+  const cancelBtn = document.getElementById('btnCancelSendInvEmail');
+
+  // Reset modal state
+  if (clientNameEl) clientNameEl.textContent = 'Carregando...';
+  if (numberEl) numberEl.textContent = `#${id}`;
+  if (periodEl) periodEl.textContent = '—';
+  if (totalEl) totalEl.textContent = '—';
+  if (emailInput) {
+    emailInput.value = '';
+    emailInput.disabled = true;
+  }
+  if (hintEl) hintEl.textContent = 'Buscando destinatário...';
+  if (feedbackEl) {
+    feedbackEl.style.display = 'none';
+    feedbackEl.textContent = '';
+  }
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i data-lucide="mail"></i> Confirmar Envio';
+  }
+  if (cancelBtn) cancelBtn.disabled = false;
+
+  modal.classList.remove('hidden');
+
+  try {
+    const data = await api(`/api/invoices/${id}/email-preview`);
+    if (clientNameEl) clientNameEl.textContent = data.client_name || 'Cliente';
+    if (numberEl) numberEl.textContent = `#${data.invoice_number || id}`;
+    if (periodEl) periodEl.textContent = data.period_formatted || `${data.period_from} a ${data.period_to}`;
+    if (totalEl) totalEl.textContent = data.total_amount_formatted || '—';
+    if (emailInput) {
+      emailInput.value = data.recipient_email || '';
+      emailInput.disabled = false;
+      emailInput.focus();
+    }
+    if (hintEl) {
+      if (data.has_override_email) {
+        hintEl.innerHTML = '<span style="color:#d97706;font-weight:600;">⚠️ Usando e-mail de override da fatura.</span>';
+      } else if (data.recipient_email) {
+        hintEl.innerHTML = 'E-mail cadastrado do cliente.';
+      } else {
+        hintEl.innerHTML = '<span style="color:var(--danger);font-weight:600;">⚠️ Nenhum e-mail encontrado no cadastro. Digite o destinatário acima.</span>';
+      }
+    }
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (window.lucide) window.lucide.createIcons({ root: modal });
+  } catch (err) {
+    console.error('Error loading email preview:', err);
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.background = 'rgba(239, 68, 68, 0.1)';
+      feedbackEl.style.color = 'var(--danger)';
+      feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+      feedbackEl.textContent = 'Erro ao carregar dados da fatura: ' + (err.message || 'Falha na comunicação.');
+    }
+  }
+};
+
+window.closeSendInvoiceEmailModal = function() {
+  const modal = document.getElementById('sendInvoiceEmailModal');
+  if (modal) modal.classList.add('hidden');
+  currentSendInvoiceId = null;
+};
+
+window.confirmSendInvoiceEmail = async function() {
+  if (!currentSendInvoiceId) return;
+  const id = currentSendInvoiceId;
+  const emailInput = document.getElementById('sendInvRecipientEmail');
+  const feedbackEl = document.getElementById('sendInvStatusFeedback');
+  const confirmBtn = document.getElementById('btnConfirmSendInvEmail');
+  const cancelBtn = document.getElementById('btnCancelSendInvEmail');
+
+  const recipientEmail = (emailInput?.value || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.background = 'rgba(239, 68, 68, 0.1)';
+      feedbackEl.style.color = 'var(--danger)';
+      feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+      feedbackEl.textContent = 'Por favor, informe um endereço de e-mail válido.';
+    }
+    emailInput?.focus();
+    return;
+  }
+
+  // Prevent double clicks & show loading indicator
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> Sending...';
+  }
+  if (cancelBtn) cancelBtn.disabled = true;
+  if (emailInput) emailInput.disabled = true;
+  if (feedbackEl) {
+    feedbackEl.style.display = 'block';
+    feedbackEl.style.background = 'rgba(59, 130, 246, 0.1)';
+    feedbackEl.style.color = 'var(--primary)';
+    feedbackEl.style.border = '1px solid rgba(59, 130, 246, 0.2)';
+    feedbackEl.textContent = 'Gerando anexo PDF e enviando e-mail...';
+  }
+
+  try {
+    const res = await api(`/api/invoices/${id}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify({ recipientEmail })
+    });
+
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.background = 'rgba(16, 185, 129, 0.1)';
+      feedbackEl.style.color = 'var(--success)';
+      feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+      feedbackEl.textContent = '✓ ' + (res.message || 'Fatura enviada com sucesso!');
+    }
+    toast(res.message || 'Fatura enviada por e-mail com sucesso!', 'success');
+
+    setTimeout(() => {
+      closeSendInvoiceEmailModal();
+      if (typeof loadFinanceDocuments === 'function') loadFinanceDocuments();
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to send invoice email:', err);
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '<i data-lucide="mail"></i> Tentar Novamente';
+    }
+    if (cancelBtn) cancelBtn.disabled = false;
+    if (emailInput) emailInput.disabled = false;
+    if (feedbackEl) {
+      feedbackEl.style.display = 'block';
+      feedbackEl.style.background = 'rgba(239, 68, 68, 0.1)';
+      feedbackEl.style.color = 'var(--danger)';
+      feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+      feedbackEl.textContent = 'Erro ao enviar: ' + (err.message || 'Falha no serviço de e-mail.');
+    }
+    toast('Erro no envio da fatura: ' + (err.message || 'Falha no serviço de e-mail'), 'error');
+    if (window.lucide) window.lucide.createIcons({ root: confirmBtn });
+  }
 };
 
 // ── MONTHLY CLOSING & REPORTS (Fechamento Mensal) ───────────────────────────
@@ -5588,6 +5749,10 @@ function openEditInvoiceModal(id) {
     <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;margin-right:8px;color:#d97706;border-color:#d97706;" onclick="fixInvoice(${id})">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
       Recalcular Valores
+    </button>
+    <button class="button button-primary" style="padding:4px 10px;font-size:0.85rem;margin-right:8px;display:inline-flex;align-items:center;gap:6px;" onclick="openSendInvoiceEmailModal(${id})">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+      Send Invoice by Email
     </button>
     <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>
   `;

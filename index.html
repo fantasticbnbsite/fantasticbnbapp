@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261025" />
+  <link rel="stylesheet" href="styles.css?v=20261104" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1779,6 +1779,64 @@
     </div>
   </div>
 
+  <!-- ── Send Invoice by Email Modal ─────────────────────────────────── -->
+  <div class="modal hidden" id="sendInvoiceEmailModal" style="z-index: 100001;">
+    <div class="modal-card glass-card" style="max-width: 520px; width: 92%;">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow" style="color: var(--primary);">Financeiro • Envio de Fatura</p>
+          <h3 style="margin: 0;">Send Invoice by Email</h3>
+        </div>
+        <button type="button" class="icon-button" onclick="closeSendInvoiceEmailModal()" title="Fechar">✕</button>
+      </div>
+      <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <p style="margin: 0; color: var(--text-2); font-size: 0.95rem;">
+          Revise os dados abaixo antes de confirmar o envio por e-mail com o PDF anexado:
+        </p>
+
+        <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--muted); font-size: 0.85rem;">Cliente:</span>
+            <strong id="sendInvClientName" style="color: var(--text); font-size: 0.95rem;">—</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--muted); font-size: 0.85rem;">Número da Fatura:</span>
+            <strong id="sendInvNumber" style="color: var(--primary); font-size: 0.95rem;">#—</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--muted); font-size: 0.85rem;">Período da Cobrança:</span>
+            <span id="sendInvPeriod" style="color: var(--text); font-size: 0.9rem; font-weight: 500;">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--muted); font-size: 0.85rem;">Valor Total:</span>
+            <strong id="sendInvTotal" style="color: var(--success); font-size: 1rem;">—</strong>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label" for="sendInvRecipientEmail" style="font-weight: 600; font-size: 0.85rem; color: var(--text); margin-bottom: 6px; display: block;">
+            Endereço de E-mail do Destinatário:
+          </label>
+          <input type="email" id="sendInvRecipientEmail" placeholder="exemplo@cliente.com" style="width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 0.95rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text);" />
+          <small id="sendInvEmailHint" style="color: var(--muted); font-size: 0.78rem; margin-top: 5px; display: block;">
+            Preenchido automaticamente com o e-mail cadastrado do cliente (ou override_email).
+          </small>
+        </div>
+
+        <div id="sendInvStatusFeedback" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; line-height: 1.4;"></div>
+
+        <div class="toolbar-actions" style="margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="button button-secondary" onclick="closeSendInvoiceEmailModal()" id="btnCancelSendInvEmail">
+            Cancelar
+          </button>
+          <button type="button" class="button button-primary" onclick="confirmSendInvoiceEmail()" id="btnConfirmSendInvEmail" style="display: inline-flex; align-items: center; gap: 8px;">
+            <i data-lucide="mail"></i> Confirmar Envio
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Assign Job Modal ───────────────────────────────────────────── -->
   <div class="modal hidden" id="assignJobModal">
     <div class="modal-card glass-card" style="max-width:440px;">
@@ -2018,7 +2076,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261025" defer></script>
+  <script src="script.js?v=20261104" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
