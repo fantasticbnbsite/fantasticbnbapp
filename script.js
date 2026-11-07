@@ -5336,13 +5336,22 @@ function renderJobs() {
         cleanAccessCode = cleanAccessCode.replace(/^(c[oó]digo|code)[:\s]*/i, '').trim();
       }
 
-      let timelineHtml = '';
+      let desktopTimelineHtml = '';
+      let mobileTimelineHtml = '';
       if (state.user && state.user.role !== 'client' && state.user.role !== 'client_user') {
-        let items = [];
-        if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
-        if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
-        if (items.length > 0) {
-          timelineHtml = `<div style="font-size:12px; margin-top:4px; display:flex; flex-direction:column; gap:2px;">${items.join('')}</div>`;
+        let deskItems = [];
+        let mobItems = [];
+        if (job.startedAt) {
+          deskItems.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
+          mobItems.push(`<span class="job-time-tag start">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
+        }
+        if (job.finishedAt) {
+          deskItems.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
+          mobItems.push(`<span class="job-time-tag finish">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
+        }
+        if (deskItems.length > 0) {
+          desktopTimelineHtml = `<div style="font-size:12px; margin-top:4px; display:flex; flex-direction:column; gap:2px;">${deskItems.join('')}</div>`;
+          mobileTimelineHtml = `<div class="job-meta-v job-meta-timeline">${mobItems.join('')}</div>`;
         }
       }
       
@@ -5391,7 +5400,7 @@ function renderJobs() {
                 <div style="color:#64748b; font-size:12px; margin-left:20px; white-space:nowrap;">
                   Duração: <strong>${formatHours(job.durationHours)}</strong>
                 </div>` : ''}
-              ${timelineHtml ? `<div style="margin-left:20px;">${timelineHtml}</div>` : ''}
+              ${desktopTimelineHtml ? `<div style="margin-left:20px;">${desktopTimelineHtml}</div>` : ''}
             </div>
 
             <!-- Mobile structured card box -->
@@ -5441,7 +5450,7 @@ function renderJobs() {
               </div>
               ` : ''}
 
-              ${(isAdmin() || timelineHtml) ? `
+              ${(isAdmin() || mobileTimelineHtml) ? `
               <div class="job-meta-divider"></div>
               <div class="job-meta-row job-meta-footer-row">
                 ${isAdmin() ? `
@@ -5461,10 +5470,10 @@ function renderJobs() {
                   </div>
                 </div>
                 ` : ''}
-                ${timelineHtml ? `
+                ${mobileTimelineHtml ? `
                 <div class="job-meta-col">
                   <span class="job-meta-k"><i data-lucide="clock" style="width:12px;height:12px;"></i> Execução</span>
-                  <div class="job-meta-v">${timelineHtml}</div>
+                  ${mobileTimelineHtml}
                 </div>
                 ` : ''}
               </div>
