@@ -2798,6 +2798,19 @@ window.confirmModal = confirmModal;
 
 function formatDateTime(value) { return value ? new Date(value).toLocaleString('pt-BR') : '-'; }
 function formatDateShort(value) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR') : '-'; }
+function formatJobDateDisplay(isoDate) {
+  if (!isoDate) return '-';
+  try {
+    const parts = String(isoDate).trim().split('-');
+    if (parts.length === 3) {
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const weekday = weekdays[d.getDay()] || '';
+      return `${weekday ? weekday + ', ' : ''}${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  } catch (e) {}
+  return String(isoDate);
+}
 function formatFieldValue(value, type) { if (!value) return '-'; if (type === 'date') return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR'); return String(value); }
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0)); }
 function formatCurrencyGBP(value) { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0)); }
@@ -5277,28 +5290,28 @@ function renderJobs() {
       let actions = '';
       if (state.user.role === 'client' || state.user.role === 'client_user') {
         if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
-          actions += `<button class="ghost-button" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
-          actions += `<button class="ghost-button" style="color:var(--danger);" onclick="clientCancelJob(${job.id})" title="Cancelar Pedido"><i data-lucide="x-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-edit" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
+          actions += `<button class="ghost-button job-btn-cancel" onclick="clientCancelJob(${job.id})" title="Cancelar Pedido"><i data-lucide="x-circle"></i></button>`;
         }
       } else {
-        actions += `<button class="ghost-button" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
-        actions += `<button class="ghost-button" onclick="duplicateJob(${job.id})" title="Duplicar Serviço (Mesmo dia e flat)"><i data-lucide="copy"></i></button>`;
+        actions += `<button class="ghost-button job-btn-edit" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
+        actions += `<button class="ghost-button job-btn-copy" onclick="duplicateJob(${job.id})" title="Duplicar Serviço (Mesmo dia e flat)"><i data-lucide="copy"></i></button>`;
       }
       
       if (state.user.role !== 'client' && state.user.role !== 'client_user') {
         if (job.status === 'pending' || job.status === 'assigned') {
-          actions += `<button class="ghost-button" style="color:var(--primary);" onclick="openAssignEmployeeModal(${job.id})" title="Designar"><i data-lucide="user-plus"></i></button>`;
+          actions += `<button class="ghost-button job-btn-assign" onclick="openAssignEmployeeModal(${job.id})" title="Designar"><i data-lucide="user-plus"></i></button>`;
         }
         if (job.status !== 'completed' && !job.status.startsWith('cancelled')) {
-          actions += `<button class="ghost-button" style="color:var(--success);" onclick="markJobAs(${job.id}, 'completed')" title="Marcar Concluído"><i data-lucide="check-circle"></i></button>`;
-          actions += `<button class="ghost-button" style="color:#ea580c;" onclick="openCancelJobModal(${job.id})" title="Cancelar Serviço"><i data-lucide="x-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-complete" onclick="markJobAs(${job.id}, 'completed')" title="Marcar Concluído"><i data-lucide="check-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-cancel" onclick="openCancelJobModal(${job.id})" title="Cancelar Serviço"><i data-lucide="x-circle"></i></button>`;
         }
       }
       if (job.status === 'in_progress' || job.status === 'completed') {
-        actions += `<button class="ghost-button" style="color: var(--primary);" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
-        actions += `<a class="ghost-button" style="color: #166534; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" download><i data-lucide="download"></i></a>`;
+        actions += `<button class="ghost-button job-btn-photo" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
+        actions += `<a class="ghost-button job-btn-download" style="text-decoration: none;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" download><i data-lucide="download"></i></a>`;
       }
-      actions += `<button class="ghost-button" style="color: var(--danger);" onclick="deleteJob(${job.id})" title="Excluir"><i data-lucide="trash-2"></i></button>`;
+      actions += `<button class="ghost-button job-btn-delete" onclick="deleteJob(${job.id})" title="Excluir"><i data-lucide="trash-2"></i></button>`;
       
       let badgeClass = 'badge-neutral';
       if(job.status === 'completed') badgeClass = 'badge-success';
@@ -5321,7 +5334,7 @@ function renderJobs() {
         if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
         if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
         if (items.length > 0) {
-          timelineHtml = `<div style="font-size:13px; margin-top:4px; display:flex; flex-wrap:wrap; gap:6px;">${items.join('')}</div>`;
+          timelineHtml = `<div style="font-size:12px; margin-top:4px; display:flex; flex-wrap:wrap; gap:6px;">${items.join('')}</div>`;
         }
       }
       
@@ -5341,43 +5354,106 @@ function renderJobs() {
       return `
         <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
-            <span class="badge ${badgeClass}" style="border-radius:24px; padding:5px 10px; font-weight:600; font-size:12px; white-space:nowrap; display:inline-block;">${statusLabels[job.status] || job.status}</span>
+            <span class="badge ${badgeClass}" style="border-radius:24px; padding:5px 12px; font-weight:700; font-size:12px; white-space:nowrap; display:inline-block;">${statusLabels[job.status] || job.status}</span>
             ${b2bFlag}
             ${urgentFlag}
             ${guestyBadge}
           </td>
           <td class="td-prop" data-label="Propriedade">
-            <div style="font-weight:700; font-size:15px; margin-bottom:3px; color:var(--text); line-height:1.3; word-break:keep-all;">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${job.cleaningType === 'mid_stay' ? '<span class="badge" style="background:#3b82f6; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">MID STAY</span>' : ''}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
-            ${job.flatFullAddress ? `<div style="color:var(--muted); font-size:13px; line-height:1.35; margin-bottom:4px;">${escapeHtml(job.flatFullAddress)}</div>` : ''}
-            ${cleanAccessCode ? `<div style="color:var(--primary); font-size:12px; font-weight:600; margin-bottom:4px; display:inline-flex; align-items:center; gap:4px; background:rgba(234,88,12,0.08); padding:2px 7px; border-radius:6px; white-space:nowrap;"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: ${escapeHtml(cleanAccessCode)}</div>` : ''}
+            <div class="job-prop-title">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${job.cleaningType === 'mid_stay' ? '<span class="badge" style="background:#3b82f6; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">MID STAY</span>' : ''}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
+            ${job.flatFullAddress ? `<div class="job-prop-address">${escapeHtml(job.flatFullAddress)}</div>` : ''}
+            ${cleanAccessCode ? `<div class="job-access-badge"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: <strong>${escapeHtml(cleanAccessCode)}</strong></div>` : ''}
             ${job.notes ? `
-              <div style="margin-top:4px; font-size:12px; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-left:3px solid var(--primary); padding:5px 9px; border-radius:4px 6px 6px 4px; line-height:1.4; overflow-wrap:break-word;">
-                <strong style="color:var(--primary); font-size:11px; display:inline-flex; align-items:center; gap:3px;"><i data-lucide="message-square" style="width:11px;height:11px;"></i> Obs:</strong> ${escapeHtml(job.notes)}
+              <div class="job-note-box">
+                <strong><i data-lucide="message-square" style="width:11px;height:11px;"></i> Obs:</strong> ${escapeHtml(job.notes)}
               </div>` : ''}
             ${job.employeeNotes ? `
-              <div style="margin-top:4px; font-size:12px; color:${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; background:${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.06)' : 'rgba(16,185,129,0.06)'}; border:1px solid ${job.isUrgent || job.is_urgent ? 'rgba(220,38,38,0.2)' : 'rgba(16,185,129,0.2)'}; border-left:3px solid ${job.isUrgent || job.is_urgent ? '#dc2626' : '#059669'}; padding:5px 9px; border-radius:4px 6px 6px 4px; line-height:1.4; overflow-wrap:break-word;">
-                <strong style="font-size:11px; display:inline-flex; align-items:center; gap:3px;"><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
+              <div class="job-cleaner-note-box ${job.isUrgent || job.is_urgent ? 'urgent' : ''}">
+                <strong><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
               </div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
-            <div style="display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--text); margin-bottom:4px;">
+            <!-- Desktop view -->
+            <div class="desktop-only" style="display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--text); margin-bottom:4px;">
               <div style="display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap;">
                 <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-                <span>${escapeHtml(job.requestedDate)}</span>
+                <span>${formatJobDateDisplay(job.requestedDate)}</span>
               </div>
               ${(job.durationHours && !job.status.startsWith('cancelled')) ? `
                 <div style="color:var(--muted); font-size:12px; margin-left:21px; white-space:nowrap;">
                   Duração: ${formatHours(job.durationHours)}
                 </div>` : ''}
-              <!-- Mobile cleaner copy -->
-              <div class="mobile-only" style="align-items:center; gap:6px; margin-top:3px; white-space:nowrap;">
-                <i data-lucide="user" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i> 
-                <span>${escapeHtml(job.employeeName || 'Sem Profissional')}</span>
-              </div>
+              ${timelineHtml}
             </div>
-            ${timelineHtml}
+
+            <!-- Mobile structured card box -->
+            <div class="mobile-only job-meta-box">
+              <div class="job-meta-row">
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="calendar" style="width:12px;height:12px;"></i> Data & Duração</span>
+                  <div class="job-meta-v">
+                    <strong>${formatJobDateDisplay(job.requestedDate)}</strong>
+                    ${(job.durationHours && !job.status.startsWith('cancelled')) ? `<span class="job-duration-pill">${formatHours(job.durationHours)}</span>` : ''}
+                  </div>
+                </div>
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="user" style="width:12px;height:12px;"></i> Profissional</span>
+                  <div>
+                    ${job.employeeName ? `
+                      <span class="cleaner-badge assigned"><i data-lucide="user-check" style="width:12px;height:12px;"></i> ${escapeHtml(job.employeeName)}</span>
+                    ` : `
+                      <span class="cleaner-badge unassigned"><i data-lucide="user-x" style="width:12px;height:12px;"></i> Sem Profissional</span>
+                    `}
+                  </div>
+                </div>
+              </div>
+
+              <div class="job-meta-divider"></div>
+
+              <div class="job-meta-row">
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Cliente</span>
+                  <div class="job-meta-v"><strong>${escapeHtml(job.clientName || 'Cliente Direto')}</strong></div>
+                </div>
+                ${job.guestName ? `
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="user-check" style="width:12px;height:12px;"></i> Hóspede</span>
+                  <div class="job-meta-v">${escapeHtml(job.guestName)}</div>
+                </div>
+                ` : ''}
+              </div>
+
+              ${(isAdmin() || timelineHtml) ? `
+              <div class="job-meta-divider"></div>
+              <div class="job-meta-row job-meta-footer-row">
+                ${isAdmin() ? `
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="credit-card" style="width:12px;height:12px;"></i> Financeiro</span>
+                  <div class="job-meta-v job-meta-finance">
+                    ${job.status.startsWith('cancelled') ? `
+                      <span class="job-fin-tag cancelled">Sem cobrança (£0.00)</span>
+                    ` : `
+                      ${job.clientAmount != null ? (
+                        job.clientAmount === 0 && job.flatBillingType === 'project' ?
+                          `<span class="job-fin-tag project">+£0.00 (projeto)</span>` :
+                          `<span class="job-fin-tag in">+${formatCurrencyGBP(job.clientAmount)}</span>`
+                      ) : ''}
+                      ${job.employeeAmount != null ? `<span class="job-fin-tag out">-${formatCurrencyGBP(job.employeeAmount)}</span>` : ''}
+                    `}
+                  </div>
+                </div>
+                ` : ''}
+                ${timelineHtml ? `
+                <div class="job-meta-col">
+                  <span class="job-meta-k"><i data-lucide="clock" style="width:12px;height:12px;"></i> Execução</span>
+                  <div class="job-meta-v">${timelineHtml}</div>
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+            </div>
           </td>
-          <td class="td-meta2" data-label="Profissional / Cliente">
+          <td class="td-meta2 desktop-only" data-label="Profissional / Cliente">
             <!-- Desktop cleaner copy -->
             <div class="desktop-only meta-person">
               <span class="meta-label"><i data-lucide="user" style="width:11px;height:11px;"></i> Profissional</span>
