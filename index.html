@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261107l" />
+  <link rel="stylesheet" href="styles.css?v=20261107m" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -516,17 +516,24 @@
 
 
         <article class="panel glass-card" id="financeDocsPanel">
-          <!-- Abas -->
+          <!-- Abas Financeiro Segmentadas -->
           <div class="fin-tabs-header">
-            <div class="fin-tabs">
+            <div class="fin-tabs" role="tablist">
               <button type="button" class="fin-tab active" id="finTabInvoices" onclick="switchFinTab('invoices')">
-                📄 Faturas <span class="fin-tab-badge" id="finBadgeInvoices">0</span>
+                <i data-lucide="receipt"></i>
+                <span class="fin-tab-text">Faturas</span>
+                <span class="fin-tab-badge" id="finBadgeInvoices">0</span>
               </button>
               <button type="button" class="fin-tab" id="finTabPayrolls" onclick="switchFinTab('payrolls')">
-                🧹 Holerites <span class="fin-tab-badge" id="finBadgePayrolls">0</span>
+                <i data-lucide="wallet"></i>
+                <span class="fin-tab-text">Holerites</span>
+                <span class="fin-tab-badge" id="finBadgePayrolls">0</span>
               </button>
               <button type="button" class="fin-tab" id="finTabReports" onclick="switchFinTab('reports')">
-                📊 Fechamento Mensal <span class="fin-tab-badge" id="finBadgeReports">0</span>
+                <i data-lucide="bar-chart-3"></i>
+                <span class="fin-tab-text desktop-only-inline">Fechamento Mensal</span>
+                <span class="fin-tab-text mobile-only-inline">Fechamento</span>
+                <span class="fin-tab-badge" id="finBadgeReports">0</span>
               </button>
             </div>
             <span class="panel-kicker" id="finDocsSubtitle">Documentos financeiros gerados</span>
@@ -2150,7 +2157,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261107l" defer></script>
+  <script src="script.js?v=20261107m" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

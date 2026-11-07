@@ -3783,6 +3783,10 @@ window.renderFinanceSummary = async function() {
 
     // Render current tab
     applyFinFilters();
+    if (window.lucide) {
+      const finTabs = document.querySelector('.fin-tabs');
+      if (finTabs) window.lucide.createIcons({ root: finTabs });
+    }
   } catch (err) {
     const tbody = document.getElementById('finTableBody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:32px;">Erro ao carregar documentos.</td></tr>`;

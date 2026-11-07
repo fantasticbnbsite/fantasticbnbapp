@@ -2315,59 +2315,95 @@ textarea {
   overflow: hidden;
 }
 
+.desktop-only-inline { display: inline !important; }
+.mobile-only-inline { display: none !important; }
+
 .fin-tabs-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 20px 24px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.07);
+  gap: 12px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .fin-tabs {
   display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
   gap: 4px;
+  border: 1px solid #e2e8f0;
 }
 
 .fin-tab {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
   border: none;
   background: transparent;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: var(--muted);
+  color: #64748b;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-  border-radius: 0;
-  margin-bottom: -1px;
+  border-radius: 9px;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
 }
 
-.fin-tab:hover { color: var(--primary); }
+.fin-tab i,
+.fin-tab svg {
+  width: 15px;
+  height: 15px;
+  color: #64748b;
+  transition: color 0.18s;
+  flex-shrink: 0;
+}
+
+.fin-tab:hover {
+  color: #0f172a;
+}
+.fin-tab:hover i,
+.fin-tab:hover svg {
+  color: #0f172a;
+}
 
 .fin-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: #080058;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.fin-tab.active i,
+.fin-tab.active svg {
+  color: #080058;
 }
 
 .fin-tab-badge {
-  background: #e8efe6;
-  color: var(--primary);
-  font-size: 0.75rem;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.72rem;
   font-weight: 700;
-  border-radius: 20px;
-  padding: 1px 8px;
-  min-width: 22px;
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 18px;
   text-align: center;
+  transition: all 0.18s;
 }
 
 .fin-tab.active .fin-tab-badge {
-  background: var(--primary);
-  color: #fff;
+  background: #080058;
+  color: #ffffff;
+}
+
+.fin-tabs-header .panel-kicker {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
 }
 
 .fin-filters {
@@ -2591,11 +2627,49 @@ textarea {
   min-width: 32px;
 }
 
-@media (max-width: 720px) {
-  .fin-tabs-header { padding: 16px 16px 0; }
+@media (max-width: 768px) {
+  .desktop-only-inline { display: none !important; }
+  .mobile-only-inline { display: inline !important; }
+
+  .fin-tabs-header { 
+    padding: 12px 14px 12px; 
+    flex-direction: column; 
+    align-items: stretch; 
+    gap: 8px; 
+  }
+  .fin-tabs { 
+    width: 100%; 
+    display: flex; 
+    padding: 3px; 
+    border-radius: 12px; 
+    gap: 3px; 
+    box-sizing: border-box;
+  }
+  .fin-tab { 
+    flex: 1 1 0; 
+    padding: 8px 6px; 
+    font-size: 0.8rem; 
+    gap: 4px; 
+    justify-content: center; 
+    min-width: 0; 
+  }
+  .fin-tab i,
+  .fin-tab svg {
+    width: 14px;
+    height: 14px;
+  }
+  .fin-tab-badge {
+    font-size: 0.68rem;
+    padding: 1px 5px;
+    min-width: 16px;
+  }
+  .fin-tab-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .fin-filters { padding: 12px 16px; }
   .fin-th, .fin-td { padding: 10px 10px; }
-  .fin-tab { padding: 8px 12px; font-size: 0.85rem; }
 }
 
 /* Flats Form Redesign (Mobile Premium) */
