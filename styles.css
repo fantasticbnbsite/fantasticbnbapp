@@ -1326,6 +1326,7 @@ textarea {
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
 }
 .badge-role i { width: 11px; height: 11px; }
 
@@ -1664,6 +1665,219 @@ textarea {
   border-color: var(--primary) !important;
   background: rgba(8, 0, 88, 0.03) !important;
   box-shadow: 0 4px 14px rgba(8, 0, 88, 0.08) !important;
+}
+
+/* Users Management List View (Desktop & Tablet) */
+#usersTableWrap.table-wrap {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+  overflow-x: auto;
+}
+
+.users-list-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 960px;
+}
+
+.users-list-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.users-list-table td {
+  padding: 14px 18px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+  color: #334155;
+}
+
+.users-list-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.users-list-table tbody tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+.users-list-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.users-list-table tbody tr.row-user-inactive {
+  opacity: 0.72;
+}
+
+.users-list-table tbody tr.row-user-inactive:hover {
+  opacity: 1;
+}
+
+/* User Avatar in List */
+.user-avatar-list {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13.5px;
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+}
+.user-avatar-list.role-cleaner { background: #ecfdf5; color: #059669; border: 1.5px solid #a7f3d0; }
+.user-avatar-list.role-client { background: #eff6ff; color: #2563eb; border: 1.5px solid #bfdbfe; }
+.user-avatar-list.role-subclient { background: #f8fafc; color: #475569; border: 1.5px solid #cbd5e1; }
+.user-avatar-list.role-manager { background: #faf5ff; color: #7e22ce; border: 1.5px solid #e9d5ff; }
+.user-avatar-list.role-admin { background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; }
+
+/* Status Pill */
+.user-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+.user-status-pill.active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.user-status-pill.inactive {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.user-status-pill i, .user-status-pill svg {
+  width: 12.5px;
+  height: 12.5px;
+}
+
+/* Rates inline chips */
+.user-rates-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.user-rate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: #475569;
+  white-space: nowrap;
+}
+.user-rate-chip .chip-label {
+  color: #64748b;
+  font-weight: 500;
+}
+.user-rate-chip strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Client flats chip */
+.user-client-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #334155;
+  white-space: nowrap;
+}
+.user-client-chip i, .user-client-chip svg {
+  width: 14px;
+  height: 14px;
+  color: #2563eb;
+}
+
+/* Action buttons */
+.user-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.user-action-btn {
+  width: 33px;
+  height: 33px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+.user-action-btn i, .user-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.user-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+.user-action-edit:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+.user-action-toggle.is-active:hover {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #ea580c;
+}
+.user-action-toggle.is-inactive {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #16a34a;
+}
+.user-action-toggle.is-inactive:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  color: #15803d;
+}
+.user-action-key:hover {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
+}
+.user-action-delete:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 .invoice-extra-editor {

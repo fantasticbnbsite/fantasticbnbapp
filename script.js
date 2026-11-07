@@ -1986,13 +1986,13 @@ function renderUsers() {
         `;
       } else {
         tableWrap.innerHTML = `
-          <table class="data-table" style="width:100%; border-collapse:collapse;">
+          <table class="data-table users-list-table">
             <thead>
               <tr>
                 <th style="min-width:260px;">Usuário</th>
-                <th style="min-width:170px;">Perfil</th>
+                <th style="min-width:180px;">Perfil</th>
                 <th style="min-width:120px;">Status</th>
-                <th style="min-width:240px;">Taxas / Imóveis</th>
+                <th style="min-width:310px;">Taxas / Imóveis</th>
                 <th style="text-align:right; min-width:160px;">Ações</th>
               </tr>
             </thead>
@@ -2015,62 +2015,61 @@ function renderUsers() {
                 } = meta;
 
                 return `
-                  <tr style="border-bottom:1px solid var(--line);">
-                    <td style="padding:14px 16px;">
+                  <tr class="${!isUserActive ? 'row-user-inactive' : ''}">
+                    <td>
                       <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="user-avatar ${avatarRoleClass}" style="width:38px; height:38px; font-size:13px; border-radius:10px; flex-shrink:0;" title="${roleLabel}">
+                        <div class="user-avatar-list ${avatarRoleClass}" title="${roleLabel}">
                           ${escapeHtml(initials)}
                         </div>
                         <div style="min-width:0;">
-                          <div style="font-weight:700; color:var(--text); font-size:0.92rem; line-height:1.2;">${escapeHtml(user.name)}</div>
-                          <div style="font-size:0.8rem; color:var(--muted); line-height:1.3; margin-top:2px;">${escapeHtml(user.email)}</div>
+                          <div style="font-weight:700; color:#0f172a; font-size:0.92rem; line-height:1.25;">${escapeHtml(user.name)}</div>
+                          <div style="font-size:0.8rem; color:#64748b; line-height:1.3; margin-top:2px;">${escapeHtml(user.email)}</div>
                           ${parentCompanyHtml}
                         </div>
                       </div>
                     </td>
-                    <td style="padding:14px 16px;">
+                    <td>
                       <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
                         <span class="badge-role ${badgeRoleClass}"><i data-lucide="${iconName}"></i> ${roleLabel}</span>
                         ${cleanerBadge}
                       </div>
                     </td>
-                    <td style="padding:14px 16px;">
+                    <td>
                       ${isUserActive 
-                        ? `<span class="badge badge-success" style="font-size:0.78rem; padding:4px 10px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Ativo</span>`
-                        : `<span class="badge" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:0.78rem; padding:4px 10px;"><i data-lucide="user-x" style="width:12px;height:12px;"></i> Desativado</span>`}
+                        ? `<span class="user-status-pill active"><i data-lucide="check-circle-2"></i> Ativo</span>`
+                        : `<span class="user-status-pill inactive"><i data-lucide="user-x"></i> Desativado</span>`}
                     </td>
-                    <td style="padding:14px 16px;">
+                    <td>
                       ${isCleanerUser ? `
-                        <div style="font-size:0.82rem; color:var(--text); display:flex; flex-wrap:wrap; gap:6px;">
-                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">Semana: <strong>£${Number(user.hourly_rate || 0).toFixed(2)}</strong></span>
-                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">FDS: <strong>£${Number(user.weekend_rate || 0).toFixed(2)}</strong></span>
-                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">Feriado: <strong>£${Number(user.holiday_rate || 0).toFixed(2)}</strong></span>
+                        <div class="user-rates-inline">
+                          <span class="user-rate-chip"><span class="chip-label">Semana</span> <strong>£${Number(user.hourly_rate || 0).toFixed(2)}</strong></span>
+                          <span class="user-rate-chip"><span class="chip-label">FDS</span> <strong>£${Number(user.weekend_rate || 0).toFixed(2)}</strong></span>
+                          <span class="user-rate-chip"><span class="chip-label">Feriado</span> <strong>£${Number(user.holiday_rate || 0).toFixed(2)}</strong></span>
                         </div>
                       ` : (user.role === 'client' || user.role === 'client_user') ? `
-                        <div style="font-size:0.84rem; color:var(--text); display:flex; align-items:center; gap:6px;" title="${escapeHtml(userFlats.map(f => f.address).join(', '))}">
-                          <i data-lucide="building" style="width:14px;height:14px; color:#2563eb;"></i>
+                        <div class="user-client-chip" title="${escapeHtml(userFlats.map(f => f.address).join(', '))}">
+                          <i data-lucide="building-2"></i>
                           <span><strong>${flatsCount}</strong> ${flatsCount === 1 ? 'imóvel ativo' : 'imóveis ativos'}</span>
                         </div>
                       ` : `<span style="color:var(--muted); font-size:0.85rem;">—</span>`}
                     </td>
-                    <td style="padding:14px 16px; text-align:right;">
-                      <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
-                        <button class="card-btn card-btn-icon" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}" style="width:34px; height:34px;">
+                    <td style="text-align:right;">
+                      <div class="user-table-actions">
+                        <button class="user-action-btn user-action-edit" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}">
                           <i data-lucide="edit-3"></i>
                         </button>
                         ${!isSelf ? `
-                        <button class="card-btn card-btn-icon card-btn-toggle-active ${isUserActive ? 'is-active' : 'is-inactive'}" 
+                        <button class="user-action-btn user-action-toggle ${isUserActive ? 'is-active' : 'is-inactive'}" 
                                 type="button" 
                                 onclick="toggleUserActive(${user.id})" 
-                                title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}"
-                                style="width:34px; height:34px;">
+                                title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}">
                           <i data-lucide="${isUserActive ? 'user-x' : 'user-check'}"></i>
                         </button>
                         ` : ''}
-                        <button class="card-btn card-btn-icon" type="button" data-user-password="${user.id}" title="Redefinir senha" style="width:34px; height:34px;">
+                        <button class="user-action-btn user-action-key" type="button" data-user-password="${user.id}" title="Redefinir senha">
                           <i data-lucide="key"></i>
                         </button>
-                        <button class="card-btn card-btn-icon card-btn-danger" type="button" data-user-delete="${user.id}" title="Excluir usuário" style="width:34px; height:34px;">
+                        <button class="user-action-btn user-action-delete" type="button" data-user-delete="${user.id}" title="Excluir usuário">
                           <i data-lucide="trash-2"></i>
                         </button>
                       </div>
