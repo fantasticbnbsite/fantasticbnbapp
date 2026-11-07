@@ -236,7 +236,7 @@ label { display: block; font-weight: 500; font-size: 0.9rem; color: var(--text);
 @media (max-width: 640px) {
   .login-screen, .modal, .drawer { padding: 12px; }
   .login-copy h1 { font-size: clamp(2.3rem, 14vw, 3.5rem); }
-  .stats-row { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .toolbar-main > *, .toolbar-actions > *, .inline-form > * { flex-basis: 100%; }
   .data-table { min-width: 760px; }
 }
@@ -1571,6 +1571,17 @@ textarea {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
   }
 }
+@media (max-width: 768px) {
+  #cadastrosHub {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-top: 14px !important;
+    margin-bottom: 16px !important;
+  }
+  #cadastrosHub .stat-card:last-child:nth-child(odd) {
+    grid-column: span 2 !important;
+  }
+}
 
 .user-view-toggle {
   display: inline-flex;
@@ -1993,8 +2004,53 @@ textarea {
   .panel-header { align-items: flex-start; flex-direction: column; gap: 8px; }
   .panel-header > div { width: 100%; }
   
-  .stats-row, .holerites-stats, .overview-grid, .admin-grid, .admin-config-grid { 
+  .overview-grid, .admin-grid, .admin-config-grid { 
     display: flex; flex-direction: column; gap: 0; margin: 0 !important; padding: 0 !important;
+  }
+  
+  .stats-row, .holerites-stats { 
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 10px 0 16px 0 !important;
+    padding: 0 !important;
+  }
+  
+  .stats-row .stat-card,
+  .holerites-stats .stat-card,
+  #cadastrosHub .stat-card {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    gap: 4px !important;
+    margin-bottom: 0 !important;
+    min-height: auto !important;
+  }
+
+  .stats-row .stat-card strong,
+  .holerites-stats .stat-card strong,
+  #cadastrosHub .stat-card strong {
+    font-size: 1.45rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .stats-row .stat-card span,
+  .holerites-stats .stat-card span,
+  #cadastrosHub .stat-card span {
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+  }
+
+  .hub-stat-icon {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    border-radius: 8px !important;
+  }
+  .hub-stat-icon i,
+  .hub-stat-icon svg {
+    width: 16px !important;
+    height: 16px !important;
   }
   
   .rate-grid { gap: 10px; }
