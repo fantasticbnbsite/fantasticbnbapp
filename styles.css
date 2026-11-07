@@ -2103,6 +2103,72 @@ textarea {
 .fin-action-btn i { width: 16px; height: 16px; color: var(--muted); }
 .fin-action-btn.delete i { color: var(--danger); }
 
+/* Mobile Finance Cards (Refined UX & Typography) */
+.fin-mobile-cell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  padding: 0 !important;
+  border: none !important;
+  border-bottom: none !important;
+  margin: 0 !important;
+  font-weight: normal !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+.fin-mobile-cell::before {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .fin-table {
+    display: block !important;
+    width: 100% !important;
+  }
+  .fin-table thead {
+    display: none !important;
+  }
+  .fin-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+    padding: 12px 14px !important;
+  }
+  .fin-table tr.fin-card-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+    margin: 0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .fin-table tr.fin-card-row:active {
+    transform: scale(0.99);
+  }
+  .fin-table tr.fin-card-row > td.desktop-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .fin-table tr.fin-card-row {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
 .fin-pagination {
   display: flex;
   align-items: center;

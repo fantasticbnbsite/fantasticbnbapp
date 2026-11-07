@@ -4012,61 +4012,110 @@ function _finRender() {
       ? createdDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       : '—';
     const dueDateStr = isInv && d.due_date ? d.due_date.split('-').reverse().join('/') : '—';
-    const isPaid = isInv ? (d.is_paid ? '<span style="color:var(--success);font-weight:bold;font-size:12px;">PAGO</span>' : '<span style="color:var(--warning);font-weight:bold;font-size:12px;">PENDENTE</span>') : '—';
+    const formatDateBR = (iso) => {
+      if (!iso || typeof iso !== 'string' || iso === '—') return '—';
+      const parts = iso.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return iso;
+    };
+    const fromBR = formatDateBR(d.period_from);
+    const toBR = formatDateBR(d.period_to);
+    const periodFormatted = fromBR === toBR ? fromBR : `${fromBR} → ${toBR}`;
+    const periodRaw = (d.period_from === d.period_to) ? (d.period_from || '—') : `${d.period_from || '—'} → ${d.period_to || '—'}`;
+
+    let statusBadge = '';
+    let statusBadgeDesktop = '—';
+    if (isInv) {
+      if (d.is_paid) {
+        statusBadge = `<span class="badge" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="check" style="width:12px;height:12px;"></i> PAGO</span>`;
+        statusBadgeDesktop = '<span style="color:var(--success);font-weight:bold;font-size:12px;">PAGO</span>';
+      } else {
+        statusBadge = `<span class="badge" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="clock" style="width:12px;height:12px;"></i> PENDENTE</span>`;
+        statusBadgeDesktop = '<span style="color:var(--warning);font-weight:bold;font-size:12px;">PENDENTE</span>';
+      }
+    }
+
     const jobs = (d.jobs || []).length;
     const amount = `£${Number(d.total_amount || 0).toFixed(2)}`;
     const editFn = isInv ? `openEditInvoiceModal(${d.id})` : `openEditPayrollModal(${d.id})`;
     const delFn = isInv ? `deleteInvoice(${d.id})` : `deletePayroll(${d.id})`;
 
     return `
-      <tr style="position:relative; margin: 0 0 16px 0 !important; border-radius:16px; box-shadow:0 2px 4px rgba(0,0,0,0.02); padding:16px !important;">
+      <tr class="fin-card-row">
         <!-- Mobile Layout -->
-        <td class="mobile-only" style="flex-direction:column; padding:0 !important; border:none !important; width:100%; gap:0; margin:0 !important;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-            <div style="font-weight:800; font-size:18px; color:var(--text);">#${num}</div>
-            <div style="display:flex; flex-direction:column; align-items:center;">
-               <div style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-weight:800; padding:4px 12px; border-radius:16px; font-size:14px;">${jobs}</div>
-               <span style="font-size:12px; color:var(--muted); margin-top:4px;">Itens</span>
+        <td class="mobile-only fin-mobile-cell">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:800; font-size:1.15rem; color:var(--text); letter-spacing:-0.02em;">#${num}</span>
+              ${statusBadge}
+            </div>
+            <div style="font-weight:800; font-size:1.25rem; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.02em;">
+              ${amount}
             </div>
           </div>
-          <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px; color:var(--text); margin-bottom:12px;">
-            <i data-lucide="${isInv ? 'building-2' : 'user'}" style="width:18px;height:18px;color:var(--primary);"></i>
-            ${name}
+
+          <div style="display:flex; align-items:center; gap:10px; width:100%; margin-bottom:12px;">
+            <div style="width:34px; height:34px; border-radius:9px; background:rgba(8,0,88,0.06); color:var(--primary); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="${isInv ? 'building-2' : 'sparkles'}" style="width:18px;height:18px;"></i>
+            </div>
+            <div style="font-weight:700; font-size:1rem; color:var(--text); line-height:1.2; word-break:break-word;">
+              ${name}
+            </div>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-             <div style="display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px;">
-               <i data-lucide="calendar" style="width:16px;height:16px;"></i> ${period}
-             </div>
-             <div style="font-weight:800; font-size:18px; color:var(--text);">${amount}</div>
+
+          <div style="background:var(--surface-alt); border:1px solid var(--line); border-radius:12px; padding:10px 14px; width:100%; margin-bottom:14px; display:flex; flex-direction:column; gap:6px; font-size:0.83rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span style="color:var(--muted); display:inline-flex; align-items:center; gap:6px;">
+                <i data-lucide="calendar" style="width:13px;height:13px;"></i> Período:
+              </span>
+              <span style="font-weight:600; color:var(--text);">${periodFormatted}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span style="color:var(--muted); display:inline-flex; align-items:center; gap:6px;">
+                <i data-lucide="layers" style="width:13px;height:13px;"></i> Quantidade:
+              </span>
+              <span style="font-weight:600; color:var(--text); background:var(--surface); border:1px solid var(--line); padding:1px 8px; border-radius:6px; font-size:0.75rem;">
+                ${jobs} ${jobs === 1 ? 'item' : 'itens'}
+              </span>
+            </div>
+            ${isInv && dueDateStr !== '—' ? `
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <span style="color:var(--muted); display:inline-flex; align-items:center; gap:6px;">
+                <i data-lucide="alert-circle" style="width:13px;height:13px;"></i> Vencimento:
+              </span>
+              <span style="font-weight:600; color:var(--text);">${dueDateStr}</span>
+            </div>
+            ` : ''}
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; font-size:0.76rem; color:var(--muted); margin-top:2px; border-top:1px dashed var(--line); padding-top:6px;">
+              <span style="display:inline-flex; align-items:center; gap:5px;">
+                <i data-lucide="clock" style="width:12px;height:12px;"></i> Gerado em:
+              </span>
+              <span>${createdStr}</span>
+            </div>
           </div>
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <div style="color:var(--muted); font-size:12px;">Venc: <strong>${dueDateStr}</strong></div>
-            <div>${isPaid}</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; margin-bottom:16px;">
-             <i data-lucide="clock" style="width:13px;height:13px;opacity:0.8;"></i>
-             <span>Gerado em: <strong>${createdStr}</strong></span>
-          </div>
-          <div style="border-top: 1px dashed var(--line); padding-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+
+          <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
             ${isInv ? `
-            <button type="button" class="button button-primary" onclick="openSendInvoiceEmailModal(${d.id})" style="flex:1 1 100%; justify-content:center; gap:8px; border-radius:12px; font-size:0.85rem; padding:8px 12px;">
+            <button type="button" class="button button-primary" onclick="openSendInvoiceEmailModal(${d.id})" style="width:100%; height:42px; justify-content:center; gap:8px; border-radius:10px; font-size:0.88rem; font-weight:600;">
               <i data-lucide="mail" style="width:16px;height:16px;"></i> Send Invoice by Email
             </button>` : ''}
-            <button type="button" class="ghost-button" onclick="${editFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid var(--line); color:var(--muted); background:transparent;">
-              <i data-lucide="edit-3" style="width:16px;height:16px;"></i> Editar
-            </button>
-            <button type="button" class="ghost-button" onclick="${delFn}" style="flex:1; justify-content:center; gap:8px; border-radius:12px; border:1px solid rgba(239,68,68,0.3); color:var(--danger); background:transparent;">
-              <i data-lucide="trash-2" style="width:16px;height:16px;"></i> Excluir
-            </button>
+            <div style="display:flex; gap:8px; width:100%;">
+              <button type="button" class="button button-secondary" onclick="${editFn}" style="flex:1; height:38px; justify-content:center; gap:6px; border-radius:10px; font-size:0.84rem; font-weight:600;">
+                <i data-lucide="edit-3" style="width:14px;height:14px;"></i> Editar
+              </button>
+              <button type="button" class="button" onclick="${delFn}" style="flex:1; height:38px; justify-content:center; gap:6px; border-radius:10px; font-size:0.84rem; font-weight:600; background:#fff; border:1px solid rgba(220,38,38,0.25); color:#dc2626;">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Excluir
+              </button>
+            </div>
           </div>
         </td>
 
         <!-- Desktop Layout -->
         <td class="fin-td fin-td-num desktop-only">#${num}</td>
         <td class="fin-td fin-td-name desktop-only">${name}</td>
-        <td class="fin-td fin-td-period desktop-only">${period}</td>
+        <td class="fin-td fin-td-period desktop-only">${periodRaw}</td>
         <td class="fin-td desktop-only">${dueDateStr}</td>
-        <td class="fin-td desktop-only">${isPaid}</td>
+        <td class="fin-td desktop-only">${statusBadgeDesktop}</td>
         <td class="fin-td fin-td-created desktop-only" style="white-space:nowrap; font-size:13px; color:var(--muted);">
           <span style="display:inline-flex; align-items:center; gap:4px;">
             <i data-lucide="clock" style="width:13px;height:13px;opacity:0.7;"></i>
