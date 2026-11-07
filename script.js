@@ -535,7 +535,11 @@ function syncClientCreateBillingVisibility() {
 function updateUserUi() {
   const collaborator = state.user.collaborator;
   els.userPill.innerHTML = collaborator ? `<i data-lucide="user"></i> <span>${collaborator.full_name} · Colaborador</span>` : `<i data-lucide="user"></i> <span>${state.user.name} · ${state.user.role}</span>`;
-  if (window.lucide) window.lucide.createIcons({ root: els.userPill });
+  if (window.lucide) {
+    window.lucide.createIcons({ root: els.userPill });
+    const topbar = document.querySelector('.topbar');
+    if (topbar) window.lucide.createIcons({ root: topbar });
+  }
   els.welcomeTitle.textContent = collaborator
     ? `Ola, ${collaborator.full_name.split(' ')[0]}. Seu espaco de holerites esta pronto.`
     : `Ola, ${state.user.name.split(' ')[0]}. Sua central operacional esta pronta.`;
