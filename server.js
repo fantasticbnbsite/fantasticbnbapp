@@ -798,15 +798,19 @@ function getMailTransporter() {
     };
   }
 
+  const isSecure = smtpPort === 465;
   const transporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    secure: smtpPort === 465,
+    secure: isSecure,
     auth: { user: smtpUser, pass: smtpPass },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
-    family: 4 // Force IPv4 to prevent ENETUNREACH on Railway
+    connectionTimeout: 25000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    }
   });
 
   return { transporter, smtpFrom, smtpUser };

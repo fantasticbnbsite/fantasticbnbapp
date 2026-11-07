@@ -1756,22 +1756,11 @@ function renderUsers() {
     const isCleanerUser = user.role === 'employee' || (isManagerOrAdmin && (Number(user.is_cleaner) === 1 || user.is_cleaner === true));
 
     let cleanerBadge = '';
-    let cleanerToggleBtn = '';
     if (isManagerOrAdmin) {
       if (isCleanerUser) {
-        cleanerBadge = `<span class="badge-role badge-role-cleaner-active"><i data-lucide="sparkles"></i> Faz Limpezas</span>`;
-        cleanerToggleBtn = `
-          <button class="btn-toggle-cleaner active" type="button" onclick="toggleUserCleaner(${user.id})" title="Remover da lista de cleaners">
-            <i data-lucide="user-x"></i> <span>Desativar Cleaner</span>
-          </button>
-        `;
+        cleanerBadge = `<span class="badge-role badge-role-cleaner-active" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="sparkles"></i> Faz Limpezas</span>`;
       } else {
-        cleanerBadge = `<span class="badge-role badge-role-management-only"><i data-lucide="user"></i> Apenas Gestão</span>`;
-        cleanerToggleBtn = `
-          <button class="btn-toggle-cleaner inactive" type="button" onclick="toggleUserCleaner(${user.id})" title="Ativar como cleaner para fazer serviços">
-            <i data-lucide="sparkles"></i> <span>🧹 Ativar como Cleaner</span>
-          </button>
-        `;
+        cleanerBadge = `<span class="badge-role badge-role-management-only" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="user"></i> Apenas Gestão</span>`;
       }
     }
 
@@ -1843,7 +1832,6 @@ function renderUsers() {
 
         ${parentCompanyHtml}
         ${middleWidgetHtml}
-        ${cleanerToggleBtn}
 
         <div class="user-card-footer">
           <button class="card-btn card-btn-edit" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}">
