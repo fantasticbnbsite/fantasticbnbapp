@@ -5406,31 +5406,41 @@ function renderJobs() {
                   </div>
                 </div>
                 <div class="job-meta-col">
-                  <span class="job-meta-k"><i data-lucide="user" style="width:12px;height:12px;"></i> Profissional</span>
-                  <div>
-                    ${job.employeeName ? `
-                      <span class="cleaner-badge assigned"><i data-lucide="user-check" style="width:12px;height:12px;"></i> ${escapeHtml(job.employeeName)}</span>
-                    ` : `
-                      <span class="cleaner-badge unassigned"><i data-lucide="user-x" style="width:12px;height:12px;"></i> Sem Profissional</span>
-                    `}
-                  </div>
+                  <span class="job-meta-k"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Cliente</span>
+                  <div class="job-meta-v"><strong>${escapeHtml(job.clientName || 'Cliente Direto')}</strong></div>
                 </div>
               </div>
 
               <div class="job-meta-divider"></div>
 
               <div class="job-meta-row">
-                <div class="job-meta-col">
-                  <span class="job-meta-k"><i data-lucide="building-2" style="width:12px;height:12px;"></i> Cliente</span>
-                  <div class="job-meta-v"><strong>${escapeHtml(job.clientName || 'Cliente Direto')}</strong></div>
+                <div class="job-meta-col full-width" style="flex: 1 1 100%;">
+                  <span class="job-meta-k"><i data-lucide="user" style="width:12px;height:12px;"></i> Profissional</span>
+                  <div style="width: 100%;">
+                    ${job.employeeName ? `
+                      <span class="cleaner-badge assigned" title="${escapeHtml(job.employeeName)}">
+                        <i data-lucide="user-check" style="width:13px;height:13px;flex-shrink:0;"></i> 
+                        <span class="cleaner-name">${escapeHtml(job.employeeName)}</span>
+                      </span>
+                    ` : `
+                      <span class="cleaner-badge unassigned">
+                        <i data-lucide="user-x" style="width:13px;height:13px;flex-shrink:0;"></i> 
+                        <span class="cleaner-name">Sem Profissional</span>
+                      </span>
+                    `}
+                  </div>
                 </div>
-                ${job.guestName ? `
-                <div class="job-meta-col">
+              </div>
+
+              ${job.guestName ? `
+              <div class="job-meta-divider"></div>
+              <div class="job-meta-row">
+                <div class="job-meta-col full-width" style="flex: 1 1 100%;">
                   <span class="job-meta-k"><i data-lucide="user-check" style="width:12px;height:12px;"></i> Hóspede</span>
                   <div class="job-meta-v">${escapeHtml(job.guestName)}</div>
                 </div>
-                ` : ''}
               </div>
+              ` : ''}
 
               ${(isAdmin() || timelineHtml) ? `
               <div class="job-meta-divider"></div>
