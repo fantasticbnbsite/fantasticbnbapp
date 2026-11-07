@@ -2362,17 +2362,17 @@ textarea {
     padding-top: 14px;
     border-top: 1px dashed #e2e8f0;
     display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    justify-content: flex-end !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    justify-content: space-between !important;
     width: 100% !important;
   }
   .table-actions .ghost-button,
   .table-actions .button,
   .table-actions a.ghost-button {
-    flex: 1 1 calc(16.66% - 7px) !important;
-    min-width: 42px !important;
-    max-width: 58px !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
     height: 42px !important;
     border-radius: 10px !important;
     display: inline-flex !important;
