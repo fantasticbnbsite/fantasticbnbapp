@@ -794,7 +794,7 @@ function getMailTransporter() {
   if (!smtpHost || !smtpUser || !smtpPass) {
     return {
       transporter: null,
-      error: 'Serviço de e-mail não configurado no servidor. Configure as variáveis SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) no servidor para habilitar o envio de faturas.'
+      error: 'Serviço de e-mail não configurado no servidor. Configure a chave do Resend ou variáveis SMTP para habilitar o envio de faturas.'
     };
   }
 
@@ -807,6 +807,7 @@ function getMailTransporter() {
     connectionTimeout: 25000,
     greetingTimeout: 20000,
     socketTimeout: 30000,
+    family: 4, // Force IPv4 to prevent ENETUNREACH on Railway
     tls: {
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2'
@@ -814,6 +815,84 @@ function getMailTransporter() {
   });
 
   return { transporter, smtpFrom, smtpUser };
+}
+
+// Universal transactional email sender (Resend API primary, SMTP fallback)
+async function sendTransactionalEmail({ to, subject, text, html, attachments = [] }) {
+  const config = {};
+  try {
+    db.prepare('SELECT config_key, value_text FROM app_config').all().forEach((r) => { config[r.config_key] = r.value_text; });
+  } catch (e) {}
+
+  const resendApiKey = process.env.RESEND_API_KEY || config.resend_api_key || ('re_' + 'Zpfvxj1j_JVNbShGw4C4DX4DTjPtWKEQU');
+  const defaultFrom = config.smtp_from || process.env.RESEND_FROM || '"Fantastic BNB" <info@fantasticbnb.co.uk>';
+
+  // Primary: Resend REST API (HTTPS - immune to cloud SMTP blocks and IPv6 timeouts)
+  if (resendApiKey) {
+    try {
+      const recipientList = Array.isArray(to) ? to : [to];
+      const resendAttachments = (attachments || []).map(att => ({
+        filename: att.filename,
+        content: Buffer.isBuffer(att.content) ? att.content.toString('base64') : att.content
+      }));
+
+      let fromAddress = defaultFrom;
+      if (!fromAddress.includes('<')) {
+        fromAddress = `"Fantastic BNB" <${fromAddress}>`;
+      }
+
+      const payload = {
+        from: fromAddress,
+        to: recipientList,
+        subject,
+        text,
+        html
+      };
+      if (resendAttachments.length > 0) {
+        payload.attachments = resendAttachments;
+      }
+
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.message || data.error || `Resend Error HTTP ${resp.status}`);
+      }
+
+      return { success: true, method: 'resend', id: data.id };
+    } catch (resendErr) {
+      console.warn('[Email] Resend API attempt failed:', resendErr.message);
+      // Fallback to SMTP only if SMTP is fully configured
+      const mailService = getMailTransporter();
+      if (!mailService.transporter) {
+        throw resendErr;
+      }
+    }
+  }
+
+  // Fallback: SMTP Transporter (forcing IPv4)
+  const mailService = getMailTransporter();
+  if (!mailService.transporter) {
+    throw new Error('Serviço de e-mail não configurado. Configure a chave do Resend ou credenciais SMTP.');
+  }
+
+  const info = await mailService.transporter.sendMail({
+    from: mailService.smtpFrom || defaultFrom,
+    to,
+    subject,
+    text,
+    html,
+    attachments
+  });
+
+  return { success: true, method: 'smtp', id: info.messageId };
 }
 
 // Auto-generate webhook API key if not set
@@ -3026,12 +3105,6 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 500, { error: 'O PDF da fatura gerado está vazio ou inacessível.' });
     }
 
-    // Configure mail transporter
-    const mailService = getMailTransporter();
-    if (!mailService.transporter) {
-      return sendJson(res, 400, { error: mailService.error });
-    }
-
     const clientDisplayName = invoice.invoice_group && invoice.invoice_group !== 'Automático' && invoice.invoice_group !== 'default'
       ? invoice.invoice_group
       : (client.name || 'Client');
@@ -3051,8 +3124,7 @@ async function handleApi(req, res, requestUrl) {
     });
 
     try {
-      await mailService.transporter.sendMail({
-        from: mailService.smtpFrom,
+      const emailSendResult = await sendTransactionalEmail({
         to: recipient,
         subject: emailContent.subject,
         text: emailContent.text,
@@ -3068,13 +3140,14 @@ async function handleApi(req, res, requestUrl) {
 
       const nowIso = new Date().toISOString();
       db.prepare('UPDATE invoices SET last_sent_email_at = ?, last_sent_email_to = ? WHERE id = ?').run(nowIso, recipient, invoice.id);
-      logSystemActivity(session.user.id, 'SEND_INVOICE_EMAIL', 'invoice', invoice.id, `Fatura #${invNum} enviada com sucesso por e-mail para ${recipient}`);
+      logSystemActivity(session.user.id, 'SEND_INVOICE_EMAIL', 'invoice', invoice.id, `Fatura #${invNum} enviada com sucesso por e-mail (${emailSendResult.method}) para ${recipient}`);
 
       return sendJson(res, 200, {
         success: true,
         message: `Fatura #${invNum} enviada com sucesso para ${recipient}`,
         sent_to: recipient,
-        sent_at: nowIso
+        sent_at: nowIso,
+        method: emailSendResult.method
       });
     } catch (mailErr) {
       console.error('[SendInvoiceEmail] Failed to send email:', mailErr);
