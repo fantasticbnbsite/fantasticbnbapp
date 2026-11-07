@@ -1360,6 +1360,7 @@ function startEditUser(userId) {
   
   els.userForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+window.startEditUser = startEditUser;
 
 async function onCreateCollaborator(event) {
   event.preventDefault();
@@ -1643,9 +1644,133 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function getUserDisplayData(user) {
+  const isUserActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
+  const isSelf = state.user && Number(state.user.id) === Number(user.id);
+
+  let roleLabel = user.role;
+  let avatarRoleClass = 'role-client';
+  let badgeRoleClass = 'badge-role-client';
+  let iconName = 'user';
+
+  if (user.role === 'superadmin' || user.role === 'admin') {
+    roleLabel = 'Administrador';
+    avatarRoleClass = 'role-admin';
+    badgeRoleClass = 'badge-role-admin';
+    iconName = 'shield';
+  } else if (user.role === 'manager') {
+    roleLabel = 'Gerente';
+    avatarRoleClass = 'role-manager';
+    badgeRoleClass = 'badge-role-manager';
+    iconName = 'shield-check';
+  } else if (user.role === 'client') {
+    roleLabel = 'Cliente Principal';
+    avatarRoleClass = 'role-client';
+    badgeRoleClass = 'badge-role-client';
+    iconName = 'building';
+  } else if (user.role === 'client_user') {
+    roleLabel = 'Login de Cliente';
+    avatarRoleClass = 'role-subclient';
+    badgeRoleClass = 'badge-role-subclient';
+    iconName = 'user-check';
+  } else if (user.role === 'employee') {
+    roleLabel = 'Colaborador (Cleaner)';
+    avatarRoleClass = 'role-cleaner';
+    badgeRoleClass = 'badge-role-cleaner';
+    iconName = 'sparkles';
+  }
+
+  const initials = getInitials(user.name || user.email);
+
+  let parentCompanyHtml = '';
+  if (user.role === 'client_user' && user.parent_client_id) {
+    const parent = (state.users || []).find(u => u.id === user.parent_client_id);
+    if (parent) {
+      parentCompanyHtml = `
+        <div class="user-parent-link" title="Vinculado à conta principal de ${escapeHtml(parent.name)}">
+          <i data-lucide="link-2"></i> Vinculado a: <strong>${escapeHtml(parent.name)}</strong>
+        </div>
+      `;
+    }
+  }
+
+  const isManagerOrAdmin = ['manager', 'admin', 'superadmin'].includes(user.role);
+  const isCleanerUser = user.role === 'employee' || (isManagerOrAdmin && (Number(user.is_cleaner) === 1 || user.is_cleaner === true));
+
+  let cleanerBadge = '';
+  if (isManagerOrAdmin) {
+    if (isCleanerUser) {
+      cleanerBadge = `<span class="badge-role badge-role-cleaner-active" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="sparkles"></i> Faz Limpezas</span>`;
+    } else {
+      cleanerBadge = `<span class="badge-role badge-role-management-only" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="user"></i> Apenas Gestão</span>`;
+    }
+  }
+
+  let inactiveBadge = '';
+  if (!isUserActive) {
+    inactiveBadge = `<span class="badge-role badge-role-inactive" title="Acesso bloqueado"><i data-lucide="user-x"></i> Desativado</span>`;
+  }
+
+  const targetClientId = user.role === 'client_user' ? user.parent_client_id : user.id;
+  const userFlats = (state.flats || []).filter(f => f.client_user_id === targetClientId);
+  const flatsCount = userFlats.length;
+
+  return {
+    isUserActive,
+    isSelf,
+    roleLabel,
+    avatarRoleClass,
+    badgeRoleClass,
+    iconName,
+    initials,
+    parentCompanyHtml,
+    isManagerOrAdmin,
+    isCleanerUser,
+    cleanerBadge,
+    inactiveBadge,
+    userFlats,
+    flatsCount
+  };
+}
+
+let userViewMode = localStorage.getItem('user_view_mode') || 'cards';
+
+window.setUserViewMode = function(mode) {
+  userViewMode = mode === 'list' ? 'list' : 'cards';
+  try {
+    localStorage.setItem('user_view_mode', userViewMode);
+  } catch (e) {}
+
+  const btnCards = document.getElementById('btnUserViewCards');
+  const btnList = document.getElementById('btnUserViewList');
+  if (btnCards && btnList) {
+    if (userViewMode === 'cards') {
+      btnCards.classList.add('active');
+      btnList.classList.remove('active');
+    } else {
+      btnList.classList.add('active');
+      btnCards.classList.remove('active');
+    }
+  }
+
+  renderUsers();
+};
+
 function renderUsers() {
   const filter = document.getElementById('userRoleFilter')?.value || 'all';
   const statusFilter = document.getElementById('userStatusFilter')?.value || 'all';
+
+  const btnCards = document.getElementById('btnUserViewCards');
+  const btnList = document.getElementById('btnUserViewList');
+  if (btnCards && btnList) {
+    if (userViewMode === 'cards') {
+      btnCards.classList.add('active');
+      btnList.classList.remove('active');
+    } else {
+      btnList.classList.add('active');
+      btnCards.classList.remove('active');
+    }
+  }
 
   const filteredUsers = state.users.filter((user) => {
     const isUserActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
@@ -1703,169 +1828,266 @@ function renderUsers() {
         <span style="font-weight:600; color:var(--text);">Desativados</span>
       </article>
     `;
+    if (window.lucide) window.lucide.createIcons({ root: hubEl });
   }
 
-  els.usersList.innerHTML = filteredUsers.map((user) => {
-    const isUserActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
-    const isSelf = state.user && Number(state.user.id) === Number(user.id);
+  const listEl = els.usersList || document.getElementById('usersList');
+  const tableWrap = document.getElementById('usersTableWrap');
 
-    let roleLabel = user.role;
-    let avatarRoleClass = 'role-client';
-    let badgeRoleClass = 'badge-role-client';
-    let iconName = 'user';
-
-    if (user.role === 'superadmin' || user.role === 'admin') {
-      roleLabel = 'Administrador';
-      avatarRoleClass = 'role-admin';
-      badgeRoleClass = 'badge-role-admin';
-      iconName = 'shield';
-    } else if (user.role === 'manager') {
-      roleLabel = 'Gerente';
-      avatarRoleClass = 'role-manager';
-      badgeRoleClass = 'badge-role-manager';
-      iconName = 'shield-check';
-    } else if (user.role === 'client') {
-      roleLabel = 'Cliente Principal';
-      avatarRoleClass = 'role-client';
-      badgeRoleClass = 'badge-role-client';
-      iconName = 'building';
-    } else if (user.role === 'client_user') {
-      roleLabel = 'Login de Cliente';
-      avatarRoleClass = 'role-subclient';
-      badgeRoleClass = 'badge-role-subclient';
-      iconName = 'user-check';
-    } else if (user.role === 'employee') {
-      roleLabel = 'Colaborador (Cleaner)';
-      avatarRoleClass = 'role-cleaner';
-      badgeRoleClass = 'badge-role-cleaner';
-      iconName = 'sparkles';
+  if (userViewMode === 'cards') {
+    if (tableWrap) {
+      tableWrap.classList.add('hidden');
+      tableWrap.style.display = 'none';
     }
+    if (listEl) {
+      listEl.classList.remove('hidden');
+      listEl.style.display = 'grid';
 
-    const initials = getInitials(user.name || user.email);
-
-    let parentCompanyHtml = '';
-    if (user.role === 'client_user' && user.parent_client_id) {
-      const parent = (state.users || []).find(u => u.id === user.parent_client_id);
-      if (parent) {
-        parentCompanyHtml = `
-          <div class="user-parent-link" title="Vinculado à conta principal de ${escapeHtml(parent.name)}">
-            <i data-lucide="link-2"></i> Vinculado a: <strong>${escapeHtml(parent.name)}</strong>
+      if (filteredUsers.length === 0) {
+        listEl.innerHTML = `
+          <div style="grid-column:1/-1; padding:48px 24px; text-align:center; color:var(--muted); background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius-lg);">
+            <i data-lucide="users" style="width:36px; height:36px; margin-bottom:8px; opacity:0.4;"></i>
+            <p style="margin:0; font-weight:500;">Nenhum usuário encontrado com os filtros selecionados.</p>
           </div>
         `;
-      }
-    }
-
-    const isManagerOrAdmin = ['manager', 'admin', 'superadmin'].includes(user.role);
-    const isCleanerUser = user.role === 'employee' || (isManagerOrAdmin && (Number(user.is_cleaner) === 1 || user.is_cleaner === true));
-
-    let cleanerBadge = '';
-    if (isManagerOrAdmin) {
-      if (isCleanerUser) {
-        cleanerBadge = `<span class="badge-role badge-role-cleaner-active" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="sparkles"></i> Faz Limpezas</span>`;
       } else {
-        cleanerBadge = `<span class="badge-role badge-role-management-only" style="cursor:pointer;" onclick="toggleUserCleaner(${user.id})" title="Clique para alternar escala de cleaner"><i data-lucide="user"></i> Apenas Gestão</span>`;
+        listEl.innerHTML = filteredUsers.map((user) => {
+          const meta = getUserDisplayData(user);
+          const {
+            isUserActive,
+            isSelf,
+            roleLabel,
+            avatarRoleClass,
+            badgeRoleClass,
+            iconName,
+            initials,
+            parentCompanyHtml,
+            isCleanerUser,
+            cleanerBadge,
+            inactiveBadge,
+            userFlats,
+            flatsCount
+          } = meta;
+
+          let middleWidgetHtml = '';
+          if (isCleanerUser) {
+            middleWidgetHtml = `
+              <div class="user-rates-box">
+                <div class="user-rates-header">
+                  <i data-lucide="coins"></i> <span>Taxas de Limpeza</span>
+                </div>
+                <div class="user-rates-grid">
+                  <div class="user-rate-pill">
+                    <span class="rate-type">Semana</span>
+                    <span class="rate-val">£${Number(user.hourly_rate || 0).toFixed(2)}</span>
+                  </div>
+                  <div class="user-rate-pill">
+                    <span class="rate-type">Fim de Semana</span>
+                    <span class="rate-val">£${Number(user.weekend_rate || 0).toFixed(2)}</span>
+                  </div>
+                  <div class="user-rate-pill">
+                    <span class="rate-type">Feriado</span>
+                    <span class="rate-val">£${Number(user.holiday_rate || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else if (user.role === 'client' || user.role === 'client_user') {
+            const sampleNames = userFlats.slice(0, 2).map(f => escapeHtml(f.address)).join(', ');
+            const moreCount = flatsCount > 2 ? ` (+${flatsCount - 2})` : '';
+
+            middleWidgetHtml = `
+              <div class="user-client-box">
+                <div class="client-stat-icon"><i data-lucide="building"></i></div>
+                <div class="client-stat-info">
+                  <span class="client-stat-num">${flatsCount} ${flatsCount === 1 ? 'imóvel ativo' : 'imóveis ativos'}</span>
+                  <span class="client-stat-desc" title="${escapeHtml(userFlats.map(f => f.address).join(', '))}">${flatsCount > 0 ? (sampleNames + moreCount) : 'Nenhum flat cadastrado'}</span>
+                </div>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="user-card ${!isUserActive ? 'user-card-inactive' : ''}">
+              <div class="user-card-header">
+                <div class="user-avatar ${avatarRoleClass}" title="${roleLabel}">
+                  ${escapeHtml(initials)}
+                </div>
+                <div class="user-identity">
+                  <div class="user-name" title="${escapeHtml(user.name)}">${escapeHtml(user.name)}</div>
+                  <div class="user-badges">
+                    <span class="badge-role ${badgeRoleClass}"><i data-lucide="${iconName}"></i> ${roleLabel}</span>
+                    ${cleanerBadge}
+                    ${inactiveBadge}
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-email-row" title="${escapeHtml(user.email)}">
+                <i data-lucide="mail"></i> <span>${escapeHtml(user.email)}</span>
+              </div>
+
+              ${parentCompanyHtml}
+              ${middleWidgetHtml}
+
+              <div class="user-card-footer">
+                <button class="card-btn card-btn-edit" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}">
+                  <i data-lucide="edit-3"></i> <span>Editar</span>
+                </button>
+                ${!isSelf ? `
+                <button class="card-btn ${isUserActive ? 'card-btn-icon' : ''} card-btn-toggle-active ${isUserActive ? 'is-active' : 'is-inactive'}" 
+                        type="button" 
+                        onclick="toggleUserActive(${user.id})" 
+                        title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}">
+                  <i data-lucide="${isUserActive ? 'user-x' : 'user-check'}"></i>
+                  ${!isUserActive ? '<span>Reativar</span>' : ''}
+                </button>
+                ` : ''}
+                <button class="card-btn card-btn-icon" type="button" data-user-password="${user.id}" title="Redefinir senha">
+                  <i data-lucide="key"></i>
+                </button>
+                <button class="card-btn card-btn-icon card-btn-danger" type="button" data-user-delete="${user.id}" title="Excluir usuário">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
       }
+
+      if (window.lucide) window.lucide.createIcons({ root: listEl });
+      listEl.querySelectorAll('[data-user-delete]').forEach((button) => {
+        button.addEventListener('click', () => onDeleteUser(Number(button.dataset.userDelete)));
+      });
+      listEl.querySelectorAll('[data-user-password]').forEach((button) => {
+        button.addEventListener('click', () => onChangeUserPassword(Number(button.dataset.userPassword)));
+      });
     }
-
-    let inactiveBadge = '';
-    if (!isUserActive) {
-      inactiveBadge = `<span class="badge-role badge-role-inactive" title="Acesso bloqueado"><i data-lucide="user-x"></i> Desativado</span>`;
+  } else {
+    // List Mode
+    if (listEl) {
+      listEl.classList.add('hidden');
+      listEl.style.display = 'none';
     }
+    if (tableWrap) {
+      tableWrap.classList.remove('hidden');
+      tableWrap.style.display = 'block';
 
-    let middleWidgetHtml = '';
-    if (isCleanerUser) {
-      middleWidgetHtml = `
-        <div class="user-rates-box">
-          <div class="user-rates-header">
-            <i data-lucide="coins"></i> <span>Taxas de Limpeza</span>
+      if (filteredUsers.length === 0) {
+        tableWrap.innerHTML = `
+          <div style="padding:48px 24px; text-align:center; color:var(--muted); background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius-lg);">
+            <i data-lucide="users" style="width:36px; height:36px; margin-bottom:8px; opacity:0.4;"></i>
+            <p style="margin:0; font-weight:500;">Nenhum usuário encontrado com os filtros selecionados.</p>
           </div>
-          <div class="user-rates-grid">
-            <div class="user-rate-pill">
-              <span class="rate-type">Semana</span>
-              <span class="rate-val">£${Number(user.hourly_rate || 0).toFixed(2)}</span>
-            </div>
-            <div class="user-rate-pill">
-              <span class="rate-type">Fim de Semana</span>
-              <span class="rate-val">£${Number(user.weekend_rate || 0).toFixed(2)}</span>
-            </div>
-            <div class="user-rate-pill">
-              <span class="rate-type">Feriado</span>
-              <span class="rate-val">£${Number(user.holiday_rate || 0).toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    } else if (user.role === 'client' || user.role === 'client_user') {
-      const targetClientId = user.role === 'client_user' ? user.parent_client_id : user.id;
-      const userFlats = (state.flats || []).filter(f => f.client_user_id === targetClientId);
-      const flatsCount = userFlats.length;
-      const sampleNames = userFlats.slice(0, 2).map(f => escapeHtml(f.address)).join(', ');
-      const moreCount = flatsCount > 2 ? ` (+${flatsCount - 2})` : '';
+        `;
+      } else {
+        tableWrap.innerHTML = `
+          <table class="data-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="min-width:260px;">Usuário</th>
+                <th style="min-width:170px;">Perfil</th>
+                <th style="min-width:120px;">Status</th>
+                <th style="min-width:240px;">Taxas / Imóveis</th>
+                <th style="text-align:right; min-width:160px;">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredUsers.map((user) => {
+                const meta = getUserDisplayData(user);
+                const {
+                  isUserActive,
+                  isSelf,
+                  roleLabel,
+                  avatarRoleClass,
+                  badgeRoleClass,
+                  iconName,
+                  initials,
+                  parentCompanyHtml,
+                  isCleanerUser,
+                  cleanerBadge,
+                  userFlats,
+                  flatsCount
+                } = meta;
 
-      middleWidgetHtml = `
-        <div class="user-client-box">
-          <div class="client-stat-icon"><i data-lucide="building"></i></div>
-          <div class="client-stat-info">
-            <span class="client-stat-num">${flatsCount} ${flatsCount === 1 ? 'imóvel ativo' : 'imóveis ativos'}</span>
-            <span class="client-stat-desc" title="${escapeHtml(userFlats.map(f => f.address).join(', '))}">${flatsCount > 0 ? (sampleNames + moreCount) : 'Nenhum flat cadastrado'}</span>
-          </div>
-        </div>
-      `;
+                return `
+                  <tr style="border-bottom:1px solid var(--line);">
+                    <td style="padding:14px 16px;">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <div class="user-avatar ${avatarRoleClass}" style="width:38px; height:38px; font-size:13px; border-radius:10px; flex-shrink:0;" title="${roleLabel}">
+                          ${escapeHtml(initials)}
+                        </div>
+                        <div style="min-width:0;">
+                          <div style="font-weight:700; color:var(--text); font-size:0.92rem; line-height:1.2;">${escapeHtml(user.name)}</div>
+                          <div style="font-size:0.8rem; color:var(--muted); line-height:1.3; margin-top:2px;">${escapeHtml(user.email)}</div>
+                          ${parentCompanyHtml}
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding:14px 16px;">
+                      <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                        <span class="badge-role ${badgeRoleClass}"><i data-lucide="${iconName}"></i> ${roleLabel}</span>
+                        ${cleanerBadge}
+                      </div>
+                    </td>
+                    <td style="padding:14px 16px;">
+                      ${isUserActive 
+                        ? `<span class="badge badge-success" style="font-size:0.78rem; padding:4px 10px;"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Ativo</span>`
+                        : `<span class="badge" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:0.78rem; padding:4px 10px;"><i data-lucide="user-x" style="width:12px;height:12px;"></i> Desativado</span>`}
+                    </td>
+                    <td style="padding:14px 16px;">
+                      ${isCleanerUser ? `
+                        <div style="font-size:0.82rem; color:var(--text); display:flex; flex-wrap:wrap; gap:6px;">
+                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">Semana: <strong>£${Number(user.hourly_rate || 0).toFixed(2)}</strong></span>
+                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">FDS: <strong>£${Number(user.weekend_rate || 0).toFixed(2)}</strong></span>
+                          <span style="background:var(--surface-alt); padding:3px 8px; border-radius:6px; border:1px solid var(--line);">Feriado: <strong>£${Number(user.holiday_rate || 0).toFixed(2)}</strong></span>
+                        </div>
+                      ` : (user.role === 'client' || user.role === 'client_user') ? `
+                        <div style="font-size:0.84rem; color:var(--text); display:flex; align-items:center; gap:6px;" title="${escapeHtml(userFlats.map(f => f.address).join(', '))}">
+                          <i data-lucide="building" style="width:14px;height:14px; color:#2563eb;"></i>
+                          <span><strong>${flatsCount}</strong> ${flatsCount === 1 ? 'imóvel ativo' : 'imóveis ativos'}</span>
+                        </div>
+                      ` : `<span style="color:var(--muted); font-size:0.85rem;">—</span>`}
+                    </td>
+                    <td style="padding:14px 16px; text-align:right;">
+                      <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                        <button class="card-btn card-btn-icon" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}" style="width:34px; height:34px;">
+                          <i data-lucide="edit-3"></i>
+                        </button>
+                        ${!isSelf ? `
+                        <button class="card-btn card-btn-icon card-btn-toggle-active ${isUserActive ? 'is-active' : 'is-inactive'}" 
+                                type="button" 
+                                onclick="toggleUserActive(${user.id})" 
+                                title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}"
+                                style="width:34px; height:34px;">
+                          <i data-lucide="${isUserActive ? 'user-x' : 'user-check'}"></i>
+                        </button>
+                        ` : ''}
+                        <button class="card-btn card-btn-icon" type="button" data-user-password="${user.id}" title="Redefinir senha" style="width:34px; height:34px;">
+                          <i data-lucide="key"></i>
+                        </button>
+                        <button class="card-btn card-btn-icon card-btn-danger" type="button" data-user-delete="${user.id}" title="Excluir usuário" style="width:34px; height:34px;">
+                          <i data-lucide="trash-2"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
+      if (window.lucide) window.lucide.createIcons({ root: tableWrap });
+      tableWrap.querySelectorAll('[data-user-delete]').forEach((button) => {
+        button.addEventListener('click', () => onDeleteUser(Number(button.dataset.userDelete)));
+      });
+      tableWrap.querySelectorAll('[data-user-password]').forEach((button) => {
+        button.addEventListener('click', () => onChangeUserPassword(Number(button.dataset.userPassword)));
+      });
     }
-
-    return `
-      <div class="user-card ${!isUserActive ? 'user-card-inactive' : ''}">
-        <div class="user-card-header">
-          <div class="user-avatar ${avatarRoleClass}" title="${roleLabel}">
-            ${escapeHtml(initials)}
-          </div>
-          <div class="user-identity">
-            <div class="user-name" title="${escapeHtml(user.name)}">${escapeHtml(user.name)}</div>
-            <div class="user-badges">
-              <span class="badge-role ${badgeRoleClass}"><i data-lucide="${iconName}"></i> ${roleLabel}</span>
-              ${cleanerBadge}
-              ${inactiveBadge}
-            </div>
-          </div>
-        </div>
-
-        <div class="user-email-row" title="${escapeHtml(user.email)}">
-          <i data-lucide="mail"></i> <span>${escapeHtml(user.email)}</span>
-        </div>
-
-        ${parentCompanyHtml}
-        ${middleWidgetHtml}
-
-        <div class="user-card-footer">
-          <button class="card-btn card-btn-edit" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}">
-            <i data-lucide="edit-3"></i> <span>Editar</span>
-          </button>
-          ${!isSelf ? `
-          <button class="card-btn ${isUserActive ? 'card-btn-icon' : ''} card-btn-toggle-active ${isUserActive ? 'is-active' : 'is-inactive'}" 
-                  type="button" 
-                  onclick="toggleUserActive(${user.id})" 
-                  title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}">
-            <i data-lucide="${isUserActive ? 'user-x' : 'user-check'}"></i>
-            ${!isUserActive ? '<span>Reativar</span>' : ''}
-          </button>
-          ` : ''}
-          <button class="card-btn card-btn-icon" type="button" data-user-password="${user.id}" title="Redefinir senha">
-            <i data-lucide="key"></i>
-          </button>
-          <button class="card-btn card-btn-icon card-btn-danger" type="button" data-user-delete="${user.id}" title="Excluir usuário">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  if (window.lucide) window.lucide.createIcons({ root: els.usersList });
-  els.usersList.querySelectorAll('[data-user-delete]').forEach((button) => {
-    button.addEventListener('click', () => onDeleteUser(Number(button.dataset.userDelete)));
-  });
-  els.usersList.querySelectorAll('[data-user-password]').forEach((button) => {
-    button.addEventListener('click', () => onChangeUserPassword(Number(button.dataset.userPassword)));
-  });
+  }
 }
 
 window.toggleUserActive = async function(userId) {

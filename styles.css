@@ -1172,6 +1172,66 @@ textarea {
 }
 
 /* Hub stat active styling */
+#cadastrosHub {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+@media (max-width: 1180px) {
+  #cadastrosHub {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  }
+}
+
+.user-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-alt);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  gap: 2px;
+}
+
+.user-view-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.user-view-btn:hover {
+  color: var(--text);
+}
+
+.user-view-btn.active {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.filter-select {
+  width: auto !important;
+  min-width: 180px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
 .hub-stat-icon {
   width: 36px;
   height: 36px;
@@ -1180,11 +1240,11 @@ textarea {
   align-items: center;
   justify-content: center;
 }
-.hub-stat-icon i { width: 18px; height: 18px; }
+.hub-stat-icon i, .hub-stat-icon svg { width: 18px; height: 18px; }
 .hub-card-active {
   border-color: var(--primary) !important;
-  background: rgba(234, 88, 12, 0.04) !important;
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.12) !important;
+  background: rgba(8, 0, 88, 0.03) !important;
+  box-shadow: 0 4px 14px rgba(8, 0, 88, 0.08) !important;
 }
 
 .invoice-extra-editor {
