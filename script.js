@@ -4045,10 +4045,10 @@ function _finRender() {
     if (isInv) {
       if (d.is_paid) {
         statusBadge = `<span class="badge" style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="check" style="width:12px;height:12px;"></i> PAGO</span>`;
-        statusBadgeDesktop = '<span style="color:var(--success);font-weight:bold;font-size:12px;">PAGO</span>';
+        statusBadgeDesktop = '<span class="badge badge-success" style="padding:3px 10px; border-radius:20px; font-weight:700; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="check" style="width:11px;height:11px;"></i> PAGO</span>';
       } else {
         statusBadge = `<span class="badge" style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="clock" style="width:12px;height:12px;"></i> PENDENTE</span>`;
-        statusBadgeDesktop = '<span style="color:var(--warning);font-weight:bold;font-size:12px;">PENDENTE</span>';
+        statusBadgeDesktop = '<span class="badge badge-warning" style="padding:3px 10px; border-radius:20px; font-weight:700; font-size:11px; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="clock" style="width:11px;height:11px;"></i> PENDENTE</span>';
       }
     }
 
@@ -4128,19 +4128,24 @@ function _finRender() {
         </td>
 
         <!-- Desktop Layout -->
-        <td class="fin-td fin-td-num desktop-only">#${num}</td>
-        <td class="fin-td fin-td-name desktop-only">${name}</td>
-        <td class="fin-td fin-td-period desktop-only">${periodRaw}</td>
-        <td class="fin-td desktop-only">${dueDateStr}</td>
+        <td class="fin-td fin-td-num desktop-only"><strong>#${num}</strong></td>
+        <td class="fin-td fin-td-name desktop-only">
+          <div style="font-weight:600; color:#0f172a; display:inline-flex; align-items:center; gap:6px;">
+            <i data-lucide="${isInv ? 'building-2' : 'user'}" style="width:14px;height:14px;color:#64748b;"></i>
+            <span>${name}</span>
+          </div>
+        </td>
+        <td class="fin-td fin-td-period desktop-only" style="font-size:13px; color:#475569; font-weight:500; white-space:nowrap;">${periodFormatted}</td>
+        <td class="fin-td desktop-only" style="font-size:13px; color:#475569; font-weight:500;">${dueDateStr}</td>
         <td class="fin-td desktop-only">${statusBadgeDesktop}</td>
-        <td class="fin-td fin-td-created desktop-only" style="white-space:nowrap; font-size:13px; color:var(--muted);">
+        <td class="fin-td fin-td-created desktop-only" style="white-space:nowrap; font-size:12.5px; color:#64748b;">
           <span style="display:inline-flex; align-items:center; gap:4px;">
-            <i data-lucide="clock" style="width:13px;height:13px;opacity:0.7;"></i>
+            <i data-lucide="clock" style="width:12px;height:12px;opacity:0.7;"></i>
             ${createdStr}
           </span>
         </td>
-        <td class="fin-td fin-td-jobs desktop-only"><span class="fin-jobs-badge">${jobs}</span></td>
-        <td class="fin-td fin-td-amount desktop-only">${amount}</td>
+        <td class="fin-td fin-td-jobs desktop-only"><span class="fin-jobs-badge">${jobs} itens</span></td>
+        <td class="fin-td fin-td-amount desktop-only" style="font-weight:700; color:#0f172a; font-size:14.5px;">${amount}</td>
         <td class="fin-td desktop-only">
           <div class="fin-actions">
             ${isInv ? `<button type="button" class="fin-action-btn email" onclick="openSendInvoiceEmailModal(${d.id})" title="Send Invoice by Email"><i data-lucide="mail"></i></button>` : ''}

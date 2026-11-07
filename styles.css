@@ -2511,44 +2511,69 @@ textarea {
   align-items: center;
 }
 
-.fin-action-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid rgba(0,0,0,0.12);
-  background: #fff;
-  cursor: pointer;
+.fin-actions {
   display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.fin-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  transition: background 0.15s, transform 0.1s;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.fin-action-btn:hover { background: #f0f0f0; transform: scale(1.1); }
-.fin-action-btn.delete { border-color: rgba(220,38,38,0.25); color: var(--danger); }
-.fin-action-btn.delete:hover { background: #fff0f0; }
-.fin-action-btn.email { border-color: rgba(59,130,246,0.3); color: var(--primary); }
-.fin-action-btn.email:hover { background: #eff6ff; }
-.fin-action-btn.email i { color: var(--primary); }
-.fin-action-btn i { width: 16px; height: 16px; color: var(--muted); }
-.fin-action-btn.delete i { color: var(--danger); }
+.fin-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
 
-/* Mobile Finance Cards (Refined UX & Typography) */
+.fin-action-btn.edit {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+.fin-action-btn.edit:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.fin-action-btn.email {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+.fin-action-btn.email:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.fin-action-btn.delete {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.fin-action-btn.delete:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.fin-action-btn i,
+.fin-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Mobile Finance Cells (Hidden on Desktop by default) */
 .fin-mobile-cell {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  width: 100% !important;
-  padding: 0 !important;
-  border: none !important;
-  border-bottom: none !important;
-  margin: 0 !important;
-  font-weight: normal !important;
-  text-align: left !important;
-  box-sizing: border-box !important;
-}
-.fin-mobile-cell::before {
   display: none !important;
 }
 
@@ -2587,9 +2612,48 @@ textarea {
   .fin-table tr.fin-card-row > td.desktop-only {
     display: none !important;
   }
+  .fin-mobile-cell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+    border-bottom: none !important;
+    margin: 0 !important;
+    font-weight: normal !important;
+    text-align: left !important;
+    box-sizing: border-box !important;
+  }
+  .fin-mobile-cell::before {
+    display: none !important;
+  }
 }
 
 @media (min-width: 769px) {
+  .fin-table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+  .fin-table thead {
+    display: table-header-group !important;
+  }
+  .fin-table thead th.fin-th {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 14px 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    vertical-align: middle !important;
+  }
+  .fin-table tbody {
+    display: table-row-group !important;
+  }
   .fin-table tr.fin-card-row {
     display: table-row !important;
     background: transparent !important;
@@ -2597,6 +2661,22 @@ textarea {
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
+    transition: background 0.15s ease !important;
+  }
+  .fin-table tr.fin-card-row:hover {
+    background: #f8fafc !important;
+  }
+  .fin-table tr.fin-card-row > td.fin-mobile-cell {
+    display: none !important;
+  }
+  .fin-table tr.fin-card-row > td.desktop-only {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    padding: 14px 16px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+  .fin-table tr.fin-card-row:last-child > td.desktop-only {
+    border-bottom: none !important;
   }
 }
 
