@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261107e" />
+  <link rel="stylesheet" href="styles.css?v=20261107f" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1439,6 +1439,25 @@
     </div>
   </div>
 
+  <!-- ── App Universal Confirm Modal ───────────────────────────── -->
+  <div class="modal hidden" id="appConfirmModal" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle" style="z-index: 1000002;">
+    <div class="modal-card glass-card" style="max-width: 440px; padding: 24px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+      <div style="display: flex; align-items: flex-start; gap: 14px;">
+        <div id="appConfirmIconWrap" style="width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #fee2e2; color: #dc2626; font-size: 20px;">
+          ⚠️
+        </div>
+        <div style="flex: 1;">
+          <h3 id="appConfirmTitle" style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text);">Confirmação</h3>
+          <p id="appConfirmMessage" style="margin-top: 8px; font-size: 0.92rem; color: var(--muted); line-height: 1.5;"></p>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+        <button type="button" class="button button-secondary" id="appConfirmBtnCancel" style="min-height: 42px; padding: 0 16px; font-weight: 600;">Cancelar</button>
+        <button type="button" class="button" id="appConfirmBtnConfirm" style="min-height: 42px; padding: 0 18px; font-weight: 600; background: #dc2626; color: white;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Modal Manual Job ──────────────────────────────────────── -->
   <div class="modal hidden" id="manualJobModal" style="z-index: 100001;">
     <div class="modal-card glass-card" style="max-width:500px;">
@@ -2089,7 +2108,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261107e" defer></script>
+  <script src="script.js?v=20261107f" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

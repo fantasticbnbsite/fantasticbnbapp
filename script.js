@@ -1154,7 +1154,7 @@ async function saveRecord(formData) {
 }
 
 async function deleteRecord(recordId) {
-  if (!window.confirm('Deseja realmente excluir este registro?')) return;
+  if (!await confirmModal('Deseja realmente excluir este registro?')) return;
   await api(`/api/clients/${state.selectedClientId}/records/${recordId}`, { method: 'DELETE' });
   toast('Registro excluido.');
   await Promise.all([loadRecords(), loadOverview()]);
@@ -1573,8 +1573,8 @@ function startFlatEdit(clientName, groupName, flatName) {
   renderSelectedGroupFlats();
 }
 
-function onDeleteFlat(clientName, groupName, flatName) {
-  if (!window.confirm(`Excluir flat ${flatName}?`)) return;
+async function onDeleteFlat(clientName, groupName, flatName) {
+  if (!await confirmModal(`Excluir flat ${flatName}?`)) return;
   const group = getCleaningGroupConfig(clientName, groupName);
   if (!group) return;
   group.flats = (group.flats || []).filter((flat) => flat !== flatName);
@@ -1880,10 +1880,10 @@ window.toggleUserActive = async function(userId) {
   const isCurrentlyActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
   const actionText = isCurrentlyActive ? 'desativar' : 'reativar';
   const confirmMsg = isCurrentlyActive
-    ? `Deseja desativar o usuário "${user.name}"?\n\n• Ele perderá o acesso imediato ao sistema.\n• Não receberá novas designações.\n• Você poderá reativá-lo a qualquer momento.`
+    ? `Deseja desativar o usuário "${user.name}"? Ele perderá o acesso imediato ao sistema e você poderá reativá-lo a qualquer momento.`
     : `Deseja reativar o acesso de "${user.name}" ao sistema?`;
 
-  if (!confirm(confirmMsg)) return;
+  if (!await confirmModal(confirmMsg, { title: isCurrentlyActive ? 'Desativar Usuário' : 'Reativar Usuário', isDanger: isCurrentlyActive, confirmText: isCurrentlyActive ? 'Desativar' : 'Reativar' })) return;
 
   try {
     const res = await api(`/api/users/${userId}/toggle-active`, { method: 'PATCH' });
@@ -2025,7 +2025,7 @@ function renderSelectedGroupFlats() {
 }
 
 async function onDeleteCleaner(cleanerName) {
-  if (!window.confirm(`Excluir cleaner ${cleanerName}?`)) return;
+  if (!await confirmModal(`Excluir cleaner ${cleanerName}?`)) return;
   state.cleaners = state.cleaners.filter((cleaner) => cleaner.name !== cleanerName);
   saveCleaners();
   if (els.cleanerForm.elements.namedItem('editingCleanerName').value === cleanerName) resetCleanerForm();
@@ -2048,7 +2048,7 @@ async function onDeleteClient(clientName) {
     toast('Configuracao local do cliente removida.');
     return;
   }
-  if (!window.confirm(`Excluir cliente ${clientName}?`)) return;
+  if (!await confirmModal(`Excluir cliente ${clientName}?`)) return;
   try {
     await api(`/api/clients/${linkedClient.id}`, { method: 'DELETE' });
     state.clients = state.clients.filter((client) => client.id !== linkedClient.id);
@@ -2073,7 +2073,7 @@ async function onDeleteClient(clientName) {
 }
 
 async function onDeleteUser(userId) {
-  if (!window.confirm('Excluir este usuario do sistema?')) return;
+  if (!await confirmModal('Excluir este usuario do sistema?')) return;
   try {
     await api(`/api/users/${userId}`, { method: 'DELETE' });
     state.users = state.users.filter((user) => user.id !== userId);
@@ -2193,8 +2193,8 @@ function startCleaningEdit(cleaningId) {
   if (els.cleaningSubmitButton) els.cleaningSubmitButton.textContent = 'Salvar limpeza';
 }
 
-function onDeleteCleaning(cleaningId) {
-  if (!window.confirm('Excluir este lancamento de limpeza?')) return;
+async function onDeleteCleaning(cleaningId) {
+  if (!await confirmModal('Excluir este lançamento de limpeza?')) return;
   state.cleanings = state.cleanings.filter((entry) => String(entry.id) !== String(cleaningId));
   saveCleanings();
   if (els.cleaningForm?.elements.namedItem('editingCleaningId')?.value === String(cleaningId)) {
@@ -2505,6 +2505,71 @@ function toast(message, type = 'default') {
   toast.timer = setTimeout(() => els.toast.classList.remove('visible'), 2400);
 }
 
+function confirmModal(message, options = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('appConfirmModal');
+    const titleEl = document.getElementById('appConfirmTitle');
+    const msgEl = document.getElementById('appConfirmMessage');
+    const iconWrap = document.getElementById('appConfirmIconWrap');
+    const btnCancel = document.getElementById('appConfirmBtnCancel');
+    const btnConfirm = document.getElementById('appConfirmBtnConfirm');
+
+    if (!modal) {
+      resolve(window.confirm(message));
+      return;
+    }
+
+    const config = typeof options === 'string' ? { title: options } : options;
+    const title = config.title || 'Confirmação';
+    const confirmText = config.confirmText || 'Confirmar';
+    const cancelText = config.cancelText || 'Cancelar';
+    const isDanger = config.isDanger !== false;
+    const icon = config.icon || (isDanger ? '⚠️' : '❓');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    iconWrap.textContent = icon;
+    iconWrap.style.background = isDanger ? '#fee2e2' : '#e0e7ff';
+    iconWrap.style.color = isDanger ? '#dc2626' : 'var(--primary)';
+
+    btnConfirm.textContent = confirmText;
+    btnConfirm.style.background = isDanger ? '#dc2626' : 'var(--primary)';
+    btnCancel.textContent = cancelText;
+
+    modal.classList.remove('hidden');
+
+    function cleanup() {
+      modal.classList.add('hidden');
+      btnCancel.removeEventListener('click', onCancel);
+      btnConfirm.removeEventListener('click', onConfirm);
+      document.removeEventListener('keydown', onKeyDown);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    function onConfirm() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onKeyDown(e) {
+      if (e.key === 'Escape') {
+        cleanup();
+        resolve(false);
+      }
+    }
+
+    btnCancel.addEventListener('click', onCancel);
+    btnConfirm.addEventListener('click', onConfirm);
+    document.addEventListener('keydown', onKeyDown);
+    btnCancel.focus();
+  });
+}
+window.confirmModal = confirmModal;
+
 function formatDateTime(value) { return value ? new Date(value).toLocaleString('pt-BR') : '-'; }
 function formatDateShort(value) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR') : '-'; }
 function formatFieldValue(value, type) { if (!value) return '-'; if (type === 'date') return new Date(`${value}T00:00:00`).toLocaleDateString('pt-BR'); return String(value); }
@@ -2563,7 +2628,7 @@ function closeFlatForm() {
 }
 
 async function deleteFlatById(flatId) {
-  if (!confirm('Tem certeza que deseja excluir este flat?')) return;
+  if (!await confirmModal('Tem certeza que deseja excluir este flat?')) return;
   try {
     await api('/api/flats/' + flatId, { method: 'DELETE' });
     toast('Flat excluido com sucesso!', 'success');
@@ -2672,7 +2737,7 @@ function editFlat(id) {
 }
 
 async function deleteFlat(id) {
-  if (!confirm('Excluir este flat? Todos os servicos vinculados tambem serao excluidos.')) return;
+  if (!await confirmModal('Excluir este flat? Todos os servicos vinculados tambem serao excluidos.')) return;
   try {
     await api(`/api/flats/${id}`, { method: 'DELETE' });
     toast('Flat excluido.');
@@ -2759,7 +2824,7 @@ function editChecklist(id) {
 }
 
 async function deleteChecklist(id) {
-  if (!confirm('Deseja excluir este modelo? (Ele não deve estar em uso por nenhum flat)')) return;
+  if (!await confirmModal('Deseja excluir este modelo? (Ele não deve estar em uso por nenhum flat)')) return;
   try {
     await api(`/api/checklists/${id}`, { method: 'DELETE' });
     toast('Modelo excluído!');
@@ -3770,25 +3835,25 @@ function _finRender() {
 
 
 window.deleteInvoice = async function(id) {
-  if (!confirm('Tem certeza que deseja excluir esta Fatura? Os serviços vinculados a ela voltarão a ficar disponíveis para cobrança.')) return;
+  if (!await confirmModal('Tem certeza que deseja excluir esta Fatura? Os serviços vinculados a ela voltarão a ficar disponíveis para cobrança.')) return;
   try {
     const res = await api(`/api/finance/invoices/${id}`, { method: 'DELETE' });
     if (res.success) {
-      alert('Fatura excluída com sucesso.');
+      toast('Fatura excluída com sucesso.', 'success');
       loadFinanceDocuments();
     }
-  } catch (err) { alert('Erro ao excluir: ' + err.message); }
+  } catch (err) { toast('Erro ao excluir: ' + err.message, 'error'); }
 };
 
 window.deletePayroll = async function(id) {
-  if (!confirm('Tem certeza que deseja excluir este Holerite? Os serviços vinculados voltarão a ficar disponíveis para pagamento.')) return;
+  if (!await confirmModal('Tem certeza que deseja excluir este Holerite? Os serviços vinculados voltarão a ficar disponíveis para pagamento.')) return;
   try {
     const res = await api(`/api/finance/payrolls/${id}`, { method: 'DELETE' });
     if (res.success) {
-      alert('Holerite excluído com sucesso.');
+      toast('Holerite excluído com sucesso.', 'success');
       loadFinanceDocuments();
     }
-  } catch (err) { alert('Erro ao excluir: ' + err.message); }
+  } catch (err) { toast('Erro ao excluir: ' + err.message, 'error'); }
 };
 
 // ── SEND INVOICE BY EMAIL MODAL ─────────────────────────────────────────────
@@ -4070,7 +4135,7 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
   const picker = document.getElementById('monthlyReportMonthPicker');
   const month = picker?.value;
   if (!month) {
-    if (showFeedback) alert('Selecione um mês de referência.');
+    if (showFeedback) toast('Selecione um mês de referência.', 'error');
     return;
   }
 
@@ -4204,7 +4269,7 @@ window.previewMonthlyClosing = async function(showFeedback = true) {
     }
   } catch (err) {
     console.error('Erro na prévia:', err);
-    if (showFeedback) alert('Erro ao carregar prévia: ' + err.message);
+    if (showFeedback) toast('Erro ao carregar prévia: ' + err.message, 'error');
   }
 };
 
@@ -4212,31 +4277,31 @@ window.closeMonthlyReport = async function(customMonth = null) {
   const picker = document.getElementById('monthlyReportMonthPicker');
   const month = customMonth || picker?.value;
   if (!month) {
-    alert('Selecione um mês de referência.');
+    toast('Selecione um mês de referência.', 'error');
     return;
   }
 
   const label = _formatMonthLabel(month);
-  const confirmMsg = `Deseja fechar o mês de ${label}?\n\nIsso calculará todos os faturamentos, despesas e lucros e salvará o relatório permanentemente no histórico da empresa para download em planilha.`;
-  if (!confirm(confirmMsg)) return;
+  const confirmMsg = `Deseja fechar o mês de ${label}? Isso calculará todos os faturamentos, despesas e lucros e salvará o relatório permanentemente no histórico da empresa para download em planilha.`;
+  if (!await confirmModal(confirmMsg, { title: 'Fechar Mês Operacional', isDanger: false, confirmText: 'Fechar Mês' })) return;
 
   try {
     const res = await api('/api/monthly-reports/close', {
       method: 'POST',
       body: { month }
     });
-    alert(`Fechamento de ${res.report?.period_label || label} salvo com sucesso!`);
+    toast(`Fechamento de ${res.report?.period_label || label} salvo com sucesso!`, 'success');
     await loadMonthlyReports();
     await previewMonthlyClosing(false);
   } catch (err) {
     console.error('Erro ao fechar mês:', err);
-    alert('Erro ao fechar mês: ' + err.message);
+    toast('Erro ao fechar mês: ' + err.message, 'error');
   }
 };
 
 window.recalculateMonthlyClosing = async function(month) {
   const label = _formatMonthLabel(month);
-  if (!confirm(`Deseja recalcular e atualizar o fechamento de ${label} com os dados mais recentes?`)) return;
+  if (!await confirmModal(`Deseja recalcular e atualizar o fechamento de ${label} com os dados mais recentes?`, { title: 'Recalcular Fechamento', isDanger: false, confirmText: 'Recalcular' })) return;
   await closeMonthlyReport(month);
 };
 
@@ -4252,13 +4317,13 @@ window.downloadMonthlyReport = function(id, format = 'excel') {
 
 window.downloadPreviewReport = async function(format = 'excel') {
   if (!finState.currentPreviewData) {
-    alert('Carregue a prévia primeiro.');
+    toast('Carregue a prévia primeiro.', 'error');
     return;
   }
   if (finState.currentPreviewData.report_id) {
     downloadMonthlyReport(finState.currentPreviewData.report_id, format);
   } else {
-    if (confirm('Este mês ainda não foi salvo no histórico. Deseja fechar o mês agora para salvar e baixar a planilha?')) {
+    if (await confirmModal('Este mês ainda não foi salvo no histórico. Deseja fechar o mês agora para salvar e baixar a planilha?', { title: 'Salvar Fechamento', isDanger: false, confirmText: 'Salvar e Baixar' })) {
       await closeMonthlyReport(finState.currentPreviewData.period_month);
       const rep = finState.monthlyReports.find(r => r.period_month === finState.currentPreviewData.period_month);
       if (rep) downloadMonthlyReport(rep.id, format);
@@ -4267,13 +4332,13 @@ window.downloadPreviewReport = async function(format = 'excel') {
 };
 
 window.deleteMonthlyReport = async function(id, label) {
-  if (!confirm(`Tem certeza que deseja excluir o fechamento de ${label}? Esta ação é permanente.`)) return;
+  if (!await confirmModal(`Tem certeza que deseja excluir o fechamento de ${label}? Esta ação é permanente.`)) return;
   try {
     await api(`/api/monthly-reports/${id}`, { method: 'DELETE' });
-    alert(`Relatório de ${label} excluído.`);
+    toast(`Relatório de ${label} excluído.`, 'success');
     await loadMonthlyReports();
   } catch (err) {
-    alert('Erro ao excluir relatório: ' + err.message);
+    toast('Erro ao excluir relatório: ' + err.message, 'error');
   }
 };
 
@@ -4547,7 +4612,7 @@ window.closeMonthlyReportModal = function() {
 
 
 window.openAdminEditJobModal = async function(jobId) {
-  if (!canCreateJobs()) return alert('Permissão insuficiente');
+  if (!canCreateJobs()) return toast('Permissão insuficiente.', 'error');
   const modal = document.getElementById('adminEditJobModal');
   const selEmp = document.getElementById('adminEditJobEmployee');
   
@@ -5084,7 +5149,7 @@ document.getElementById('jobsDateTo')?.addEventListener('change', loadJobs);
 
 
 window.openAssignEmployeeModal = async function(jobId) {
-  if (!canCreateJobs()) return alert('Permissão insuficiente');
+  if (!canCreateJobs()) return toast('Permissão insuficiente.', 'error');
   const modal = document.getElementById('assignJobModal');
   const select = document.getElementById('assignEmployeeSelect');
   document.getElementById('assignJobId').value = jobId;
@@ -5261,7 +5326,7 @@ document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async 
 });
 
 window.clientCancelJob = async function(id) {
-  if (!confirm('Deseja realmente cancelar este serviço?')) return;
+  if (!await confirmModal('Deseja realmente cancelar este serviço?')) return;
   try {
     const res = await fetch(`/api/jobs/${id}/cancel`, {
       method: 'PATCH',
@@ -5587,7 +5652,7 @@ function closeAssignModal() {
 }
 
 async function adminCancelJob(jobId) {
-  if (!confirm('Deseja cancelar esta limpeza?')) return;
+  if (!await confirmModal('Deseja cancelar esta limpeza?')) return;
   try {
     await api('/api/jobs/' + jobId + '/cancel', { method: 'POST' });
     toast('Limpeza cancelada com sucesso', 'success');
@@ -5598,7 +5663,7 @@ async function adminCancelJob(jobId) {
 }
 
 async function deleteJob(jobId) {
-  if (!confirm('Tem certeza que deseja excluir permanentemente esta solicitacao?')) return;
+  if (!await confirmModal('Tem certeza que deseja excluir permanentemente esta solicitacao?')) return;
   try {
     await api('/api/jobs/' + jobId, { method: 'DELETE' });
     toast('Servico excluido com sucesso', 'success');
@@ -5611,7 +5676,7 @@ async function deleteJob(jobId) {
 window.duplicateJob = async function(jobId) {
   const job = state.jobs.find(j => j.id === jobId);
   if (!job) return;
-  if (!confirm('Deseja duplicar este serviço para o mesmo flat e data?')) return;
+  if (!await confirmModal('Deseja duplicar este serviço para o mesmo flat e data?', { title: 'Duplicar Serviço', isDanger: false, confirmText: 'Duplicar' })) return;
   
   try {
     const payload = {
@@ -5796,7 +5861,7 @@ async function addFinanceExtra() {
 }
 
 async function removeFinanceExtra(type, parentId, index) {
-  if (!confirm('Excluir este lançamento extra?')) return;
+  if (!await confirmModal('Excluir este lançamento extra?')) return;
   try {
     const url = type === 'invoice' 
       ? `/api/finance/invoices/${parentId}/extras/${index}`
@@ -5825,7 +5890,7 @@ async function removeFinanceExtra(type, parentId, index) {
 }
 
 async function fixInvoice(id) {
-  if (!confirm('Deseja recalcular todos os serviços desta fatura para corrigir possíveis erros de dízima? Isso forçará o arredondamento dos minutos e re-aplicará as tarifas do flat.')) return;
+  if (!await confirmModal('Deseja recalcular todos os serviços desta fatura para corrigir possíveis erros de dízima? Isso forçará o arredondamento dos minutos e re-aplicará as tarifas do flat.', { title: 'Recalcular Serviços', isDanger: false, confirmText: 'Recalcular' })) return;
   try {
     const res = await api('/api/finance/fix-invoice/' + id);
     toast(res.message || 'Invoice corrigido com sucesso', 'success');
@@ -6611,7 +6676,7 @@ function renderDashboard() {
 // ── MANUAL JOB ───────────────────────────────────────────
 
 async function openManualJobForFinance() {
-  if (!(canGenInvoices() || canGenPayrolls())) return alert('Permissão insuficiente');
+  if (!(canGenInvoices() || canGenPayrolls())) return toast('Permissão insuficiente.', 'error');
   try {
     const isInvoice = currentFinanceEditType === 'invoice';
     let targetInvoice = null;
@@ -6684,7 +6749,7 @@ function closeManualJobModal() {
 
 // --- Admin Request Job (CleanOps) ---
 async function openAdminRequestJobModal() {
-  if (!canCreateJobs()) { alert('Permissão insuficiente.'); return; }
+  if (!canCreateJobs()) { toast('Permissão insuficiente.', 'error'); return; }
   try {
     const data = await api('/api/users');
     if (data && data.users) state.users = data.users;
@@ -6935,7 +7000,7 @@ window.startDictationForNotes = startDictationForNotes;
 // 2. Assistente Inteligente (Auto-Fill)
 let smartRecognition = null;
 function startSmartVoiceAssistant() {
-  if (!canCreateJobs()) { alert('Permissão insuficiente.'); return; }
+  if (!canCreateJobs()) { toast('Permissão insuficiente.', 'error'); return; }
   if (!SpeechRecognition) return toast('Seu navegador não suporta reconhecimento de voz.', 'error');
   if (smartRecognition) return;
   
@@ -7497,7 +7562,7 @@ async function addInventoryCatalogItem(e) {
 }
 
 async function deleteInventoryCatalogItem(id) {
-  if (!confirm('Excluir este item do catálogo?')) return;
+  if (!await confirmModal('Excluir este item do catálogo?')) return;
   try {
     await api('/api/inventory/catalog/' + id, { method: 'DELETE' });
     await renderInventoryCatalog();

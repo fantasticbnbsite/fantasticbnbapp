@@ -1088,7 +1088,8 @@ const App = (() => {
       job.flatChecklist.forEach(c => totalItems += (c.items ? c.items.length : 0));
       const jobChecklistState = job.checklistState || [];
       if (jobChecklistState.length < totalItems) {
-        alert('⚠️ ATENÇÃO: Você precisa marcar TODAS as tarefas do checklist para poder finalizar o serviço!');
+        const remaining = totalItems - jobChecklistState.length;
+        showToast(`⚠️ Checklist incompleto: marque todas as tarefas (faltam ${remaining}) para finalizar.`, 'error');
         return;
       }
     }
