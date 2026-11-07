@@ -3509,7 +3509,7 @@ input[type="radio"] {
 
 .report-header-info {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
   max-width: 680px;
 }
