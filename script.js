@@ -5343,7 +5343,7 @@ function renderJobs() {
         if (job.startedAt) items.push(`<span style="color:var(--success); font-weight:600; white-space:nowrap;">Início: ${timeFmt.format(new Date(job.startedAt))}</span>`);
         if (job.finishedAt) items.push(`<span style="color:var(--danger); font-weight:600; white-space:nowrap;">Fim: ${timeFmt.format(new Date(job.finishedAt))}</span>`);
         if (items.length > 0) {
-          timelineHtml = `<div style="font-size:12px; margin-top:4px; display:flex; flex-wrap:wrap; gap:6px;">${items.join('')}</div>`;
+          timelineHtml = `<div style="font-size:12px; margin-top:4px; display:flex; flex-direction:column; gap:2px;">${items.join('')}</div>`;
         }
       }
       
@@ -5383,16 +5383,16 @@ function renderJobs() {
           </td>
           <td class="td-meta1" data-label="Data/Hora">
             <!-- Desktop view -->
-            <div class="desktop-only" style="display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--text); margin-bottom:4px;">
-              <div style="display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap;">
-                <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+            <div class="desktop-only" style="display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--text); line-height:1.35;">
+              <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#0f172a; white-space:nowrap;">
+                <i data-lucide="calendar" style="width:14px;height:14px;color:#64748b;flex-shrink:0;"></i>
                 <span>${formatJobDateDisplay(job.requestedDate)}</span>
               </div>
               ${(job.durationHours && !job.status.startsWith('cancelled')) ? `
-                <div style="color:var(--muted); font-size:12px; margin-left:21px; white-space:nowrap;">
-                  Duração: ${formatHours(job.durationHours)}
+                <div style="color:#64748b; font-size:12px; margin-left:20px; white-space:nowrap;">
+                  Duração: <strong>${formatHours(job.durationHours)}</strong>
                 </div>` : ''}
-              ${timelineHtml}
+              ${timelineHtml ? `<div style="margin-left:20px;">${timelineHtml}</div>` : ''}
             </div>
 
             <!-- Mobile structured card box -->
