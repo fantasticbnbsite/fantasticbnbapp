@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261107" />
+  <link rel="stylesheet" href="styles.css?v=20261107b" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -269,6 +269,12 @@
                   <input name="holidayRate" id="userHolidayRateInput" type="number" step="0.01" placeholder="20.00" />
                 </div>
               </div>
+              <div id="userIsActiveContainer" style="display:none; margin-top:12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 14px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem; cursor:pointer; font-weight:600;">
+                  <input type="checkbox" name="is_active" id="user_is_active" checked style="width:18px; height:18px; accent-color:var(--primary);" />
+                  <span>Conta ativa (acesso ao sistema permitido)</span>
+                </label>
+              </div>
               <div style="margin-top:16px; display:flex; gap:8px;">
                 <button class="button button-primary" type="submit" id="userSubmitButton">Salvar</button>
                 <button class="button button-secondary" type="button" id="userCancelEdit" style="display:none;">Cancelar</button>
@@ -291,14 +297,21 @@
             </article>
           </div>
 
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
             <h4 style="margin:0;">Lista de Usuários</h4>
-            <select id="userRoleFilter" onchange="renderUsers()" class="filter-select">
-              <option value="all">Todos os logins</option>
-              <option value="employee">Somente Funcionarios</option>
-              <option value="client">Somente Clientes</option>
-              <option value="gerencia">Somente Gerência</option>
-            </select>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select id="userRoleFilter" onchange="renderUsers()" class="filter-select">
+                <option value="all">Todos os tipos</option>
+                <option value="employee">Somente Funcionarios</option>
+                <option value="client">Somente Clientes</option>
+                <option value="gerencia">Somente Gerência</option>
+              </select>
+              <select id="userStatusFilter" onchange="renderUsers()" class="filter-select">
+                <option value="all">Todos os status</option>
+                <option value="active">Somente Ativos</option>
+                <option value="inactive">Somente Desativados</option>
+              </select>
+            </div>
           </div>
 
           <div id="usersList" class="overview-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
@@ -2076,7 +2089,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261107" defer></script>
+  <script src="script.js?v=20261107b" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

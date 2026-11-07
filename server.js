@@ -441,6 +441,7 @@ try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_invoices INTEGER NOT NULL D
 try { db.exec('ALTER TABLE users ADD COLUMN perm_gen_payrolls INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN perm_manage_clients_flats INTEGER NOT NULL DEFAULT 0;'); } catch {}
 try { db.exec('ALTER TABLE users ADD COLUMN is_cleaner INTEGER NOT NULL DEFAULT 0;'); } catch {}
+try { db.exec('ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;'); } catch {}
 try {
   db.exec(`
     UPDATE users SET is_cleaner = 1 
@@ -906,6 +907,10 @@ async function handleApi(req, res, requestUrl) {
       return sendJson(res, 401, { error: 'Email ou senha invalidos.' });
     }
 
+    if (user.is_active === 0) {
+      return sendJson(res, 403, { error: 'Esta conta foi desativada. Entre em contato com a administração.' });
+    }
+
     // Clear rate limit on success
     loginAttempts.delete(rateLimitKey);
 
@@ -1269,7 +1274,7 @@ async function handleApi(req, res, requestUrl) {
   if (requestUrl.pathname === '/api/users' && req.method === 'GET') {
     if (!ensureRole(session.user, ['superadmin', 'admin', 'manager'], res)) return;
     const users = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.hourly_rate, u.weekend_rate, u.holiday_rate, u.created_at, u.parent_client_id, u.perm_create_jobs, u.perm_gen_invoices, u.perm_gen_payrolls, u.perm_manage_clients_flats, u.is_cleaner,
+      SELECT u.id, u.name, u.email, u.role, u.hourly_rate, u.weekend_rate, u.holiday_rate, u.created_at, u.parent_client_id, u.perm_create_jobs, u.perm_gen_invoices, u.perm_gen_payrolls, u.perm_manage_clients_flats, u.is_cleaner, u.is_active,
              GROUP_CONCAT(c.name, ' | ') AS client_names
       FROM users u
       LEFT JOIN user_clients uc ON uc.user_id = u.id
@@ -1312,13 +1317,18 @@ async function handleApi(req, res, requestUrl) {
     const pPay = body.perm_gen_payrolls ? 1 : 0;
     const pManage = body.perm_manage_clients_flats ? 1 : 0;
     const isCleaner = body.is_cleaner ? 1 : 0;
+    const userRow = db.prepare('SELECT is_active FROM users WHERE id = ?').get(userId);
+    const isActive = body.is_active !== undefined ? (body.is_active ? 1 : 0) : ((userRow && userRow.is_active !== undefined) ? Number(userRow.is_active) : 1);
+    if (isActive === 0) {
+      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    }
     if (body.password) {
       const { salt, hash } = hashPassword(body.password);
-      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, password_hash = ?, password_salt = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ? WHERE id = ?')
-        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), hash, salt, role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, userId);
+      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, password_hash = ?, password_salt = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ?, is_active = ? WHERE id = ?')
+        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), hash, salt, role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, isActive, userId);
     } else {
-      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ? WHERE id = ?')
-        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, userId);
+      db.prepare('UPDATE users SET name = ?, email = ?, role = ?, hourly_rate = ?, weekend_rate = ?, holiday_rate = ?, parent_client_id = ?, perm_create_jobs = ?, perm_gen_invoices = ?, perm_gen_payrolls = ?, perm_manage_clients_flats = ?, is_cleaner = ?, is_active = ? WHERE id = ?')
+        .run(body.name || 'Usuario Editado', body.email || '', role, Number(body.hourlyRate || 0), Number(body.weekendRate || 0), Number(body.holidayRate || 0), role === 'client_user' && body.parentClientId ? Number(body.parentClientId) : null, pCreate, pInv, pPay, pManage, isCleaner, isActive, userId);
     }
     
     if (role === 'client') {
@@ -1367,6 +1377,25 @@ async function handleApi(req, res, requestUrl) {
     db.prepare('UPDATE users SET is_cleaner = ? WHERE id = ?').run(newStatus, userId);
     logSystemActivity(session.user.id, 'UPDATE', 'user', userId, `Status cleaner de ${user.name} alterado para ${newStatus ? 'SIM' : 'NÃO'}`);
     return sendJson(res, 200, { ok: true, is_cleaner: newStatus, name: user.name });
+  }
+
+  const userToggleActiveMatch = requestUrl.pathname.match(/^\/api\/users\/(\d+)\/toggle-active$/);
+  if (userToggleActiveMatch && req.method === 'PATCH') {
+    if (!ensureRole(session.user, ['superadmin', 'admin'], res)) return;
+    const userId = Number(userToggleActiveMatch[1]);
+    if (userId === session.user.id) {
+      return sendJson(res, 400, { error: 'Você não pode desativar seu próprio usuário logado.' });
+    }
+    const user = db.prepare('SELECT id, name, role, is_active FROM users WHERE id = ?').get(userId);
+    if (!user) return sendJson(res, 404, { error: 'Usuário não encontrado.' });
+    const currentActive = (user.is_active !== undefined && user.is_active !== null) ? Number(user.is_active) : 1;
+    const newStatus = currentActive === 1 ? 0 : 1;
+    db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(newStatus, userId);
+    if (newStatus === 0) {
+      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    }
+    logSystemActivity(session.user.id, 'UPDATE', 'user', userId, `Usuário ${user.name} (${user.role}) foi ${newStatus ? 'reativado' : 'desativado'}`);
+    return sendJson(res, 200, { ok: true, is_active: newStatus, name: user.name });
   }
 
   // ── Flats ──
@@ -5161,7 +5190,7 @@ function requireSession(req, res) {
   if (!row || new Date(row.expires_at).getTime() < Date.now()) { if (row) db.prepare('DELETE FROM sessions WHERE token = ?').run(token); sendJson(res, 401, { error: 'Sessao expirada.' }); return null; }
   return { token, user: sanitizeUser(row) };
 }
-function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0), parent_client_id: user.parent_client_id, perm_create_jobs: Number(user.perm_create_jobs || 0), perm_gen_invoices: Number(user.perm_gen_invoices || 0), perm_gen_payrolls: Number(user.perm_gen_payrolls || 0), perm_manage_clients_flats: Number(user.perm_manage_clients_flats || 0), is_cleaner: Number(user.is_cleaner || 0) }; }
+function sanitizeUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role, hourlyRate: Number(user.hourly_rate || 0), parent_client_id: user.parent_client_id, perm_create_jobs: Number(user.perm_create_jobs || 0), perm_gen_invoices: Number(user.perm_gen_invoices || 0), perm_gen_payrolls: Number(user.perm_gen_payrolls || 0), perm_manage_clients_flats: Number(user.perm_manage_clients_flats || 0), is_cleaner: Number(user.is_cleaner || 0), is_active: (user.is_active !== undefined && user.is_active !== null) ? Number(user.is_active) : 1 }; }
 function buildSessionPayload(user) { return { user: { ...sanitizeUser(user), collaborator: getCollaboratorProfile(user.id) } }; }
 function ensureRole(user, roles, res) { if (!roles.includes(user.role)) { sendJson(res, 403, { error: 'Permissao insuficiente.' }); return false; } return true; }
 function logSystemActivity(userId, action, entity, entityId = null, details = '') {

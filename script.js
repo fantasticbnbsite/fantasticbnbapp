@@ -1242,7 +1242,8 @@ async function onCreateUser(event) {
         perm_gen_invoices: form.get('perm_gen_invoices') ? 1 : 0,
         perm_gen_payrolls: form.get('perm_gen_payrolls') ? 1 : 0,
         perm_manage_clients_flats: form.get('perm_manage_clients_flats') ? 1 : 0,
-        is_cleaner: form.get('is_cleaner') ? 1 : 0
+        is_cleaner: form.get('is_cleaner') ? 1 : 0,
+        is_active: form.get('is_active') ? 1 : 0
       },
     });
     resetUserForm();
@@ -1272,6 +1273,10 @@ function resetUserForm() {
   if (permsContainer) permsContainer.style.display = 'none';
   const isCleanerContainer = document.getElementById('userIsCleanerContainer');
   if (isCleanerContainer) isCleanerContainer.style.display = 'none';
+  const isActiveContainer = document.getElementById('userIsActiveContainer');
+  if (isActiveContainer) isActiveContainer.style.display = 'none';
+  const isActiveCheck = document.getElementById('user_is_active');
+  if (isActiveCheck) isActiveCheck.checked = true;
   document.getElementById('perm_create_jobs').checked = false;
   document.getElementById('perm_gen_invoices').checked = false;
   document.getElementById('perm_gen_payrolls').checked = false;
@@ -1332,6 +1337,14 @@ function startEditUser(userId) {
   } else {
     if (isCleanerContainer) isCleanerContainer.style.display = 'none';
     document.getElementById('is_cleaner').checked = false;
+  }
+
+  // Populate is_active
+  const isActiveContainer = document.getElementById('userIsActiveContainer');
+  if (isActiveContainer) isActiveContainer.style.display = 'block';
+  const isActiveCheck = document.getElementById('user_is_active');
+  if (isActiveCheck) {
+    isActiveCheck.checked = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
   }
   
   document.getElementById('userSubmitButton').textContent = 'Atualizar usuario';
@@ -1629,7 +1642,13 @@ function getInitials(name) {
 
 function renderUsers() {
   const filter = document.getElementById('userRoleFilter')?.value || 'all';
+  const statusFilter = document.getElementById('userStatusFilter')?.value || 'all';
+
   const filteredUsers = state.users.filter((user) => {
+    const isUserActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
+    if (statusFilter === 'active' && !isUserActive) return false;
+    if (statusFilter === 'inactive' && isUserActive) return false;
+
     if (filter === 'all') return true;
     if (filter === 'gerencia') return user.role === 'superadmin' || user.role === 'admin' || user.role === 'manager';
     if (filter === 'employee') return user.role === 'employee' || isEligibleCleaner(user);
@@ -1642,9 +1661,10 @@ function renderUsers() {
     const clients = state.users.filter(u => u.role === 'client' || u.role === 'client_user').length;
     const cleaners = state.users.filter(u => isEligibleCleaner(u)).length;
     const gerencia = state.users.filter(u => u.role === 'superadmin' || u.role === 'admin' || u.role === 'manager').length;
+    const inactiveCount = state.users.filter(u => u.is_active === 0).length;
     
     hubEl.innerHTML = `
-      <article class="stat-card glass-card ${filter === 'all' ? 'hub-card-active' : ''}" style="cursor:pointer; transition:all 0.2s ease;" onclick="document.getElementById('userRoleFilter').value='all'; renderUsers();">
+      <article class="stat-card glass-card ${filter === 'all' && statusFilter === 'all' ? 'hub-card-active' : ''}" style="cursor:pointer; transition:all 0.2s ease;" onclick="document.getElementById('userRoleFilter').value='all'; const sf = document.getElementById('userStatusFilter'); if(sf) sf.value='all'; renderUsers();">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <strong>${total}</strong>
           <div class="hub-stat-icon" style="background:#f1f5f9; color:#475569;"><i data-lucide="users"></i></div>
@@ -1672,10 +1692,20 @@ function renderUsers() {
         </div>
         <span style="font-weight:600; color:var(--text);">Gerência</span>
       </article>
+      <article class="stat-card glass-card ${statusFilter === 'inactive' ? 'hub-card-active' : ''}" style="cursor:pointer; transition:all 0.2s ease;" onclick="const sf = document.getElementById('userStatusFilter'); if(sf) sf.value = sf.value === 'inactive' ? 'all' : 'inactive'; renderUsers();">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <strong>${inactiveCount}</strong>
+          <div class="hub-stat-icon" style="background:#fef2f2; color:#dc2626;"><i data-lucide="user-x"></i></div>
+        </div>
+        <span style="font-weight:600; color:var(--text);">Desativados</span>
+      </article>
     `;
   }
 
   els.usersList.innerHTML = filteredUsers.map((user) => {
+    const isUserActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
+    const isSelf = state.user && Number(state.user.id) === Number(user.id);
+
     let roleLabel = user.role;
     let avatarRoleClass = 'role-client';
     let badgeRoleClass = 'badge-role-client';
@@ -1745,6 +1775,11 @@ function renderUsers() {
       }
     }
 
+    let inactiveBadge = '';
+    if (!isUserActive) {
+      inactiveBadge = `<span class="badge-role badge-role-inactive" title="Acesso bloqueado"><i data-lucide="user-x"></i> Desativado</span>`;
+    }
+
     let middleWidgetHtml = '';
     if (isCleanerUser) {
       middleWidgetHtml = `
@@ -1787,7 +1822,7 @@ function renderUsers() {
     }
 
     return `
-      <div class="user-card">
+      <div class="user-card ${!isUserActive ? 'user-card-inactive' : ''}">
         <div class="user-card-header">
           <div class="user-avatar ${avatarRoleClass}" title="${roleLabel}">
             ${escapeHtml(initials)}
@@ -1797,6 +1832,7 @@ function renderUsers() {
             <div class="user-badges">
               <span class="badge-role ${badgeRoleClass}"><i data-lucide="${iconName}"></i> ${roleLabel}</span>
               ${cleanerBadge}
+              ${inactiveBadge}
             </div>
           </div>
         </div>
@@ -1813,6 +1849,15 @@ function renderUsers() {
           <button class="card-btn card-btn-edit" type="button" onclick="startEditUser(${user.id})" title="Editar cadastro de ${escapeHtml(user.name)}">
             <i data-lucide="edit-3"></i> <span>Editar</span>
           </button>
+          ${!isSelf ? `
+          <button class="card-btn ${isUserActive ? 'card-btn-icon' : ''} card-btn-toggle-active ${isUserActive ? 'is-active' : 'is-inactive'}" 
+                  type="button" 
+                  onclick="toggleUserActive(${user.id})" 
+                  title="${isUserActive ? 'Desativar acesso deste usuário' : 'Reativar acesso de ' + escapeHtml(user.name)}">
+            <i data-lucide="${isUserActive ? 'user-x' : 'user-check'}"></i>
+            ${!isUserActive ? '<span>Reativar</span>' : ''}
+          </button>
+          ` : ''}
           <button class="card-btn card-btn-icon" type="button" data-user-password="${user.id}" title="Redefinir senha">
             <i data-lucide="key"></i>
           </button>
@@ -1831,6 +1876,34 @@ function renderUsers() {
     button.addEventListener('click', () => onChangeUserPassword(Number(button.dataset.userPassword)));
   });
 }
+
+window.toggleUserActive = async function(userId) {
+  const user = (state.users || []).find(u => Number(u.id) === Number(userId));
+  if (!user) return;
+
+  if (state.user && Number(state.user.id) === Number(userId)) {
+    toast('Você não pode desativar seu próprio usuário logado.', 'warning');
+    return;
+  }
+
+  const isCurrentlyActive = user.is_active === undefined || user.is_active === null || Number(user.is_active) === 1;
+  const actionText = isCurrentlyActive ? 'desativar' : 'reativar';
+  const confirmMsg = isCurrentlyActive
+    ? `Deseja desativar o usuário "${user.name}"?\n\n• Ele perderá o acesso imediato ao sistema.\n• Não receberá novas designações.\n• Você poderá reativá-lo a qualquer momento.`
+    : `Deseja reativar o acesso de "${user.name}" ao sistema?`;
+
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await api(`/api/users/${userId}/toggle-active`, { method: 'PATCH' });
+    toast(res.is_active ? `Acesso de "${res.name}" foi reativado com sucesso!` : `Acesso de "${res.name}" foi desativado.`, 'success');
+    await loadUsers();
+    if (typeof loadFlats === 'function') await loadFlats();
+    if (typeof loadJobs === 'function') await loadJobs();
+  } catch (err) {
+    toast(err.message || `Erro ao ${actionText} usuário.`, 'error');
+  }
+};
 
 window.toggleUserCleaner = async function(userId) {
   try {
@@ -2413,6 +2486,7 @@ function isCollaborator() { return !!state.user?.collaborator; }
 function isViewerOnly() { return state.user?.role === 'viewer' && !isCollaborator(); }
 function isEligibleCleaner(u) {
   if (!u) return false;
+  if (u.is_active === 0 || u.is_active === false) return false;
   return u.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(u.role) && (Number(u.is_cleaner) === 1 || u.is_cleaner === true));
 }
 function isCleanerRole() { return state.user?.role === 'employee' || (['manager', 'admin', 'superadmin'].includes(state.user?.role) && (Number(state.user?.is_cleaner) === 1 || state.user?.is_cleaner === true)); }
