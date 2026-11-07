@@ -3688,7 +3688,38 @@ const finState = {
   target: null, // null for grouped cards view, or string (client/employee name) for detail view
 };
 
+window.toggleFinanceCard = function(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  const isCollapsed = card.classList.toggle('collapsed');
+  const hintEl = card.querySelector('.collapse-hint');
+  if (hintEl) {
+    hintEl.textContent = isCollapsed ? 'Abrir' : 'Recolher';
+  }
+  try {
+    localStorage.setItem(cardId + '_collapsed', isCollapsed ? 'true' : 'false');
+  } catch (e) {}
+  if (window.lucide) window.lucide.createIcons({ root: card });
+};
+
+window.initCollapsibleCards = function() {
+  ['cardGenInvoices', 'cardGenPayrolls'].forEach((cardId) => {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    const saved = localStorage.getItem(cardId + '_collapsed');
+    // Default to collapsed = true if not explicitly set to 'false'
+    const shouldCollapse = saved !== 'false';
+    card.classList.toggle('collapsed', shouldCollapse);
+    const hintEl = card.querySelector('.collapse-hint');
+    if (hintEl) {
+      hintEl.textContent = shouldCollapse ? 'Abrir' : 'Recolher';
+    }
+    if (window.lucide) window.lucide.createIcons({ root: card });
+  });
+};
+
 window.renderFinanceSummary = async function() {
+  initCollapsibleCards();
   // Populate generation selectors (unchanged logic)
   try {
     const data = await api('/api/users');

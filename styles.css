@@ -1853,6 +1853,64 @@ textarea {
   font-size: 0.9rem;
 }
 
+/* ── Collapsible Cards (Finance & Tools) ─────────────────────── */
+.collapsible-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: opacity 0.15s ease;
+  padding: 4px 0;
+}
+
+.collapsible-header:hover {
+  opacity: 0.9;
+}
+
+.collapse-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-alt);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.collapsible-header:hover .collapse-trigger {
+  color: var(--text);
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.collapse-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-card.collapsed .collapsible-content {
+  display: none !important;
+}
+
+.collapsible-card:not(.collapsed) .collapse-chevron {
+  transform: rotate(180deg);
+}
+
+.collapsible-card:not(.collapsed) {
+  border-color: rgba(8, 0, 88, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
 /* ── Finance Documents Redesign ─────────────────────────────────── */
 #financeDocsPanel {
   display: flex;

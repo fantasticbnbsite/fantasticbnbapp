@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261107h" />
+  <link rel="stylesheet" href="styles.css?v=20261107i" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -415,74 +415,100 @@
 
         <div class="overview-grid" style="margin-bottom: 24px;">
           <!-- Card: Gerar Faturas (Clientes) -->
-          <div class="panel glass-card">
-            <div class="panel-header">
-              <h3>Gerar Faturas (Clientes)</h3>
-              <span class="panel-kicker">Fechamento do faturamento</span>
-            </div>
-            <div class="stack-form">
-              <div class="form-group">
-                <label class="form-label">Período</label>
-                <div class="rate-grid">
-                  <input type="date" id="genInvoiceFrom" />
-                  <input type="date" id="genInvoiceTo" />
+          <div class="panel glass-card collapsible-card collapsed" id="cardGenInvoices">
+            <div class="panel-header collapsible-header" onclick="toggleFinanceCard('cardGenInvoices')" style="cursor: pointer; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="collapse-icon-badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="receipt"></i>
+                </div>
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700;">Gerar Faturas (Clientes)</h3>
+                  <span class="panel-kicker" style="margin: 0; font-size: 0.8rem;">Fechamento do faturamento</span>
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Cliente</label>
-                <select id="genInvoiceClient">
-                  <option value="all">Todos os Clientes</option>
-                  <!-- Populated dynamically -->
-                </select>
+              <div class="collapse-trigger">
+                <span class="collapse-hint">Abrir</span>
+                <i data-lucide="chevron-down" class="collapse-chevron"></i>
               </div>
-              <div class="toolbar-actions" style="margin-top:16px;">
-                <button class="button button-primary" type="button" id="btnGenInvoices">Gerar Faturas</button>
+            </div>
+            <div class="collapsible-content">
+              <div class="stack-form" style="padding-top: 16px; border-top: 1px solid var(--line); margin-top: 14px;">
+                <div class="form-group">
+                  <label class="form-label">Período</label>
+                  <div class="rate-grid">
+                    <input type="date" id="genInvoiceFrom" />
+                    <input type="date" id="genInvoiceTo" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cliente</label>
+                  <select id="genInvoiceClient">
+                    <option value="all">Todos os Clientes</option>
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="toolbar-actions" style="margin-top:16px;">
+                  <button class="button button-primary" type="button" id="btnGenInvoices">Gerar Faturas</button>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Card: Gerar Holerites (Funcionários) -->
-          <div class="panel glass-card">
-            <div class="panel-header">
-              <h3>Gerar Holerites (Cleaners)</h3>
-              <span class="panel-kicker">Fechamento dos pagamentos</span>
-            </div>
-            <div class="stack-form">
-              <div class="form-group">
-                <label class="form-label">Período</label>
-                <div class="rate-grid">
-                  <input type="date" id="genPayrollFrom" />
-                  <input type="date" id="genPayrollTo" />
+          <div class="panel glass-card collapsible-card collapsed" id="cardGenPayrolls">
+            <div class="panel-header collapsible-header" onclick="toggleFinanceCard('cardGenPayrolls')" style="cursor: pointer; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="collapse-icon-badge" style="background: rgba(5, 150, 105, 0.1); color: #059669; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="wallet"></i>
+                </div>
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700;">Gerar Holerites (Cleaners)</h3>
+                  <span class="panel-kicker" style="margin: 0; font-size: 0.8rem;">Fechamento dos pagamentos</span>
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Funcionário</label>
-                <select id="genPayrollEmployee">
-                  <option value="all">Todos os Funcionários</option>
-                  <!-- Populated dynamically -->
-                </select>
+              <div class="collapse-trigger">
+                <span class="collapse-hint">Abrir</span>
+                <i data-lucide="chevron-down" class="collapse-chevron"></i>
               </div>
-              <div class="form-group">
-                <label class="form-label">Cliente(s)</label>
-                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; background: var(--surface);">
-                  <label style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid var(--line); font-size:1rem; cursor:pointer;">
-                    <input type="checkbox" value="all" id="genPayrollClientAll" checked onchange="toggleAllPayrollClients(this)" style="min-height:auto; width:22px; height:22px; margin:0; padding:0; accent-color:var(--primary);" />
-                    <strong>Todos os Clientes</strong>
-                  </label>
-                  <div id="genPayrollClientList" style="display:flex; flex-direction:column; gap:10px;">
-                    <!-- Populated dynamically -->
+            </div>
+            <div class="collapsible-content">
+              <div class="stack-form" style="padding-top: 16px; border-top: 1px solid var(--line); margin-top: 14px;">
+                <div class="form-group">
+                  <label class="form-label">Período</label>
+                  <div class="rate-grid">
+                    <input type="date" id="genPayrollFrom" />
+                    <input type="date" id="genPayrollTo" />
                   </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Agrupamento</label>
-                <select id="genPayrollGroupByClient">
-                  <option value="false">Geral (Juntar tudo no mesmo holerite)</option>
-                  <option value="true">Separado (Criar um holerite por cliente)</option>
-                </select>
-              </div>
-              <div class="toolbar-actions" style="margin-top:16px;">
-                <button class="button button-primary" type="button" id="btnGenPayrolls">Gerar Holerites</button>
+                <div class="form-group">
+                  <label class="form-label">Funcionário</label>
+                  <select id="genPayrollEmployee">
+                    <option value="all">Todos os Funcionários</option>
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cliente(s)</label>
+                  <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; background: var(--surface);">
+                    <label style="display:flex; align-items:center; gap:12px; margin-bottom:8px; padding-bottom:8px; border-bottom: 1px solid var(--line); font-size:1rem; cursor:pointer;">
+                      <input type="checkbox" value="all" id="genPayrollClientAll" checked onchange="toggleAllPayrollClients(this)" style="min-height:auto; width:22px; height:22px; margin:0; padding:0; accent-color:var(--primary);" />
+                      <strong>Todos os Clientes</strong>
+                    </label>
+                    <div id="genPayrollClientList" style="display:flex; flex-direction:column; gap:10px;">
+                      <!-- Populated dynamically -->
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Agrupamento</label>
+                  <select id="genPayrollGroupByClient">
+                    <option value="false">Geral (Juntar tudo no mesmo holerite)</option>
+                    <option value="true">Separado (Criar um holerite por cliente)</option>
+                  </select>
+                </div>
+                <div class="toolbar-actions" style="margin-top:16px;">
+                  <button class="button button-primary" type="button" id="btnGenPayrolls">Gerar Holerites</button>
+                </div>
               </div>
             </div>
           </div>
@@ -2124,7 +2150,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261107h" defer></script>
+  <script src="script.js?v=20261107i" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
