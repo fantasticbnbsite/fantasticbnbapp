@@ -446,7 +446,10 @@ async function loadApp() {
   loadGeneratedDocuments();
   await loadHolerites();
   let defaultView = 'dashboard';
-  if (isCollaborator()) {
+  const initialHash = window.location.hash.replace('#', '');
+  if (initialHash && els.views && els.views[initialHash]) {
+    defaultView = initialHash;
+  } else if (isCollaborator()) {
     defaultView = 'holerites';
   } else if (state.user?.role === 'manager') {
     if (canCreateJobs()) defaultView = 'jobs';
@@ -3218,10 +3221,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   document.addEventListener('keydown', (e) => {
-    if (lightboxModal && !lightboxModal.classList.contains('hidden')) {
+    if (e.key === 'Escape') {
+      if (lightboxModal && !lightboxModal.classList.contains('hidden')) {
+        lightboxModal.classList.add('hidden');
+        return;
+      }
+      // Closes top-most open modal (WCAG 2.2 dialog pattern)
+      const openModals = document.querySelectorAll('.modal:not(.hidden)');
+      if (openModals.length > 0) {
+        const topModal = openModals[openModals.length - 1];
+        topModal.classList.add('hidden');
+        return;
+      }
+    } else if (lightboxModal && !lightboxModal.classList.contains('hidden')) {
       if (e.key === 'ArrowRight') { _lbNavigateAdmin(+1); }
       if (e.key === 'ArrowLeft')  { _lbNavigateAdmin(-1); }
-      if (e.key === 'Escape')     { lightboxModal.classList.add('hidden'); }
     }
   });
 });
@@ -5397,6 +5411,17 @@ document.getElementById('generateInvoicesButton')?.addEventListener('click', asy
 
 // Override switchView
 function switchView(view) {
+  if (!view) return;
+
+  // Sincroniza hash na URL para permitir bookmark, refresh e botão Voltar (UX-001)
+  if (window.location.hash !== '#' + view) {
+    try {
+      history.pushState({ view }, '', '#' + view);
+    } catch (e) {
+      window.location.hash = view;
+    }
+  }
+
   // Close mobile sidebar if open
   const sidebar = document.querySelector('.sidebar');
   if (sidebar) sidebar.classList.remove('active');
@@ -5447,6 +5472,15 @@ function switchView(view) {
      if (typeof loadDashboard === 'function') loadDashboard();
   }
 }
+
+window.addEventListener('popstate', () => {
+  const hash = window.location.hash.replace('#', '');
+  if (hash && els.views && els.views[hash]) {
+    switchView(hash);
+  } else if (!hash && els.views && els.views.dashboard) {
+    switchView('dashboard');
+  }
+});
 
 function renderGeneratedDocuments() {
   renderGeneratedInvoicesPage();
@@ -6772,7 +6806,11 @@ async function submitManualJob(e) {
   
   if (!flatId || !employeeUserId || !date || !timeStr) return toast('Preencha os campos obrigatorios');
   
-  let [hh, mm] = timeStr.split(':').map(Number);
+  let [hh = 0, mm = 0] = timeStr.split(':').map(Number);
+  if (mm >= 60) {
+    hh += Math.floor(mm / 60);
+    mm = mm % 60;
+  }
   let hours = hh + (mm / 60);
   
   document.getElementById('manualJobSubmit').disabled = true;

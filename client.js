@@ -739,7 +739,7 @@ function jobCardHTML(job) {
       notesHTML += `
         <div class="job-meta-item" style="width:100%;margin-top:8px;padding:10px 14px;background:rgba(16,185,129,0.08);border-left:3.5px solid #059669;border-radius:0 10px 10px 0;">
           <div style="font-weight:bold;color:#059669;margin-bottom:4px;font-size:0.83rem;display:flex;align-items:center;gap:6px;">
-            🧹 Observação da Limpeza:
+            🧹 Cleaning Notes:
           </div>
           <div style="color:var(--text);font-size:0.86rem;white-space:pre-wrap;line-height:1.5;">${escHtml(job.employeeNotes)}</div>
         </div>`;

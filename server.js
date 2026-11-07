@@ -5079,7 +5079,7 @@ function ensureStatusExists(clientId, statusKey, label) {
 function parsePrintPeriodRange(label = '') { const parts = String(label || '').split(' a ').map((item) => item.trim()).filter(Boolean); return { from: parts[0] ? parsePtBrDateToIso(parts[0]) : '', to: parts[1] ? parsePtBrDateToIso(parts[1]) : parts[0] ? parsePtBrDateToIso(parts[0]) : '' }; }
 function parsePtBrDateToIso(value = '') { const [day, month, year] = String(value || '').split('/'); if (!day || !month || !year) return ''; return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`; }
 function parseHourLabelToMinutes(value = '') { const [h = '0', m = '0'] = String(value || '0:00').split(':'); return (Number(h) * 60) + Number(m); }
-function minutesToInvoiceLabel(totalMinutes = 0) { const h = Math.floor(Number(totalMinutes || 0) / 60); const m = Number(totalMinutes || 0) % 60; return `${h}:${String(m).padStart(2, '0')}:00`; }
+function minutesToInvoiceLabel(totalMinutes = 0) { const h = Math.floor(Number(totalMinutes || 0) / 60); const m = Number(totalMinutes || 0) % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
 function formatServerInvoiceHours(value = '') { return minutesToInvoiceLabel(parseHourLabelToMinutes(value)); }
 function validateRole(role) {
   const valid = ['superadmin', 'admin', 'manager', 'client', 'employee', 'viewer', 'client_user'];
