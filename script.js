@@ -4408,31 +4408,32 @@ function renderMonthlyReportsTable(reports) {
     const closedDate = r.closed_at ? new Date(r.closed_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
     const margin = r.total_revenue > 0 ? ((r.total_profit / r.total_revenue) * 100).toFixed(1) : '0.0';
     return `
-      <tr>
-        <td>
+      <tr class="report-history-tr">
+        <!-- Desktop Columns -->
+        <td class="desktop-only rep-col-period">
           <div class="period-cell">
             <span class="period-name">${escapeHtml(r.period_label || r.period_month)}</span>
             <span class="period-pill">${escapeHtml(r.period_month)}</span>
           </div>
         </td>
-        <td style="text-align:right;" class="num-cell-revenue">${_formatCurrencyPounds(r.total_revenue)}</td>
-        <td style="text-align:right;" class="num-cell-expense">${_formatCurrencyPounds(r.total_expenses)}</td>
-        <td style="text-align:right;">
+        <td class="desktop-only rep-col-rev" style="text-align:right;">${_formatCurrencyPounds(r.total_revenue)}</td>
+        <td class="desktop-only rep-col-exp" style="text-align:right;">${_formatCurrencyPounds(r.total_expenses)}</td>
+        <td class="desktop-only rep-col-profit" style="text-align:right;">
           <div class="profit-cell-group">
             <span class="num-cell-profit">${_formatCurrencyPounds(r.total_profit)}</span>
             <span class="margin-pill">${margin}% margem</span>
           </div>
         </td>
-        <td style="text-align:center;">
+        <td class="desktop-only rep-col-jobs" style="text-align:center;">
           <span class="pill-count">${r.total_jobs || 0}</span>
         </td>
-        <td>
+        <td class="desktop-only rep-col-meta">
           <div class="meta-cell">
             <span class="meta-date">${closedDate}</span>
             <span class="meta-author">${escapeHtml(r.closed_by_name ? `por ${r.closed_by_name}` : '')}</span>
           </div>
         </td>
-        <td style="text-align:center;">
+        <td class="desktop-only rep-col-actions" style="text-align:center;">
           <div class="report-actions-row">
             <button type="button" class="report-btn-action excel" title="Baixar Planilha Excel (.xls)" onclick="downloadMonthlyReport(${r.id}, 'excel')">
               📗 Excel
@@ -4453,9 +4454,65 @@ function renderMonthlyReportsTable(reports) {
             ` : ''}
           </div>
         </td>
+
+        <!-- Mobile Card View -->
+        <td class="mobile-only rep-mobile-cell">
+          <div class="rep-mobile-card">
+            <div class="rep-card-top">
+              <div class="rep-card-period">
+                <strong class="rep-card-title">${escapeHtml(r.period_label || r.period_month)}</strong>
+                <span class="period-pill">${escapeHtml(r.period_month)}</span>
+              </div>
+              <span class="rep-card-jobs-badge">
+                <i data-lucide="sparkles" style="width:12px;height:12px;"></i> ${r.total_jobs || 0} serviços
+              </span>
+            </div>
+
+            <div class="rep-card-metrics">
+              <div class="rep-metric-box">
+                <span class="rep-metric-label">Faturamento</span>
+                <span class="rep-metric-val rev">${_formatCurrencyPounds(r.total_revenue)}</span>
+              </div>
+              <div class="rep-metric-box">
+                <span class="rep-metric-label">Despesas</span>
+                <span class="rep-metric-val exp">${_formatCurrencyPounds(r.total_expenses)}</span>
+              </div>
+              <div class="rep-metric-box">
+                <span class="rep-metric-label">Lucro Líquido</span>
+                <span class="rep-metric-val profit">${_formatCurrencyPounds(r.total_profit)}</span>
+                <span class="margin-pill">${margin}%</span>
+              </div>
+            </div>
+
+            <div class="rep-card-footer-info">
+              <span>🕒 Fechado em ${closedDate}${r.closed_by_name ? ` por <strong>${escapeHtml(r.closed_by_name)}</strong>` : ''}</span>
+            </div>
+
+            <div class="rep-card-actions">
+              <button type="button" class="report-btn-action excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
+                📗 Excel
+              </button>
+              <button type="button" class="report-btn-action csv" onclick="downloadMonthlyReport(${r.id}, 'csv')">
+                📄 CSV
+              </button>
+              <button type="button" class="report-btn-action view" onclick="viewMonthlyReportModal(${r.id})">
+                👁️ Ver
+              </button>
+              <button type="button" class="report-btn-action recalc" title="Recalcular" onclick="recalculateMonthlyClosing('${r.period_month}')">
+                🔄
+              </button>
+              ${isAdmin() ? `
+                <button type="button" class="report-btn-action danger" title="Excluir" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
+                  🗑️
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
+  if (window.lucide) window.lucide.createIcons({ root: tbody });
 }
 
 window.previewMonthlyClosing = async function(showFeedback = true) {
