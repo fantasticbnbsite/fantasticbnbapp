@@ -872,18 +872,31 @@ async function sendTransactionalEmail({ to, subject, text, html, attachments = [
         payload.attachments = resendAttachments;
       }
 
-      const resp = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      let resp;
+      let data;
+      // Retry up to 3 times with backoff if hitting Resend rate limit (HTTP 429 - 2 req/sec)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        resp = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
 
-      const data = await resp.json();
+        if (resp.status === 429 && attempt < 2) {
+          console.warn(`[Resend RateLimit 429] Limite de 2 req/s atingido. Aguardando 1.2s para retry (tentativa ${attempt + 1})...`);
+          await new Promise(r => setTimeout(r, 1200));
+          continue;
+        }
+
+        data = await resp.json();
+        break;
+      }
+
       if (!resp.ok) {
-        throw new Error(data.message || data.error || `Resend Error HTTP ${resp.status}`);
+        throw new Error(data?.message || data?.error || `Resend Error HTTP ${resp.status}`);
       }
 
       return { success: true, method: 'resend', id: data.id };
