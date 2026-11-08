@@ -775,6 +775,26 @@ try { db.exec('ALTER TABLE invoices ADD COLUMN overdue_notified_date TEXT;'); } 
 try { db.exec('ALTER TABLE invoices ADD COLUMN override_email TEXT;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN last_sent_email_at TEXT;'); } catch {}
 try { db.exec('ALTER TABLE invoices ADD COLUMN last_sent_email_to TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN email_history_json TEXT;'); } catch {}
+try { db.exec('ALTER TABLE invoices ADD COLUMN email_send_count INTEGER DEFAULT 0;'); } catch {}
+try {
+  const existingSent = db.prepare('SELECT id, last_sent_email_at, last_sent_email_to FROM invoices WHERE last_sent_email_at IS NOT NULL AND (email_history_json IS NULL OR email_history_json = "")').all();
+  if (existingSent && existingSent.length > 0) {
+    const updateStmt = db.prepare('UPDATE invoices SET email_history_json = ?, email_send_count = 1 WHERE id = ?');
+    for (const inv of existingSent) {
+      const hist = [{
+        sent_at: inv.last_sent_email_at,
+        sent_to: inv.last_sent_email_to || '',
+        sent_by: 'Sistema',
+        method: 'smtp',
+        status: 'success'
+      }];
+      updateStmt.run(JSON.stringify(hist), inv.id);
+    }
+  }
+} catch (e) {
+  console.warn('[DB Migration] Backfill invoice email history warning:', e.message);
+}
 try { db.exec('ALTER TABLE flats ADD COLUMN external_unit_id TEXT;'); } catch {}
 try { db.exec('ALTER TABLE config ADD COLUMN webhook_api_key TEXT;'); } catch {}
 
@@ -2659,6 +2679,17 @@ async function handleApi(req, res, requestUrl) {
     invoices.forEach(i => {
       i.jobs = db.prepare('SELECT j.*, f.address as flat_address FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id WHERE j.invoice_id = ?').all(i.id);
       i.extras = safeJsonParse(i.extras_json, []);
+      i.email_history = safeJsonParse(i.email_history_json, []);
+      if (i.email_history.length === 0 && i.last_sent_email_at) {
+        i.email_history.push({
+          sent_at: i.last_sent_email_at,
+          sent_to: i.last_sent_email_to || i.client_email || '',
+          sent_by: 'Sistema',
+          method: 'smtp',
+          status: 'success'
+        });
+      }
+      i.email_send_count = Number(i.email_send_count || i.email_history.length || (i.last_sent_email_at ? 1 : 0));
     });
     payrolls.forEach(p => {
       p.jobs = db.prepare('SELECT j.*, f.address as flat_address, cu.name as client_name FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN users cu ON cu.id = j.client_user_id WHERE j.payroll_id = ?').all(p.id);
@@ -3055,6 +3086,23 @@ async function handleApi(req, res, requestUrl) {
       : (client.name || 'Cliente');
     const recipientEmail = (invoice.override_email || client.email || '').trim();
 
+    let emailHistory = [];
+    try {
+      emailHistory = invoice.email_history_json ? JSON.parse(invoice.email_history_json) : [];
+      if (!Array.isArray(emailHistory)) emailHistory = [];
+    } catch (e) {
+      emailHistory = [];
+    }
+    if (emailHistory.length === 0 && invoice.last_sent_email_at) {
+      emailHistory.push({
+        sent_at: invoice.last_sent_email_at,
+        sent_to: invoice.last_sent_email_to || recipientEmail,
+        sent_by: 'Sistema',
+        method: 'smtp',
+        status: 'success'
+      });
+    }
+
     return sendJson(res, 200, {
       invoice_id: invoice.id,
       client_name: clientDisplayName,
@@ -3068,6 +3116,8 @@ async function handleApi(req, res, requestUrl) {
       due_date: invoice.due_date || '',
       last_sent_email_at: invoice.last_sent_email_at || null,
       last_sent_email_to: invoice.last_sent_email_to || null,
+      email_send_count: Number(invoice.email_send_count || emailHistory.length || (invoice.last_sent_email_at ? 1 : 0)),
+      email_history: emailHistory,
       pdf_available: pdfAvailable
     });
   }
@@ -3139,14 +3189,48 @@ async function handleApi(req, res, requestUrl) {
       });
 
       const nowIso = new Date().toISOString();
-      db.prepare('UPDATE invoices SET last_sent_email_at = ?, last_sent_email_to = ? WHERE id = ?').run(nowIso, recipient, invoice.id);
-      logSystemActivity(session.user.id, 'SEND_INVOICE_EMAIL', 'invoice', invoice.id, `Fatura #${invNum} enviada com sucesso por e-mail (${emailSendResult.method}) para ${recipient}`);
+      let currentHistory = [];
+      try {
+        currentHistory = invoice.email_history_json ? JSON.parse(invoice.email_history_json) : [];
+        if (!Array.isArray(currentHistory)) currentHistory = [];
+      } catch (e) {
+        currentHistory = [];
+      }
+      if (currentHistory.length === 0 && invoice.last_sent_email_at) {
+        currentHistory.push({
+          sent_at: invoice.last_sent_email_at,
+          sent_to: invoice.last_sent_email_to || recipient,
+          sent_by: 'Sistema',
+          method: 'smtp',
+          status: 'success'
+        });
+      }
+
+      const senderName = session.user?.name || session.user?.email || 'Administrador';
+      const historyItem = {
+        sent_at: nowIso,
+        sent_to: recipient,
+        sent_by: senderName,
+        sent_by_id: session.user?.id || null,
+        method: emailSendResult.method || 'smtp',
+        status: 'success'
+      };
+      currentHistory.push(historyItem);
+      const newSendCount = (Number(invoice.email_send_count) || (currentHistory.length - 1)) + 1;
+      const historyJson = JSON.stringify(currentHistory);
+
+      db.prepare('UPDATE invoices SET last_sent_email_at = ?, last_sent_email_to = ?, email_send_count = ?, email_history_json = ? WHERE id = ?')
+        .run(nowIso, recipient, newSendCount, historyJson, invoice.id);
+
+      logSystemActivity(session.user.id, 'SEND_INVOICE_EMAIL', 'invoice', invoice.id, `Fatura #${invNum} enviada com sucesso por e-mail (${emailSendResult.method}) para ${recipient} (Envio #${newSendCount})`);
 
       return sendJson(res, 200, {
         success: true,
         message: `Fatura #${invNum} enviada com sucesso para ${recipient}`,
         sent_to: recipient,
         sent_at: nowIso,
+        send_count: newSendCount,
+        email_history: currentHistory,
         method: emailSendResult.method
       });
     } catch (mailErr) {

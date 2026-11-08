@@ -4056,6 +4056,25 @@ function _finRender() {
     const editFn = isInv ? `openEditInvoiceModal(${d.id})` : `openEditPayrollModal(${d.id})`;
     const delFn = isInv ? `deleteInvoice(${d.id})` : `deletePayroll(${d.id})`;
 
+    const isSent = isInv && Boolean(d.last_sent_email_at || (d.email_send_count && d.email_send_count > 0));
+    const sendCount = Number(d.email_send_count || (isSent ? 1 : 0));
+    let sentDateFormatted = '';
+    let sentDateOnly = '';
+    if (d.last_sent_email_at) {
+      try {
+        const dt = new Date(d.last_sent_email_at);
+        sentDateFormatted = `${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        sentDateOnly = dt.toLocaleDateString('pt-BR');
+      } catch (e) {
+        sentDateFormatted = d.last_sent_email_at;
+        sentDateOnly = d.last_sent_email_at;
+      }
+    }
+
+    const emailDesktopTooltip = isSent
+      ? `Fatura já enviada por e-mail (${sendCount}x)&#10;Último envio: ${sentDateFormatted} para ${escapeHtml(d.last_sent_email_to || d.client_email || 'cliente')}&#10;Clique para ver histórico ou reenviar.`
+      : 'Enviar fatura por e-mail com PDF anexado';
+
     return `
       <tr class="fin-card-row">
         <!-- Mobile Layout -->
@@ -4111,10 +4130,13 @@ function _finRender() {
           </div>
 
           <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
-            ${isInv ? `
+            ${isInv ? (isSent ? `
+            <button type="button" class="button button-email-sent" onclick="openSendInvoiceEmailModal(${d.id})" style="width:100%; min-height:42px; justify-content:center; gap:8px; border-radius:10px; font-size:0.84rem; font-weight:600; padding:8px 12px; text-align:center;">
+              <i data-lucide="mail-check" style="width:16px;height:16px;flex-shrink:0;"></i> Fatura Enviada (${sentDateOnly}) • Ver Histórico
+            </button>` : `
             <button type="button" class="button button-primary" onclick="openSendInvoiceEmailModal(${d.id})" style="width:100%; height:42px; justify-content:center; gap:8px; border-radius:10px; font-size:0.88rem; font-weight:600;">
               <i data-lucide="mail" style="width:16px;height:16px;"></i> Send Invoice by Email
-            </button>` : ''}
+            </button>`) : ''}
             <div style="display:flex; gap:8px; width:100%;">
               <button type="button" class="button button-secondary" onclick="${editFn}" style="flex:1; height:38px; justify-content:center; gap:6px; border-radius:10px; font-size:0.84rem; font-weight:600;">
                 <i data-lucide="edit-3" style="width:14px;height:14px;"></i> Editar
@@ -4147,7 +4169,11 @@ function _finRender() {
         <td class="fin-td fin-td-amount desktop-only" style="font-weight:700; color:#0f172a; font-size:14.5px;">${amount}</td>
         <td class="fin-td desktop-only">
           <div class="fin-actions">
-            ${isInv ? `<button type="button" class="fin-action-btn email" onclick="openSendInvoiceEmailModal(${d.id})" title="Send Invoice by Email"><i data-lucide="mail"></i></button>` : ''}
+            ${isInv ? `
+              <button type="button" class="fin-action-btn email ${isSent ? 'is-sent' : ''}" onclick="openSendInvoiceEmailModal(${d.id})" title="${emailDesktopTooltip}">
+                <i data-lucide="${isSent ? 'mail-check' : 'mail'}"></i>
+                ${sendCount > 1 ? `<span class="fin-sent-badge">${sendCount}</span>` : ''}
+              </button>` : ''}
             <button type="button" class="fin-action-btn edit" onclick="${editFn}" title="Editar"><i data-lucide="edit-3"></i></button>
             <button type="button" class="fin-action-btn delete" onclick="${delFn}" title="Excluir"><i data-lucide="trash-2"></i></button>
           </div>
@@ -4185,9 +4211,11 @@ window.deletePayroll = async function(id) {
 
 // ── SEND INVOICE BY EMAIL MODAL ─────────────────────────────────────────────
 let currentSendInvoiceId = null;
+let currentSendInvoiceData = null;
 
 window.openSendInvoiceEmailModal = async function(id) {
   currentSendInvoiceId = id;
+  currentSendInvoiceData = null;
   const modal = document.getElementById('sendInvoiceEmailModal');
   if (!modal) return;
 
@@ -4200,12 +4228,20 @@ window.openSendInvoiceEmailModal = async function(id) {
   const feedbackEl = document.getElementById('sendInvStatusFeedback');
   const confirmBtn = document.getElementById('btnConfirmSendInvEmail');
   const cancelBtn = document.getElementById('btnCancelSendInvEmail');
+  const alreadySentAlert = document.getElementById('sendInvAlreadySentAlert');
+  const historyContainer = document.getElementById('sendInvHistoryContainer');
+  const historyListEl = document.getElementById('sendInvHistoryList');
+  const introText = document.getElementById('sendInvIntroText');
 
   // Reset modal state
   if (clientNameEl) clientNameEl.textContent = 'Carregando...';
   if (numberEl) numberEl.textContent = `#${id}`;
   if (periodEl) periodEl.textContent = '—';
   if (totalEl) totalEl.textContent = '—';
+  if (alreadySentAlert) alreadySentAlert.style.display = 'none';
+  if (historyContainer) historyContainer.style.display = 'none';
+  if (historyListEl) historyListEl.innerHTML = '';
+  if (introText) introText.textContent = 'Revise os dados abaixo antes de confirmar o envio por e-mail com o PDF anexado:';
   if (emailInput) {
     emailInput.value = '';
     emailInput.disabled = true;
@@ -4225,6 +4261,7 @@ window.openSendInvoiceEmailModal = async function(id) {
 
   try {
     const data = await api(`/api/invoices/${id}/email-preview`);
+    currentSendInvoiceData = data;
     if (clientNameEl) clientNameEl.textContent = data.client_name || 'Cliente';
     if (numberEl) numberEl.textContent = `#${data.invoice_number || id}`;
     if (periodEl) periodEl.textContent = data.period_formatted || `${data.period_from} a ${data.period_to}`;
@@ -4243,6 +4280,74 @@ window.openSendInvoiceEmailModal = async function(id) {
         hintEl.innerHTML = '<span style="color:var(--danger);font-weight:600;">⚠️ Nenhum e-mail encontrado no cadastro. Digite o destinatário acima.</span>';
       }
     }
+
+    // Check if invoice was already dispatched
+    const isAlreadySent = Boolean(data.last_sent_email_at || (data.email_send_count && data.email_send_count > 0));
+    const sendCount = Number(data.email_send_count || (isAlreadySent ? 1 : 0));
+    let lastSentFormatted = '';
+    if (data.last_sent_email_at) {
+      try {
+        const dt = new Date(data.last_sent_email_at);
+        lastSentFormatted = `${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      } catch (e) {
+        lastSentFormatted = data.last_sent_email_at;
+      }
+    }
+
+    if (isAlreadySent && alreadySentAlert) {
+      alreadySentAlert.style.display = 'block';
+      const titleEl = document.getElementById('sendInvAlertTitle');
+      const subEl = document.getElementById('sendInvAlertSub');
+      if (titleEl) titleEl.textContent = `Esta fatura já foi enviada por e-mail (${sendCount}x)`;
+      if (subEl) {
+        subEl.innerHTML = `Último envio em <strong>${lastSentFormatted}</strong> para <strong>${escapeHtml(data.last_sent_email_to || data.recipient_email || 'cliente')}</strong>.`;
+      }
+      if (introText) {
+        introText.innerHTML = '<span style="color:#b45309;font-weight:600;">⚠️ Registro de envio anterior localizado:</span> Se precisar reenviar para este cliente, confirme os dados abaixo:';
+      }
+      if (confirmBtn) {
+        confirmBtn.innerHTML = '<i data-lucide="send"></i> Confirmar Reenvio de Fatura';
+      }
+    } else {
+      if (alreadySentAlert) alreadySentAlert.style.display = 'none';
+      if (confirmBtn) {
+        confirmBtn.innerHTML = '<i data-lucide="mail"></i> Confirmar Envio';
+      }
+    }
+
+    // Render send history list if available
+    const history = Array.isArray(data.email_history) ? data.email_history : [];
+    if (history.length > 0 && historyContainer && historyListEl) {
+      historyContainer.style.display = 'block';
+      const countEl = document.getElementById('sendInvHistoryCount');
+      if (countEl) countEl.textContent = history.length;
+      const sorted = [...history].reverse();
+      historyListEl.innerHTML = sorted.map((h, i) => {
+        let dStr = h.sent_at;
+        try {
+          const dt = new Date(h.sent_at);
+          dStr = `${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        } catch (e) {}
+        const dest = h.sent_to || '—';
+        const sender = h.sent_by || 'Admin';
+        const meth = (h.method === 'resend') ? 'Resend' : 'SMTP';
+        return `
+          <div class="send-inv-history-row">
+            <div class="row-header">
+              <span class="row-date"><i data-lucide="clock" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>${dStr}</span>
+              <span class="row-status">✓ Enviado (${meth})</span>
+            </div>
+            <div class="row-meta">
+              <span>Para: <strong style="color:var(--text);">${escapeHtml(dest)}</strong></span>
+              <span>Por: <strong>${escapeHtml(sender)}</strong></span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else if (historyContainer) {
+      historyContainer.style.display = 'none';
+    }
+
     if (confirmBtn) confirmBtn.disabled = false;
     if (window.lucide) window.lucide.createIcons({ root: modal });
   } catch (err) {
@@ -4261,6 +4366,7 @@ window.closeSendInvoiceEmailModal = function() {
   const modal = document.getElementById('sendInvoiceEmailModal');
   if (modal) modal.classList.add('hidden');
   currentSendInvoiceId = null;
+  currentSendInvoiceData = null;
 };
 
 window.confirmSendInvoiceEmail = async function() {
@@ -4283,6 +4389,23 @@ window.confirmSendInvoiceEmail = async function() {
     }
     emailInput?.focus();
     return;
+  }
+
+  // Protection against accidental double sends
+  if (currentSendInvoiceData?.last_sent_email_at) {
+    let prevSentStr = '';
+    try {
+      const dt = new Date(currentSendInvoiceData.last_sent_email_at);
+      prevSentStr = `${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch (e) {
+      prevSentStr = currentSendInvoiceData.last_sent_email_at;
+    }
+    const targetPrev = currentSendInvoiceData.last_sent_email_to || 'o cliente';
+    const confirmedResend = await confirmModal(
+      `⚠️ ATENÇÃO: Esta fatura já foi enviada por e-mail em ${prevSentStr} para ${targetPrev}.\n\nPara não correr o risco de cobrar o cliente em duplicidade, confirme: deseja realmente REENVIAR a fatura agora para "${recipientEmail}"?`,
+      { title: 'Confirmar Reenvio de Fatura', isDanger: false, confirmText: 'Sim, Reenviar Fatura' }
+    );
+    if (!confirmedResend) return;
   }
 
   // Prevent double clicks & show loading indicator
@@ -4314,6 +4437,25 @@ window.confirmSendInvoiceEmail = async function() {
       feedbackEl.textContent = '✓ ' + (res.message || 'Fatura enviada com sucesso!');
     }
     toast(res.message || 'Fatura enviada por e-mail com sucesso!', 'success');
+
+    // Update local state directly so the table and buttons immediately turn green
+    const updateLocally = (inv) => {
+      if (inv && Number(inv.id) === Number(id)) {
+        inv.last_sent_email_at = res.sent_at;
+        inv.last_sent_email_to = res.sent_to;
+        inv.email_send_count = res.send_count || ((Number(inv.email_send_count) || 0) + 1);
+        inv.email_history = res.email_history || inv.email_history || [];
+      }
+    };
+    if (window.finState?.invoices) {
+      window.finState.invoices.forEach(updateLocally);
+      if (typeof renderFinanceTable === 'function' && finState.activeTab === 'invoices') {
+        renderFinanceTable();
+      }
+    }
+    if (window.state?.finance?.invoices) {
+      window.state.finance.invoices.forEach(updateLocally);
+    }
 
     setTimeout(() => {
       closeSendInvoiceEmailModal();
@@ -6371,16 +6513,25 @@ function openEditInvoiceModal(id) {
   const invoice = (state.finance?.invoices || []).find(i => i.id === id)
     || (finState.invoices || []).find(i => i.id === id);
   if (!invoice) return;
+  const isSent = Boolean(invoice.last_sent_email_at || (invoice.email_send_count && invoice.email_send_count > 0));
+  const sendCount = Number(invoice.email_send_count || (isSent ? 1 : 0));
+  const emailBtnHtml = isSent
+    ? `<button class="button button-email-sent" style="padding:4px 10px;font-size:0.85rem;margin-right:8px;display:inline-flex;align-items:center;gap:6px;" onclick="openSendInvoiceEmailModal(${id})" title="Já enviada ${sendCount}x. Clique para ver histórico ou reenviar.">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        ✓ Fatura Enviada (${sendCount}x) • Histórico
+      </button>`
+    : `<button class="button button-primary" style="padding:4px 10px;font-size:0.85rem;margin-right:8px;display:inline-flex;align-items:center;gap:6px;" onclick="openSendInvoiceEmailModal(${id})">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+        Send Invoice by Email
+      </button>`;
+
   document.getElementById('financeEditTitle').textContent = `Editar Fatura #${invoice.invoice_number || id} - ${invoice.client_name}`;
   document.getElementById('financeEditPrintContainer').innerHTML = `
     <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;margin-right:8px;color:#d97706;border-color:#d97706;" onclick="fixInvoice(${id})">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
       Recalcular Valores
     </button>
-    <button class="button button-primary" style="padding:4px 10px;font-size:0.85rem;margin-right:8px;display:inline-flex;align-items:center;gap:6px;" onclick="openSendInvoiceEmailModal(${id})">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-      Send Invoice by Email
-    </button>
+    ${emailBtnHtml}
     <button class="ghost-button" style="padding:4px 8px;font-size:0.85rem;" onclick="window.open('/print/invoice/${id}', '_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>
   `;
   

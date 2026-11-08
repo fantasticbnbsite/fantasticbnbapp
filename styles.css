@@ -2821,6 +2821,95 @@ textarea {
   color: #1d4ed8;
 }
 
+.fin-action-btn.email.is-sent {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #a7f3d0 !important;
+  position: relative;
+}
+.fin-action-btn.email.is-sent:hover {
+  background: #d1fae5 !important;
+  color: #047857 !important;
+  border-color: #6ee7b7 !important;
+}
+
+.fin-action-btn .fin-sent-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  border-radius: 10px;
+  min-width: 15px;
+  height: 15px;
+  line-height: 15px;
+  text-align: center;
+  padding: 0 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid #ffffff;
+  pointer-events: none;
+}
+
+.button-email-sent {
+  background: #ecfdf5 !important;
+  color: #065f46 !important;
+  border: 1px solid #a7f3d0 !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+.button-email-sent:hover {
+  background: #d1fae5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+}
+
+.send-inv-alert-sent {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.send-inv-history-row {
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.send-inv-history-row .row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.send-inv-history-row .row-date {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text, #0f172a);
+}
+.send-inv-history-row .row-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.send-inv-history-row .row-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  color: var(--muted, #64748b);
+}
+
 .fin-action-btn.delete {
   background: #fef2f2;
   color: #dc2626;

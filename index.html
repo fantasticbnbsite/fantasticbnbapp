@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261107y" />
+  <link rel="stylesheet" href="styles.css?v=20261107z" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#080058">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1868,7 +1868,25 @@
         <button type="button" class="icon-button" onclick="closeSendInvoiceEmailModal()" title="Fechar">✕</button>
       </div>
       <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 14px;">
-        <p style="margin: 0; color: var(--text-2); font-size: 0.95rem;">
+        <!-- Banner de Alerta se já foi enviada -->
+        <div id="sendInvAlreadySentAlert" class="send-inv-alert-sent" style="display: none;">
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <i data-lucide="check-circle-2" style="width: 20px; height: 20px; color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
+            <div style="flex: 1;">
+              <strong id="sendInvAlertTitle" style="color: #065f46; font-size: 0.92rem; display: block;">
+                Esta fatura já foi enviada por e-mail
+              </strong>
+              <span id="sendInvAlertSub" style="color: #047857; font-size: 0.82rem; display: block; margin-top: 2px;">
+                Último envio em —
+              </span>
+              <span style="color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-size: 0.76rem; display: inline-block; margin-top: 6px; font-weight: 500;">
+                ⚠️ Cuidado para não enviar mais de uma vez para o cliente sem necessidade.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p id="sendInvIntroText" style="margin: 0; color: var(--text-2); font-size: 0.95rem;">
           Revise os dados abaixo antes de confirmar o envio por e-mail com o PDF anexado:
         </p>
 
@@ -1888,6 +1906,19 @@
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="color: var(--muted); font-size: 0.85rem;">Valor Total:</span>
             <strong id="sendInvTotal" style="color: var(--success); font-size: 1rem;">—</strong>
+          </div>
+        </div>
+
+        <!-- Seção de Histórico de Envios Anteriores -->
+        <div id="sendInvHistoryContainer" style="display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--text); display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="history" style="width: 14px; height: 14px; color: var(--primary);"></i> Histórico de Envios (<span id="sendInvHistoryCount">0</span>)
+            </span>
+            <span style="font-size: 0.74rem; color: var(--muted);">Disparos registrados</span>
+          </div>
+          <div id="sendInvHistoryList" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+            <!-- Linhas de histórico inseridas dinamicamente -->
           </div>
         </div>
 
@@ -2154,7 +2185,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=20261107y" defer></script>
+  <script src="script.js?v=20261107z" defer></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
