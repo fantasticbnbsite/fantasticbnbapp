@@ -709,8 +709,6 @@ function jobCardHTML(job) {
       if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
         actionBtn = `<button class="btn btn-ghost btn-sm" onclick="openEditJobModal('${job.id}')">✏️ Edit</button> ` + actionBtn;
       }
-    } else {
-      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--muted); margin-left: auto;" onclick="deleteJob('${job.id}')">🗑️ Delete</button>`;
     }
     
     if (text || actionBtn) {
@@ -722,6 +720,22 @@ function jobCardHTML(job) {
   }
 
   let notesHTML = '';
+  if (job.status && job.status.startsWith('cancelled')) {
+    notesHTML += `
+      <div class="job-meta-item" style="width:100%;margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:8px;">
+        <div style="font-weight:700;color:#b91c1c;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
+          🚫 Motivo do Cancelamento:
+        </div>
+        <div style="color:#7f1d1d;font-size:0.86rem;margin-top:2px;font-weight:500;">
+          ${escHtml(job.cancellationReason || job.notes || 'Motivo não informado')}
+        </div>
+        ${job.cancelledByName ? `
+          <div style="font-size:0.75rem;color:#991b1b;margin-top:3px;opacity:0.85;">
+            Cancelado por: <strong>${escHtml(job.cancelledByName)}</strong>
+          </div>
+        ` : ''}
+      </div>`;
+  }
   if (job.notes) {
     notesHTML += `<div class="job-meta-item" style="width:100%;margin-top:4px;"><span>📝</span> <em style="color:var(--muted);font-style:normal;font-size:0.84rem;">${escHtml(job.notes)}</em></div>`;
   }
@@ -1307,25 +1321,23 @@ document.getElementById('clientEditJobForm')?.addEventListener('submit', async (
 });
 
 window.cancelJob = async function(jobId) {
-  if (!confirm('Are you sure you want to cancel this service request?')) return;
+  const reason = prompt('Informe obrigatoriamente o motivo do cancelamento deste serviço:');
+  if (reason === null) return;
+  if (!reason.trim()) {
+    alert('O motivo do cancelamento é obrigatório.');
+    return;
+  }
   try {
-    await api('PATCH', `/api/jobs/${jobId}/cancel`);
-    showToast('Service cancelled successfully.', 'success');
+    await api('PATCH', `/api/jobs/${jobId}/cancel`, { cancellationReason: reason.trim(), notes: reason.trim() });
+    showToast('Serviço cancelado com sucesso.', 'success');
     await loadJobs();
   } catch (err) {
-    showToast('Error cancelling: ' + (err.message || ''), 'error');
+    showToast('Erro ao cancelar: ' + (err.message || ''), 'error');
   }
 };
 
-window.deleteJob = async function(jobId) {
-  if (!confirm('Do you want to delete this service from your list? This action cannot be undone.')) return;
-  try {
-    await api('DELETE', `/api/jobs/${jobId}`);
-    showToast('Service deleted successfully.', 'success');
-    await loadJobs();
-  } catch (err) {
-    showToast('Error deleting: ' + (err.message || ''), 'error');
-  }
+window.deleteJob = function() {
+  alert('A exclusão definitiva de serviços foi desativada no sistema. Cancele o serviço informando o motivo.');
 };
 
 // ── CHANGE PASSWORD ────────────────────────────────────────────────────────

@@ -498,6 +498,10 @@ try { db.exec("ALTER TABLE jobs ADD COLUMN cleaning_type TEXT DEFAULT 'end_of_st
 try { db.exec("ALTER TABLE inventory_catalog ADD COLUMN name_en TEXT;"); } catch(e) {}
 try { db.exec("ALTER TABLE inventory_catalog ADD COLUMN category_en TEXT;"); } catch(e) {}
 try { db.exec("ALTER TABLE jobs ADD COLUMN inventory_audit_json TEXT DEFAULT '[]';"); } catch(e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN cancellation_reason TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_at TEXT DEFAULT "";'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_by_name TEXT DEFAULT "";'); } catch {}
 try {
   const defaultChecklist = JSON.stringify([
     { "category": "QUARTO", "items": ["FOTO QUARTO", "DEBAIXO DA CAMA (FOTO)", "CHECAR GAVETAS (FOTO)", "DESLIGAR AR CONDICIONADO / AQUECEDOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
@@ -2043,6 +2047,36 @@ async function handleApi(req, res, requestUrl) {
       updatedEmployeeAmount = 0.00;
     }
 
+    let updatedCancellationReason = job.cancellation_reason || '';
+    let updatedCancelledAt = job.cancelled_at || '';
+    let updatedCancelledByUserId = job.cancelled_by_user_id || null;
+    let updatedCancelledByName = job.cancelled_by_name || '';
+
+    if (updatedStatus.startsWith('cancelled')) {
+      const reasonInput = (body.cancellationReason || body.cancellation_reason || body.notes || '').trim();
+      if (!job.status.startsWith('cancelled')) {
+        if (!reasonInput) {
+          return sendJson(res, 400, { error: 'O motivo do cancelamento é obrigatório.' });
+        }
+        updatedCancellationReason = reasonInput;
+        updatedCancelledAt = now;
+        updatedCancelledByUserId = session.user.id;
+        updatedCancelledByName = session.user.name || session.user.email || 'Usuário';
+
+        const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id) || {};
+        const flatAddr = flat.address || `Flat #${job.flat_id}`;
+        logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', jobId, `Serviço #${jobId} (${flatAddr}) cancelado [${updatedStatus}]. Motivo: "${updatedCancellationReason}". Cancelado por: ${updatedCancelledByName}`);
+      } else if (reasonInput) {
+        updatedCancellationReason = reasonInput;
+      }
+    } else if (job.status.startsWith('cancelled')) {
+      // Reverted from cancelled: clear cancellation fields
+      updatedCancellationReason = '';
+      updatedCancelledAt = '';
+      updatedCancelledByUserId = null;
+      updatedCancelledByName = '';
+    }
+
     let updatedFinishedAt = job.finished_at;
     let updatedStartedAt = job.started_at;
     
@@ -2065,8 +2099,8 @@ async function handleApi(req, res, requestUrl) {
       updatedFinishedAt = null;
     }
 
-    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, is_priority=?, cleaning_type=?, notes=?, employee_notes=?, started_at=?, finished_at=?, updated_at=? WHERE id=?`)
-      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedIsPriority, updatedCleaningType, updatedNotes, updatedEmployeeNotes, updatedStartedAt, updatedFinishedAt, now, jobId);
+    db.prepare(`UPDATE jobs SET employee_user_id=?, status=?, requested_date=?, duration_hours=?, client_amount=?, employee_amount=?, is_holiday=?, is_priority=?, cleaning_type=?, notes=?, employee_notes=?, started_at=?, finished_at=?, cancellation_reason=?, cancelled_at=?, cancelled_by_user_id=?, cancelled_by_name=?, updated_at=? WHERE id=?`)
+      .run(updatedEmployeeUserId, updatedStatus, updatedRequestedDate, updatedDurationHours, updatedClientAmount, updatedEmployeeAmount, updatedIsHoliday, updatedIsPriority, updatedCleaningType, updatedNotes, updatedEmployeeNotes, updatedStartedAt, updatedFinishedAt, updatedCancellationReason, updatedCancelledAt, updatedCancelledByUserId, updatedCancelledByName, now, jobId);
     
     enforceProjectFlatIntegrity(job.flat_id, updatedRequestedDate || job.requested_date);
     recalculateFinancialTotals(job.invoice_id, job.payroll_id);
@@ -2101,17 +2135,7 @@ async function handleApi(req, res, requestUrl) {
 
 
   if (jobCrudMatch && req.method === 'DELETE') {
-    const jobId = Number(jobCrudMatch[1]);
-    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
-    if (!job) return sendJson(res, 404, { error: 'Servico nao encontrado.' });
-    const targetClientId = session.user.role === 'client_user' ? session.user.parent_client_id : session.user.id;
-    if ((session.user.role === 'client' || session.user.role === 'client_user') && job.client_user_id !== targetClientId) {
-      return sendJson(res, 403, { error: 'Voce nao tem permissao para excluir este servico.' });
-    }
-    db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
-      logSystemActivity(session.user.id, 'DELETE', 'job', jobId, `Serviço excluído`);
-    recalculateFinancialTotals(job.invoice_id, job.payroll_id);
-    return sendNoContent(res);
+    return sendJson(res, 403, { error: 'A exclusão definitiva de serviços foi desativada no sistema. Os serviços devem ser cancelados informando obrigatoriamente o motivo do cancelamento.' });
   }
 
   const jobTransitionMatch = requestUrl.pathname.match(/^\/api\/jobs\/(\d+)\/(assign|accept|reject|start|finish|cancel)$/);
@@ -2272,6 +2296,11 @@ async function handleApi(req, res, requestUrl) {
       }
       if (job.status === 'completed') return sendJson(res, 400, { error: 'Nao e possivel cancelar um servico concluido.' });
 
+      const cancellationReason = (body.cancellationReason || body.cancellation_reason || body.notes || '').trim();
+      if (!cancellationReason) {
+        return sendJson(res, 400, { error: 'O motivo do cancelamento é obrigatório.' });
+      }
+
       let cancelStatus = 'cancelled';
       let durationHours = 0;
       let clientAmount = 0.00;
@@ -2279,7 +2308,9 @@ async function handleApi(req, res, requestUrl) {
       const cancellationType = body.cancellationType || body.status || 'cancelled';
       let notes = job.notes || '';
       if (body.notes && body.notes.trim()) {
-        notes = notes ? `${notes}\n[Cancelamento] ${body.notes.trim()}` : body.notes.trim();
+        notes = notes ? `${notes}\n[Cancelamento] ${body.notes.trim()}` : `[Cancelamento] ${body.notes.trim()}`;
+      } else if (cancellationReason) {
+        notes = notes ? `${notes}\n[Cancelamento] ${cancellationReason}` : `[Cancelamento] ${cancellationReason}`;
       }
 
       if (['cancelled_late', 'cancelled_company'].includes(cancellationType) && (isAdminRole(session.user.role) || session.user.role === 'manager')) {
@@ -2310,12 +2341,17 @@ async function handleApi(req, res, requestUrl) {
         }
       }
 
-      db.prepare('UPDATE jobs SET status=?, duration_hours=?, client_amount=?, employee_amount=?, notes=?, updated_at=? WHERE id=?')
-        .run(cancelStatus, durationHours, clientAmount, employeeAmount, notes, now, jobId);
-      logSystemActivity(session.user.id, 'CANCEL', 'job', jobId, `Serviço cancelado (${cancelStatus})`);
+      const cancelledByName = session.user.name || session.user.email || 'Usuário';
+
+      db.prepare('UPDATE jobs SET status=?, duration_hours=?, client_amount=?, employee_amount=?, notes=?, cancellation_reason=?, cancelled_at=?, cancelled_by_user_id=?, cancelled_by_name=?, updated_at=? WHERE id=?')
+        .run(cancelStatus, durationHours, clientAmount, employeeAmount, notes, cancellationReason, now, session.user.id, cancelledByName, now, jobId);
+
+      const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id) || {};
+      const flatAddr = flat.address || `Flat #${job.flat_id}`;
+      logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', jobId, `Serviço #${jobId} (${flatAddr}) cancelado [${cancelStatus}]. Motivo: "${cancellationReason}". Cancelado por: ${cancelledByName}`);
       recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
-        sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado.`, job_id: jobId }).catch(() => {});
+        sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado. Motivo: ${cancellationReason}`, job_id: jobId }).catch(() => {});
       }
     }
 
@@ -4654,6 +4690,10 @@ function hydrateJob(row) {
     requestedDate: row.requested_date,
     notes: row.notes || '',
     employeeNotes: row.employee_notes || '',
+    cancellationReason: row.cancellation_reason || '',
+    cancelledAt: row.cancelled_at || null,
+    cancelledByUserId: row.cancelled_by_user_id || null,
+    cancelledByName: row.cancelled_by_name || '',
     startedAt: row.started_at || null,
     finishedAt: row.finished_at || null,
     durationHours: row.status === 'cancelled' ? 0 : (row.duration_hours !== null && row.duration_hours !== undefined ? Number(row.duration_hours) : null),

@@ -5518,7 +5518,6 @@ function renderJobs() {
         actions += `<button class="ghost-button job-btn-photo" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
         actions += `<a class="ghost-button job-btn-download" style="text-decoration: none;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" download><i data-lucide="download"></i></a>`;
       }
-      actions += `<button class="ghost-button job-btn-delete" onclick="deleteJob(${job.id})" title="Excluir"><i data-lucide="trash-2"></i></button>`;
       
       let badgeClass = 'badge-neutral';
       if(job.status === 'completed') badgeClass = 'badge-success';
@@ -5587,6 +5586,22 @@ function renderJobs() {
               <div class="job-cleaner-note-box ${job.isUrgent || job.is_urgent ? 'urgent' : ''}">
                 <strong><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
               </div>` : ''}
+            ${job.status.startsWith('cancelled') ? `
+              <div class="job-cancellation-card">
+                <div class="cancellation-title">
+                  <i data-lucide="alert-octagon" style="width:13px;height:13px;flex-shrink:0;"></i>
+                  <span>Motivo do Cancelamento:</span>
+                </div>
+                <div class="cancellation-reason">
+                  ${escapeHtml(job.cancellationReason || job.notes || 'Motivo não informado')}
+                </div>
+                ${(job.cancelledByName || job.cancelledAt) ? `
+                  <div class="cancellation-meta">
+                    ${job.cancelledByName ? `Cancelado por: <strong>${escapeHtml(job.cancelledByName)}</strong>` : ''}
+                    ${job.cancelledAt ? ` em ${new Date(job.cancelledAt).toLocaleString('pt-BR')}` : ''}
+                  </div>
+                ` : ''}
+              </div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
             <!-- Desktop view -->
@@ -5604,6 +5619,22 @@ function renderJobs() {
 
             <!-- Mobile structured card box -->
             <div class="mobile-only job-meta-box">
+              ${job.status.startsWith('cancelled') ? `
+              <div class="job-cancellation-card" style="margin-top:0; margin-bottom:10px;">
+                <div class="cancellation-title">
+                  <i data-lucide="alert-octagon" style="width:13px;height:13px;flex-shrink:0;"></i>
+                  <span>Motivo do Cancelamento:</span>
+                </div>
+                <div class="cancellation-reason">
+                  ${escapeHtml(job.cancellationReason || job.notes || 'Motivo não informado')}
+                </div>
+                ${(job.cancelledByName || job.cancelledAt) ? `
+                  <div class="cancellation-meta">
+                    ${job.cancelledByName ? `Cancelado por: <strong>${escapeHtml(job.cancelledByName)}</strong>` : ''}
+                    ${job.cancelledAt ? ` em ${new Date(job.cancelledAt).toLocaleString('pt-BR')}` : ''}
+                  </div>
+                ` : ''}
+              </div>` : ''}
               <div class="job-meta-row">
                 <div class="job-meta-col">
                   <span class="job-meta-k"><i data-lucide="calendar" style="width:12px;height:12px;"></i> Data & Duração</span>
@@ -5866,16 +5897,27 @@ window.openCancelJobModal = function(jobId) {
   if (!job) return;
   document.getElementById('cancelJobId').value = job.id;
   document.getElementById('cancelJobFlatAddress').textContent = job.flatAddress || `Flat #${job.flatId}`;
-  document.getElementById('cancelJobDate').textContent = job.requestedDate || '-';
+  document.getElementById('cancelJobDate').textContent = job.requestedDate ? formatJobDateDisplay(job.requestedDate) : '-';
   document.getElementById('cancelJobEmployee').textContent = job.employeeName || 'Sem profissional';
-  document.getElementById('cancelJobType').value = 'cancelled_late';
-  document.getElementById('cancelJobDuration').value = job.durationHours ? decimalToTimeStr(job.durationHours) : '00:00';
   document.getElementById('cancelJobNotes').value = '';
 
-  const durContainer = document.getElementById('cancelJobDurationContainer');
-  if (durContainer) durContainer.style.display = 'block';
+  const isClient = state.user?.role === 'client' || state.user?.role === 'client_user';
+  const adminFields = document.getElementById('cancelJobAdminFields');
+  if (adminFields) adminFields.style.display = isClient ? 'none' : 'block';
+
+  if (isClient) {
+    document.getElementById('cancelJobType').value = 'cancelled';
+  } else {
+    document.getElementById('cancelJobType').value = 'cancelled_late';
+    document.getElementById('cancelJobDuration').value = job.durationHours ? decimalToTimeStr(job.durationHours) : '00:00';
+    const durContainer = document.getElementById('cancelJobDurationContainer');
+    if (durContainer) durContainer.style.display = 'block';
+  }
 
   document.getElementById('cancelJobModal')?.classList.remove('hidden');
+  setTimeout(() => {
+    document.getElementById('cancelJobNotes')?.focus();
+  }, 100);
 };
 
 window.closeCancelJobModal = function() {
@@ -5896,11 +5938,18 @@ document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async 
   const jobId = document.getElementById('cancelJobId').value;
   const type = document.getElementById('cancelJobType').value;
   const durationStr = document.getElementById('cancelJobDuration').value;
-  const notes = document.getElementById('cancelJobNotes').value;
+  const notes = (document.getElementById('cancelJobNotes').value || '').trim();
+
+  if (!notes) {
+    toast('Por favor, informe obrigatoriamente o motivo do cancelamento.', 'warning');
+    document.getElementById('cancelJobNotes').focus();
+    return;
+  }
 
   const payload = {
     status: type,
     cancellationType: type,
+    cancellationReason: notes,
     notes: notes
   };
   if (['cancelled_late', 'cancelled_company'].includes(type) && durationStr) {
@@ -5913,8 +5962,12 @@ document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async 
   e.target.textContent = 'Cancelando...';
 
   try {
-    const res = await fetch(`/api/jobs/${jobId}`, {
-      method: 'PUT',
+    const isClient = state.user?.role === 'client' || state.user?.role === 'client_user';
+    const endpoint = isClient ? `/api/jobs/${jobId}/cancel` : `/api/jobs/${jobId}`;
+    const method = isClient ? 'PATCH' : 'PUT';
+
+    const res = await fetch(endpoint, {
+      method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
@@ -5933,23 +5986,8 @@ document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async 
   }
 });
 
-window.clientCancelJob = async function(id) {
-  if (!await confirmModal('Deseja realmente cancelar este serviço?')) return;
-  try {
-    const res = await fetch(`/api/jobs/${id}/cancel`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Falha ao cancelar serviço');
-    }
-    toast('Serviço cancelado com sucesso!', 'success');
-    loadJobs();
-  } catch (err) {
-    toast(err.message, 'error');
-  }
+window.clientCancelJob = function(id) {
+  openCancelJobModal(id);
 };
 
 async function markJobAs(id, status) {
@@ -6271,14 +6309,7 @@ async function adminCancelJob(jobId) {
 }
 
 async function deleteJob(jobId) {
-  if (!await confirmModal('Tem certeza que deseja excluir permanentemente esta solicitacao?')) return;
-  try {
-    await api('/api/jobs/' + jobId, { method: 'DELETE' });
-    toast('Servico excluido com sucesso', 'success');
-    if (typeof loadJobs === 'function') loadJobs();
-  } catch (err) {
-    toast(err.message || 'Erro ao excluir limpeza', 'error');
-  }
+  toast('A exclusão definitiva de serviços foi desativada no sistema. Cancele o serviço informando obrigatoriamente o motivo.', 'warning');
 }
 
 window.duplicateJob = async function(jobId) {
@@ -7915,7 +7946,7 @@ function processSmartVoiceCommand(text) {
 
 
 async function loadSystemLogs() {
-  if (state.user?.role !== 'superadmin') return;
+  if (state.user?.role !== 'superadmin' && state.user?.role !== 'admin') return;
   const tbody = document.getElementById('logsTableBody');
   if (!tbody) return;
   
@@ -7955,21 +7986,24 @@ function renderSystemLogs(logs) {
     const userStr = log.user_name ? `${escapeHtml(log.user_name)} (${roleStr})` : 'Sistema';
     
     let actionBadge = '';
-    if (log.action.includes('CREATE')) actionBadge = '<span class="badge badge-success" style="font-size:12px;">' + log.action + '</span>';
+    const isCancel = log.action && log.action.includes('CANCEL');
+    if (isCancel) actionBadge = '<span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:12px; font-weight:700;"><i data-lucide="x-circle" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>' + log.action + '</span>';
+    else if (log.action.includes('CREATE')) actionBadge = '<span class="badge badge-success" style="font-size:12px;">' + log.action + '</span>';
     else if (log.action.includes('DELETE')) actionBadge = '<span class="badge badge-danger" style="font-size:12px;">' + log.action + '</span>';
     else if (log.action.includes('UPDATE') || log.action.includes('EDIT')) actionBadge = '<span class="badge badge-warning" style="font-size:12px;">' + log.action + '</span>';
     else actionBadge = '<span class="badge badge-neutral" style="font-size:12px;">' + log.action + '</span>';
     
     return `
-      <tr>
-        <td style="color:var(--muted); font-size:14px;">${timeStr}</td>
-        <td style="font-weight:500;">${userStr}</td>
+      <tr ${isCancel ? 'style="background:rgba(239, 68, 68, 0.04);"' : ''}>
+        <td style="color:var(--muted); font-size:13.5px; white-space:nowrap;">${timeStr}</td>
+        <td style="font-weight:600; font-size:13.5px;">${userStr}</td>
         <td>${actionBadge}</td>
-        <td style="text-transform:uppercase; font-size:13px; color:var(--primary); font-weight:600;">${escapeHtml(log.entity)}</td>
-        <td style="white-space:normal; max-width:400px; color:var(--text); font-size:14px;">${escapeHtml(log.details || '')}</td>
+        <td style="text-transform:uppercase; font-size:13px; color:var(--primary); font-weight:700;">${escapeHtml(log.entity)}</td>
+        <td style="white-space:normal; max-width:480px; color:${isCancel ? '#991b1b' : 'var(--text)'}; font-size:13.5px; line-height:1.45;">${escapeHtml(log.details || '')}</td>
       </tr>
     `;
   }).join('');
+  if (window.lucide) window.lucide.createIcons({ root: tbody });
 }
 
 // ── Guesty Integration UI ──────────────────────────────────────────────────

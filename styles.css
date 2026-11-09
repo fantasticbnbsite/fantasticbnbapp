@@ -4684,3 +4684,36 @@ input[type="radio"] {
   accent-color: var(--primary);
   cursor: pointer;
 }
+
+/* Job Cancellation Card */
+.job-cancellation-card {
+  margin-top: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: left;
+}
+.job-cancellation-card .cancellation-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #b91c1c;
+  font-size: 12px;
+}
+.job-cancellation-card .cancellation-reason {
+  color: #7f1d1d;
+  font-size: 13px;
+  margin-top: 3px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.job-cancellation-card .cancellation-meta {
+  font-size: 11px;
+  color: #991b1b;
+  margin-top: 4px;
+  opacity: 0.85;
+}
