@@ -671,10 +671,10 @@ function jobCardHTML(job) {
           In progress
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
+          <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}" aria-label="Ver fotos do serviço" title="Ver fotos">
             📸 View photos
           </button>
-          <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" style="text-decoration:none; padding: 4px 8px;" download>
+          <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" aria-label="Download todas as fotos em zip" style="text-decoration:none; padding: 4px 8px;" download>
             📦 .zip
           </a>
         </div>
@@ -688,10 +688,10 @@ function jobCardHTML(job) {
         ${dur}${amt}
       </div>
       <div style="display:flex; gap:6px; align-items:center;">
-        <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}">
+        <button class="btn btn-ghost btn-sm" data-photos-job="${job.id}" data-photos-address="${escHtml(job.flatAddress || '')}" aria-label="Ver fotos do serviço" title="Ver fotos">
           📸 View photos
         </button>
-        <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" style="text-decoration:none; padding: 4px 8px;" download>
+        <a href="/api/jobs/${job.id}/photos/download" class="btn btn-ghost btn-sm" title="Download all photos (.zip)" aria-label="Download todas as fotos em zip" style="text-decoration:none; padding: 4px 8px;" download>
           📦 .zip
         </a>
       </div>
@@ -705,9 +705,9 @@ function jobCardHTML(job) {
     
     let actionBtn = '';
     if (job.status !== 'cancelled') {
-      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')">❌ Cancel</button>`;
+      actionBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--danger,#d45555); margin-left: auto;" onclick="cancelJob('${job.id}')" aria-label="Cancelar serviço" title="Cancelar serviço">❌ Cancel</button>`;
       if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
-        actionBtn = `<button class="btn btn-ghost btn-sm" onclick="openEditJobModal('${job.id}')">✏️ Edit</button> ` + actionBtn;
+        actionBtn = `<button class="btn btn-ghost btn-sm" onclick="openEditJobModal('${job.id}')" aria-label="Editar serviço" title="Editar serviço">✏️ Edit</button> ` + actionBtn;
       }
     }
     

@@ -8,7 +8,8 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/smoke.test.js"
   },
   "dependencies": {
     "nodemailer": "^10.0.0",

@@ -4170,12 +4170,12 @@ function _finRender() {
         <td class="fin-td desktop-only">
           <div class="fin-actions">
             ${isInv ? `
-              <button type="button" class="fin-action-btn email ${isSent ? 'is-sent' : ''}" onclick="openSendInvoiceEmailModal(${d.id})" title="${emailDesktopTooltip}">
+              <button type="button" class="fin-action-btn email ${isSent ? 'is-sent' : ''}" onclick="openSendInvoiceEmailModal(${d.id})" title="${emailDesktopTooltip}" aria-label="${isSent ? `Fatura enviada por e-mail ${sendCount} vez(es)` : 'Enviar fatura por e-mail'}">
                 <i data-lucide="${isSent ? 'mail-check' : 'mail'}"></i>
                 ${sendCount > 1 ? `<span class="fin-sent-badge">${sendCount}</span>` : ''}
               </button>` : ''}
-            <button type="button" class="fin-action-btn edit" onclick="${editFn}" title="Editar"><i data-lucide="edit-3"></i></button>
-            <button type="button" class="fin-action-btn delete" onclick="${delFn}" title="Excluir"><i data-lucide="trash-2"></i></button>
+            <button type="button" class="fin-action-btn edit" onclick="${editFn}" title="Editar" aria-label="Editar documento"><i data-lucide="edit-3"></i></button>
+            <button type="button" class="fin-action-btn delete" onclick="${delFn}" title="Excluir" aria-label="Excluir documento"><i data-lucide="trash-2"></i></button>
           </div>
         </td>
       </tr>`;
@@ -4577,20 +4577,20 @@ function renderMonthlyReportsTable(reports) {
         </td>
         <td class="desktop-only rep-col-actions" style="text-align:center;">
           <div class="report-actions-row">
-            <button type="button" class="report-btn-action excel" title="Baixar Planilha Excel (.xls)" onclick="downloadMonthlyReport(${r.id}, 'excel')">
+            <button type="button" class="report-btn-action excel" title="Baixar Planilha Excel (.xls)" aria-label="Baixar Planilha Excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
               📗 Excel
             </button>
-            <button type="button" class="report-btn-action csv" title="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
+            <button type="button" class="report-btn-action csv" title="Baixar Arquivo CSV" aria-label="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
               📄 CSV
             </button>
-            <button type="button" class="report-btn-action view" title="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
+            <button type="button" class="report-btn-action view" title="Ver Detalhes do Fechamento" aria-label="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
               👁️ Ver
             </button>
-            <button type="button" class="report-btn-action recalc" title="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
+            <button type="button" class="report-btn-action recalc" title="Recalcular Fechamento" aria-label="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
               🔄 Recalcular
             </button>
             ${isAdmin() ? `
-              <button type="button" class="report-btn-action danger" title="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
+              <button type="button" class="report-btn-action danger" title="Excluir Relatório" aria-label="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
                 🗑️
               </button>
             ` : ''}
@@ -4631,20 +4631,20 @@ function renderMonthlyReportsTable(reports) {
             </div>
 
             <div class="rep-card-actions">
-              <button type="button" class="report-btn-action excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
+              <button type="button" class="report-btn-action excel" title="Baixar Planilha Excel (.xls)" aria-label="Baixar Planilha Excel" onclick="downloadMonthlyReport(${r.id}, 'excel')">
                 📗 Excel
               </button>
-              <button type="button" class="report-btn-action csv" onclick="downloadMonthlyReport(${r.id}, 'csv')">
+              <button type="button" class="report-btn-action csv" title="Baixar Arquivo CSV" aria-label="Baixar Arquivo CSV" onclick="downloadMonthlyReport(${r.id}, 'csv')">
                 📄 CSV
               </button>
-              <button type="button" class="report-btn-action view" onclick="viewMonthlyReportModal(${r.id})">
+              <button type="button" class="report-btn-action view" title="Ver Detalhes do Fechamento" aria-label="Ver Detalhes do Fechamento" onclick="viewMonthlyReportModal(${r.id})">
                 👁️ Ver
               </button>
-              <button type="button" class="report-btn-action recalc" title="Recalcular" onclick="recalculateMonthlyClosing('${r.period_month}')">
+              <button type="button" class="report-btn-action recalc" title="Recalcular Fechamento" aria-label="Recalcular Fechamento" onclick="recalculateMonthlyClosing('${r.period_month}')">
                 🔄
               </button>
               ${isAdmin() ? `
-                <button type="button" class="report-btn-action danger" title="Excluir" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
+                <button type="button" class="report-btn-action danger" title="Excluir Relatório" aria-label="Excluir Relatório" onclick="deleteMonthlyReport(${r.id}, '${escapeHtml(r.period_label || r.period_month)}')">
                   🗑️
                 </button>
               ` : ''}
@@ -5497,26 +5497,26 @@ function renderJobs() {
       let actions = '';
       if (state.user.role === 'client' || state.user.role === 'client_user') {
         if (job.status === 'pending' || job.status === 'assigned' || job.status === 'accepted') {
-          actions += `<button class="ghost-button job-btn-edit" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
-          actions += `<button class="ghost-button job-btn-cancel" onclick="clientCancelJob(${job.id})" title="Cancelar Pedido"><i data-lucide="x-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-edit" onclick="openClientEditJobModal(${job.id})" title="Editar Pedido" aria-label="Editar Pedido"><i data-lucide="edit-3"></i></button>`;
+          actions += `<button class="ghost-button job-btn-cancel" onclick="clientCancelJob(${job.id})" title="Cancelar Pedido" aria-label="Cancelar Pedido"><i data-lucide="x-circle"></i></button>`;
         }
       } else {
-        actions += `<button class="ghost-button job-btn-edit" onclick="openAdminEditJobModal(${job.id})" title="Editar"><i data-lucide="edit-3"></i></button>`;
-        actions += `<button class="ghost-button job-btn-copy" onclick="duplicateJob(${job.id})" title="Duplicar Serviço (Mesmo dia e flat)"><i data-lucide="copy"></i></button>`;
+        actions += `<button class="ghost-button job-btn-edit" onclick="openAdminEditJobModal(${job.id})" title="Editar Serviço" aria-label="Editar Serviço"><i data-lucide="edit-3"></i></button>`;
+        actions += `<button class="ghost-button job-btn-copy" onclick="duplicateJob(${job.id})" title="Duplicar Serviço (Mesmo dia e flat)" aria-label="Duplicar Serviço"><i data-lucide="copy"></i></button>`;
       }
       
       if (state.user.role !== 'client' && state.user.role !== 'client_user') {
         if (job.status === 'pending' || job.status === 'assigned') {
-          actions += `<button class="ghost-button job-btn-assign" onclick="openAssignEmployeeModal(${job.id})" title="Designar"><i data-lucide="user-plus"></i></button>`;
+          actions += `<button class="ghost-button job-btn-assign" onclick="openAssignEmployeeModal(${job.id})" title="Designar Profissional" aria-label="Designar Profissional"><i data-lucide="user-plus"></i></button>`;
         }
         if (job.status !== 'completed' && !job.status.startsWith('cancelled')) {
-          actions += `<button class="ghost-button job-btn-complete" onclick="markJobAs(${job.id}, 'completed')" title="Marcar Concluído"><i data-lucide="check-circle"></i></button>`;
-          actions += `<button class="ghost-button job-btn-cancel" onclick="openCancelJobModal(${job.id})" title="Cancelar Serviço"><i data-lucide="x-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-complete" onclick="markJobAs(${job.id}, 'completed')" title="Marcar como Concluído" aria-label="Marcar como Concluído"><i data-lucide="check-circle"></i></button>`;
+          actions += `<button class="ghost-button job-btn-cancel" onclick="openCancelJobModal(${job.id})" title="Cancelar Serviço" aria-label="Cancelar Serviço"><i data-lucide="x-circle"></i></button>`;
         }
       }
       if (job.status === 'in_progress' || job.status === 'completed') {
-        actions += `<button class="ghost-button job-btn-photo" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos"><i data-lucide="camera"></i></button>`;
-        actions += `<a class="ghost-button job-btn-download" style="text-decoration: none;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" download><i data-lucide="download"></i></a>`;
+        actions += `<button class="ghost-button job-btn-photo" onclick="openJobPhotos(${job.id}, '${escapeHtml(job.flatAddress).replace(/'/g, "\\'")}')" title="Ver Fotos" aria-label="Ver Fotos do Serviço"><i data-lucide="camera"></i></button>`;
+        actions += `<a class="ghost-button job-btn-download" style="text-decoration: none;" href="/api/jobs/${job.id}/photos/download" title="Baixar todas as fotos (.zip)" aria-label="Baixar fotos em arquivo zip" download><i data-lucide="download"></i></a>`;
       }
       
       let badgeClass = 'badge-neutral';
