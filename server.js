@@ -502,6 +502,10 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN cancellation_reason TEXT DEFAULT "";'
 try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_at TEXT DEFAULT "";'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;'); } catch {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN cancelled_by_name TEXT DEFAULT "";'); } catch {}
+try { db.exec("ALTER TABLE jobs ADD COLUMN recurrence_type TEXT DEFAULT 'none';"); } catch {}
+try { db.exec("ALTER TABLE jobs ADD COLUMN recurrence_group_id TEXT DEFAULT '';"); } catch {}
+try { db.exec("ALTER TABLE jobs ADD COLUMN recurrence_index INTEGER DEFAULT 0;"); } catch {}
+try { db.exec("ALTER TABLE jobs ADD COLUMN recurrence_total INTEGER DEFAULT 0;"); } catch {}
 try {
   const defaultChecklist = JSON.stringify([
     { "category": "QUARTO", "items": ["FOTO QUARTO", "DEBAIXO DA CAMA (FOTO)", "CHECAR GAVETAS (FOTO)", "DESLIGAR AR CONDICIONADO / AQUECEDOR", "RODAPES E JANELAS", "HOOVER/MOP"] },
@@ -1788,6 +1792,43 @@ async function handleApi(req, res, requestUrl) {
     return sendJson(res, 200, { jobs });
   }
 
+function generateRecurrenceDates(startDateStr, frequency, endType, count, endDateStr) {
+  const stepDays = frequency === 'biweekly' ? 14 : 7;
+  const dates = [];
+  const parts = (startDateStr || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return [startDateStr];
+
+  let cur = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+
+  if (endType === 'count') {
+    const total = Math.min(Math.max(Number(count) || 2, 2), 52);
+    for (let i = 0; i < total; i++) {
+      const y = cur.getUTCFullYear();
+      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cur.getUTCDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${d}`);
+      cur.setUTCDate(cur.getUTCDate() + stepDays);
+    }
+  } else if (endType === 'date' && endDateStr) {
+    const endParts = endDateStr.split('-').map(Number);
+    if (endParts.length === 3 && !endParts.some(isNaN)) {
+      const end = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2], 12, 0, 0));
+      let iterations = 0;
+      while (cur <= end && iterations < 52) {
+        const y = cur.getUTCFullYear();
+        const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cur.getUTCDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+        cur.setUTCDate(cur.getUTCDate() + stepDays);
+        iterations++;
+      }
+    }
+  }
+
+  if (dates.length === 0) dates.push(startDateStr);
+  return dates;
+}
+
   if (requestUrl.pathname === '/api/jobs' && req.method === 'POST') {
     if (session.user.role !== 'client' && session.user.role !== 'client_user' && !canCreateJobs(session.user)) return sendJson(res, 403, { error: 'Sem permissao.' });
     
@@ -1820,6 +1861,45 @@ async function handleApi(req, res, requestUrl) {
     const isPriority = body.isPriority ? 1 : 0;
     const cleaningType = body.cleaningType === 'mid_stay' ? 'mid_stay' : 'end_of_stay';
     const createdBy = session.user.id;
+
+    if (canCreateJobs(session.user) && cleaningType === 'mid_stay' && body.recurrence && body.recurrence.enabled) {
+      const freq = body.recurrence.frequency === 'biweekly' ? 'biweekly' : 'weekly';
+      const endType = body.recurrence.endType === 'date' ? 'date' : 'count';
+      const dates = generateRecurrenceDates(body.requestedDate, freq, endType, body.recurrence.count, body.recurrence.endDate);
+      const recurrenceGroupId = 'REC-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7);
+      const totalCount = dates.length;
+
+      let firstJobId = null;
+      db.exec('BEGIN TRANSACTION');
+      try {
+        const insertStmt = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, cleaning_type, created_by_user_id, recurrence_type, recurrence_group_id, recurrence_index, recurrence_total, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        for (let i = 0; i < dates.length; i++) {
+          const rDate = dates[i];
+          const resRun = insertStmt.run(flat.id, targetClientId, status, rDate, empId, body.notes || '', isHoliday, isPriority, cleaningType, createdBy, freq, recurrenceGroupId, i + 1, totalCount, now, now);
+          if (i === 0) firstJobId = resRun.lastInsertRowid;
+        }
+        db.exec('COMMIT');
+      } catch (err) {
+        db.exec('ROLLBACK');
+        console.error('Failed to create recurring mid stay jobs:', err);
+        return sendJson(res, 500, { error: 'Falha ao agendar série de limpezas recorrentes.' });
+      }
+
+      if (status === 'assigned' && empId && firstJobId) {
+        sendPushNotification(empId, { title: 'Nova Série de Serviços', body: `Série de ${totalCount} serviços Mid Stay agendada no flat ${flat.address}`, job_id: firstJobId }).catch(() => {});
+      }
+
+      logSystemActivity(session.user.id, 'CREATE', 'job', firstJobId, `Série Mid Stay (${totalCount} serviços · ${freq === 'weekly' ? 'Semanal' : 'Quinzenal'}) agendada no flat ${flat.address}`);
+      return sendJson(res, 201, {
+        job: hydrateJob(db.prepare('SELECT j.*, f.address AS flat_address, f.full_address AS flat_full_address, f.access_code AS flat_access_code, f.billing_type AS flat_billing_type, f.hourly_rate AS flat_hourly_rate, f.project_rate AS flat_project_rate, ct.checklist_json AS flat_checklist_json FROM jobs j LEFT JOIN flats f ON f.id = j.flat_id LEFT JOIN checklist_templates ct ON ct.id = f.checklist_template_id WHERE j.id = ?').get(firstJobId)),
+        recurrence: {
+          count: totalCount,
+          groupId: recurrenceGroupId,
+          frequency: freq
+        }
+      });
+    }
+
     const result = db.prepare('INSERT INTO jobs (flat_id, client_user_id, status, requested_date, employee_user_id, notes, is_holiday, is_priority, cleaning_type, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(flat.id, targetClientId, status, body.requestedDate, empId, body.notes || '', isHoliday, isPriority, cleaningType, createdBy, now, now);
     
     if (status === 'assigned' && empId) {
@@ -2066,6 +2146,19 @@ async function handleApi(req, res, requestUrl) {
         const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id) || {};
         const flatAddr = flat.address || `Flat #${job.flat_id}`;
         logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', jobId, `Serviço #${jobId} (${flatAddr}) cancelado [${updatedStatus}]. Motivo: "${updatedCancellationReason}". Cancelado por: ${updatedCancelledByName}`);
+
+        if (body.cancelScope === 'future' && job.recurrence_group_id) {
+          const futureJobs = db.prepare("SELECT * FROM jobs WHERE recurrence_group_id = ? AND requested_date >= ? AND id != ? AND status NOT IN ('completed', 'cancelled', 'cancelled_late', 'cancelled_company')").all(job.recurrence_group_id, job.requested_date, jobId);
+          for (const fj of futureJobs) {
+            db.prepare('UPDATE jobs SET status=?, duration_hours=0, client_amount=0, employee_amount=0, notes=?, cancellation_reason=?, cancelled_at=?, cancelled_by_user_id=?, cancelled_by_name=?, updated_at=? WHERE id=?')
+              .run('cancelled', fj.notes || '', updatedCancellationReason, now, session.user.id, updatedCancelledByName, now, fj.id);
+            logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', fj.id, `Serviço recorrente #${fj.id} da série cancelado junto com #${jobId}. Motivo: "${updatedCancellationReason}". Cancelado por: ${updatedCancelledByName}`);
+            recalculateFinancialTotals(fj.invoice_id, fj.payroll_id);
+            if (fj.employee_user_id) {
+              sendPushNotification(fj.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Serviço recorrente cancelado. Motivo: ${updatedCancellationReason}`, job_id: fj.id }).catch(() => {});
+            }
+          }
+        }
       } else if (reasonInput) {
         updatedCancellationReason = reasonInput;
       }
@@ -2349,6 +2442,20 @@ async function handleApi(req, res, requestUrl) {
       const flat = db.prepare('SELECT address FROM flats WHERE id = ?').get(job.flat_id) || {};
       const flatAddr = flat.address || `Flat #${job.flat_id}`;
       logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', jobId, `Serviço #${jobId} (${flatAddr}) cancelado [${cancelStatus}]. Motivo: "${cancellationReason}". Cancelado por: ${cancelledByName}`);
+
+      if (body.cancelScope === 'future' && job.recurrence_group_id) {
+        const futureJobs = db.prepare("SELECT * FROM jobs WHERE recurrence_group_id = ? AND requested_date >= ? AND id != ? AND status NOT IN ('completed', 'cancelled', 'cancelled_late', 'cancelled_company')").all(job.recurrence_group_id, job.requested_date, jobId);
+        for (const fj of futureJobs) {
+          db.prepare('UPDATE jobs SET status=?, duration_hours=0, client_amount=0, employee_amount=0, notes=?, cancellation_reason=?, cancelled_at=?, cancelled_by_user_id=?, cancelled_by_name=?, updated_at=? WHERE id=?')
+            .run('cancelled', fj.notes || '', cancellationReason, now, session.user.id, cancelledByName, now, fj.id);
+          logSystemActivity(session.user.id, 'CANCEL_JOB', 'job', fj.id, `Serviço recorrente #${fj.id} da série cancelado junto com #${jobId}. Motivo: "${cancellationReason}". Cancelado por: ${cancelledByName}`);
+          recalculateFinancialTotals(fj.invoice_id, fj.payroll_id);
+          if (fj.employee_user_id) {
+            sendPushNotification(fj.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Serviço recorrente cancelado. Motivo: ${cancellationReason}`, job_id: fj.id }).catch(() => {});
+          }
+        }
+      }
+
       recalculateFinancialTotals(job.invoice_id, job.payroll_id);
       if (job.employee_user_id) {
         sendPushNotification(job.employee_user_id, { title: 'Serviço Cancelado 🚫', body: `Um serviço agendado para você foi cancelado. Motivo: ${cancellationReason}`, job_id: jobId }).catch(() => {});
@@ -4715,6 +4822,10 @@ function hydrateJob(row) {
     flatChecklist: row.cleaning_type === 'mid_stay' ? [] : safeJsonParse(row.flat_checklist_json, []),
     flatInventory: db.prepare("SELECT fi.*, c.name, c.name_en, c.category, c.category_en FROM flat_inventory fi JOIN inventory_catalog c ON c.id = fi.item_id WHERE fi.flat_id = ? ORDER BY c.category, c.name").all(row.flat_id),
     cleaningType: row.cleaning_type || 'end_of_stay',
+    recurrenceType: row.recurrence_type || 'none',
+    recurrenceGroupId: row.recurrence_group_id || '',
+    recurrenceIndex: Number(row.recurrence_index || 0),
+    recurrenceTotal: Number(row.recurrence_total || 0),
   };
 }
 

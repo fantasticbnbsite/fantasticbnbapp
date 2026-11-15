@@ -5566,6 +5566,17 @@ function renderJobs() {
         }
       }
 
+      let midStayBadge = '';
+      if (job.cleaningType === 'mid_stay') {
+        if (job.recurrenceType && job.recurrenceType !== 'none') {
+          const freqLabel = job.recurrenceType === 'weekly' ? 'SEMANAL' : 'QUINZENAL';
+          const indexStr = (job.recurrenceIndex && job.recurrenceTotal) ? ` (${job.recurrenceIndex}/${job.recurrenceTotal})` : '';
+          midStayBadge = `<span class="badge" style="background:#2563eb; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle; border-radius:6px; padding:2px 7px; font-weight:700;" title="Mid Stay Recorrente (${freqLabel})">🛏️ MID STAY · ${freqLabel} 🔄${indexStr}</span>`;
+        } else {
+          midStayBadge = `<span class="badge" style="background:#3b82f6; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle; border-radius:6px; padding:2px 7px; font-weight:700;">🛏️ MID STAY</span>`;
+        }
+      }
+
       return `
         <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
@@ -5575,7 +5586,7 @@ function renderJobs() {
             ${guestyBadge}
           </td>
           <td class="td-prop" data-label="Propriedade">
-            <div class="job-prop-title">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${job.cleaningType === 'mid_stay' ? '<span class="badge" style="background:#3b82f6; color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">MID STAY</span>' : ''}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
+            <div class="job-prop-title">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${midStayBadge}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
             ${job.flatFullAddress ? `<div class="job-prop-address">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${cleanAccessCode ? `<div class="job-access-badge"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: <strong>${escapeHtml(cleanAccessCode)}</strong></div>` : ''}
             ${job.notes ? `
@@ -5914,6 +5925,17 @@ window.openCancelJobModal = function(jobId) {
     if (durContainer) durContainer.style.display = 'block';
   }
 
+  const recScopeContainer = document.getElementById('cancelJobRecurrenceScopeContainer');
+  if (recScopeContainer) {
+    if (job.recurrenceGroupId) {
+      recScopeContainer.style.display = 'block';
+      const thisRadio = document.querySelector('input[name="cancelJobScope"][value="this"]');
+      if (thisRadio) thisRadio.checked = true;
+    } else {
+      recScopeContainer.style.display = 'none';
+    }
+  }
+
   document.getElementById('cancelJobModal')?.classList.remove('hidden');
   setTimeout(() => {
     document.getElementById('cancelJobNotes')?.focus();
@@ -5946,11 +5968,14 @@ document.getElementById('confirmCancelJobBtn')?.addEventListener('click', async 
     return;
   }
 
+  const cancelScope = document.querySelector('input[name="cancelJobScope"]:checked')?.value || 'this';
+
   const payload = {
     status: type,
     cancellationType: type,
     cancellationReason: notes,
-    notes: notes
+    notes: notes,
+    cancelScope: cancelScope
   };
   if (['cancelled_late', 'cancelled_company'].includes(type) && durationStr) {
     payload.durationHours = timeStrToDecimal(durationStr);
@@ -7434,8 +7459,102 @@ async function openAdminRequestJobModal() {
   if(document.getElementById('adminReqJobIsPriority')) document.getElementById('adminReqJobIsPriority').checked = false;
   if(document.getElementById('adminReqJobCleaningType')) document.getElementById('adminReqJobCleaningType').value = 'end_of_stay';
   document.getElementById('adminReqJobNotes').value = '';
+
+  // Reset Mid Stay Recurrence fields
+  if (document.getElementById('adminReqJobRecurrenceEnable')) document.getElementById('adminReqJobRecurrenceEnable').checked = false;
+  const weeklyRadio = document.querySelector('input[name="adminReqJobRecurrenceFreq"][value="weekly"]');
+  if (weeklyRadio) weeklyRadio.checked = true;
+  const countRadio = document.querySelector('input[name="adminReqJobRecurrenceEndType"][value="count"]');
+  if (countRadio) countRadio.checked = true;
+  if (document.getElementById('adminReqJobRecurrenceCount')) document.getElementById('adminReqJobRecurrenceCount').value = '4';
+  if (document.getElementById('adminReqJobRecurrenceEndDate')) document.getElementById('adminReqJobRecurrenceEndDate').value = '';
+  updateAdminReqJobRecurrencePreview();
   
   modal.classList.remove('hidden');
+}
+
+function calculateRecurrenceDatesPreview(startDateStr, frequency, endType, count, endDateStr) {
+  const stepDays = frequency === 'biweekly' ? 14 : 7;
+  const dates = [];
+  const parts = (startDateStr || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return [];
+
+  let cur = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+
+  if (endType === 'count') {
+    const total = Math.min(Math.max(Number(count) || 2, 2), 52);
+    for (let i = 0; i < total; i++) {
+      const y = cur.getUTCFullYear();
+      const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(cur.getUTCDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${d}`);
+      cur.setUTCDate(cur.getUTCDate() + stepDays);
+    }
+  } else if (endType === 'date' && endDateStr) {
+    const endParts = endDateStr.split('-').map(Number);
+    if (endParts.length === 3 && !endParts.some(isNaN)) {
+      const end = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2], 12, 0, 0));
+      let iterations = 0;
+      while (cur <= end && iterations < 52) {
+        const y = cur.getUTCFullYear();
+        const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cur.getUTCDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+        cur.setUTCDate(cur.getUTCDate() + stepDays);
+        iterations++;
+      }
+    }
+  }
+  return dates;
+}
+
+function updateAdminReqJobRecurrencePreview() {
+  const container = document.getElementById('adminReqJobMidStayRecurrenceContainer');
+  const typeSelect = document.getElementById('adminReqJobCleaningType');
+  if (!container || !typeSelect) return;
+
+  const isMidStay = typeSelect.value === 'mid_stay';
+  container.style.display = isMidStay ? 'block' : 'none';
+  if (!isMidStay) return;
+
+  const isRecEnabled = document.getElementById('adminReqJobRecurrenceEnable')?.checked;
+  const fields = document.getElementById('adminReqJobRecurrenceFields');
+  if (fields) fields.style.display = isRecEnabled ? 'flex' : 'none';
+
+  if (!isRecEnabled) return;
+
+  const freq = document.querySelector('input[name="adminReqJobRecurrenceFreq"]:checked')?.value || 'weekly';
+  const endType = document.querySelector('input[name="adminReqJobRecurrenceEndType"]:checked')?.value || 'count';
+
+  const countBox = document.getElementById('adminReqJobRecurrenceCountBox');
+  const dateBox = document.getElementById('adminReqJobRecurrenceDateBox');
+  if (countBox) countBox.style.display = endType === 'count' ? 'block' : 'none';
+  if (dateBox) dateBox.style.display = endType === 'date' ? 'block' : 'none';
+
+  const startDateStr = document.getElementById('adminReqJobDate')?.value;
+  const listEl = document.getElementById('adminReqJobRecurrenceDatesList');
+  if (!startDateStr) {
+    if (listEl) listEl.innerHTML = '<span style="color:#64748b;">Selecione a data inicial do serviço acima.</span>';
+    return;
+  }
+
+  const count = Number(document.getElementById('adminReqJobRecurrenceCount')?.value) || 4;
+  const endDateStr = document.getElementById('adminReqJobRecurrenceEndDate')?.value;
+
+  const dates = calculateRecurrenceDatesPreview(startDateStr, freq, endType, count, endDateStr);
+  if (listEl) {
+    if (endType === 'date' && (!endDateStr || endDateStr <= startDateStr)) {
+      listEl.innerHTML = '<span style="color:#dc2626; font-weight:600;">Selecione uma data final posterior à data inicial.</span>';
+    } else if (dates.length === 0) {
+      listEl.innerHTML = '<span style="color:#64748b;">Nenhuma data calculada para o intervalo informado.</span>';
+    } else {
+      const formattedDates = dates.map((dStr, idx) => {
+        const [y, m, d] = dStr.split('-');
+        return `<span style="display:inline-block; background:#fff; padding:2px 8px; border-radius:6px; border:1px solid #bfdbfe; margin:2px 4px 2px 0; font-weight:700; color:#1e40af; font-size:12px;">${idx + 1}ª: ${d}/${m}/${y}</span>`;
+      }).join('');
+      listEl.innerHTML = `<div><strong>${dates.length} serviços</strong> serão agendados (${freq === 'weekly' ? 'Semanal a cada 7 dias' : 'Quinzenal a cada 14 dias'}):</div><div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:4px;">${formattedDates}</div>`;
+    }
+  }
 }
 
 function closeAdminRequestJobModal() {
@@ -7470,6 +7589,35 @@ async function submitAdminRequestJob(e) {
   
   if (!flatId) return toast('Selecione um flat.', 'error');
   if (!requestedDate) return toast('Informe a data.', 'error');
+
+  let recurrence = null;
+  if (cleaningType === 'mid_stay') {
+    const isRecEnabled = document.getElementById('adminReqJobRecurrenceEnable')?.checked;
+    if (isRecEnabled) {
+      const freq = document.querySelector('input[name="adminReqJobRecurrenceFreq"]:checked')?.value || 'weekly';
+      const endType = document.querySelector('input[name="adminReqJobRecurrenceEndType"]:checked')?.value || 'count';
+      const count = Number(document.getElementById('adminReqJobRecurrenceCount')?.value) || 4;
+      const endDate = document.getElementById('adminReqJobRecurrenceEndDate')?.value || '';
+
+      if (endType === 'count' && (count < 2 || count > 52)) {
+        return toast('A quantidade de repetições deve ser entre 2 e 52.', 'error');
+      }
+      if (endType === 'date' && !endDate) {
+        return toast('Informe a data final para a série de Mid Stay.', 'error');
+      }
+      if (endType === 'date' && endDate <= requestedDate) {
+        return toast('A data final deve ser posterior à data inicial.', 'error');
+      }
+
+      recurrence = {
+        enabled: true,
+        frequency: freq,
+        endType: endType,
+        count: count,
+        endDate: endDate
+      };
+    }
+  }
   
   const submitBtn = document.getElementById('adminReqJobSubmitBtn');
   submitBtn.disabled = true;
@@ -7486,9 +7634,14 @@ async function submitAdminRequestJob(e) {
       employeeUserId: employeeUserId ? Number(employeeUserId) : null,
       notes
     };
+    if (recurrence) payload.recurrence = recurrence;
     
-    await api('/api/jobs', { method: 'POST', body: payload });
-    toast('Solicitação de limpeza criada com sucesso!', 'success');
+    const res = await api('/api/jobs', { method: 'POST', body: payload });
+    if (res?.recurrence && res.recurrence.count > 1) {
+      toast(`Série Mid Stay (${res.recurrence.count} serviços) agendada com sucesso!`, 'success');
+    } else {
+      toast('Solicitação de limpeza criada com sucesso!', 'success');
+    }
     closeAdminRequestJobModal();
     if (typeof loadJobs === 'function') loadJobs();
   } catch(err) {

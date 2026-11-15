@@ -144,3 +144,117 @@ describe('4. Resiliência de APIs Externas & Rate Limiting (Resend)', () => {
     assert.equal(attempt2, 2700);
   });
 });
+
+describe('5. Temporizador e Agendamento Recorrente Mid Stay', () => {
+  function generateRecurrenceDates(startDateStr, frequency, endType, count, endDateStr) {
+    const stepDays = frequency === 'biweekly' ? 14 : 7;
+    const dates = [];
+    const parts = (startDateStr || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return [startDateStr];
+
+    let cur = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+
+    if (endType === 'count') {
+      const total = Math.min(Math.max(Number(count) || 2, 2), 52);
+      for (let i = 0; i < total; i++) {
+        const y = cur.getUTCFullYear();
+        const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(cur.getUTCDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+        cur.setUTCDate(cur.getUTCDate() + stepDays);
+      }
+    } else if (endType === 'date' && endDateStr) {
+      const endParts = endDateStr.split('-').map(Number);
+      if (endParts.length === 3 && !endParts.some(isNaN)) {
+        const end = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2], 12, 0, 0));
+        let iterations = 0;
+        while (cur <= end && iterations < 52) {
+          const y = cur.getUTCFullYear();
+          const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(cur.getUTCDate()).padStart(2, '0');
+          dates.push(`${y}-${m}-${d}`);
+          cur.setUTCDate(cur.getUTCDate() + stepDays);
+          iterations++;
+        }
+      }
+    }
+
+    if (dates.length === 0) dates.push(startDateStr);
+    return dates;
+  }
+
+  it('deve gerar datas semanais (+7 dias) com base na quantidade solicitada', () => {
+    const dates = generateRecurrenceDates('2026-11-16', 'weekly', 'count', 4);
+    assert.deepEqual(dates, [
+      '2026-11-16',
+      '2026-11-23',
+      '2026-11-30',
+      '2026-12-07'
+    ]);
+    assert.equal(dates.length, 4);
+  });
+
+  it('deve gerar datas quinzenais (+14 dias) com base na quantidade solicitada', () => {
+    const dates = generateRecurrenceDates('2026-11-16', 'biweekly', 'count', 3);
+    assert.deepEqual(dates, [
+      '2026-11-16',
+      '2026-11-30',
+      '2026-12-14'
+    ]);
+    assert.equal(dates.length, 3);
+  });
+
+  it('deve gerar datas semanais até a data final de checkout do hóspede', () => {
+    const dates = generateRecurrenceDates('2026-11-16', 'weekly', 'date', null, '2026-12-05');
+    assert.deepEqual(dates, [
+      '2026-11-16',
+      '2026-11-23',
+      '2026-11-30'
+    ]);
+    assert.equal(dates.length, 3);
+  });
+
+  it('deve isolar a série em grupo recorrente com índices sequenciais', () => {
+    const seriesDates = generateRecurrenceDates('2026-11-16', 'weekly', 'count', 3);
+    const groupId = 'REC-TEST-123';
+    const series = seriesDates.map((date, idx) => ({
+      requested_date: date,
+      recurrence_type: 'weekly',
+      recurrence_group_id: groupId,
+      recurrence_index: idx + 1,
+      recurrence_total: seriesDates.length
+    }));
+
+    assert.equal(series[0].recurrence_index, 1);
+    assert.equal(series[1].recurrence_index, 2);
+    assert.equal(series[2].recurrence_index, 3);
+    assert.equal(series[0].recurrence_total, 3);
+    assert.equal(series[0].recurrence_group_id, groupId);
+  });
+
+  it('deve permitir cancelar apenas o serviço atual ou a série futura', () => {
+    const mockJobs = [
+      { id: 101, requested_date: '2026-11-16', status: 'pending', recurrence_group_id: 'REC-G1' },
+      { id: 102, requested_date: '2026-11-23', status: 'pending', recurrence_group_id: 'REC-G1' },
+      { id: 103, requested_date: '2026-11-30', status: 'pending', recurrence_group_id: 'REC-G1' },
+    ];
+
+    function cancelJobs(targetId, scope) {
+      const target = mockJobs.find(j => j.id === targetId);
+      if (scope === 'future') {
+        return mockJobs.filter(j => j.recurrence_group_id === target.recurrence_group_id && j.requested_date >= target.requested_date);
+      }
+      return [target];
+    }
+
+    // Cancelar apenas o segundo
+    const cancelSingle = cancelJobs(102, 'this');
+    assert.equal(cancelSingle.length, 1);
+    assert.equal(cancelSingle[0].id, 102);
+
+    // Cancelar do segundo em diante
+    const cancelFuture = cancelJobs(102, 'future');
+    assert.equal(cancelFuture.length, 2);
+    assert.deepEqual(cancelFuture.map(j => j.id), [102, 103]);
+  });
+});
