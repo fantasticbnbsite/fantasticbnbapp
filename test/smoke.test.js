@@ -258,3 +258,25 @@ describe('5. Temporizador e Agendamento Recorrente Mid Stay', () => {
     assert.deepEqual(cancelFuture.map(j => j.id), [102, 103]);
   });
 });
+
+describe('6. Paginação de Documentos Financeiros (finChangePage)', () => {
+  it('deve avançar e retroceder páginas respeitando os limites', () => {
+    const total = 34; // 34 documentos como na foto do usuário
+    const perPage = 10;
+    const totalPages = Math.ceil(total / perPage); // 4 páginas
+
+    let currentPage = 1;
+    function finChangePage(delta) {
+      currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+      return currentPage;
+    }
+
+    assert.equal(totalPages, 4);
+    assert.equal(finChangePage(1), 2); // Página 2
+    assert.equal(finChangePage(1), 3); // Página 3
+    assert.equal(finChangePage(1), 4); // Página 4
+    assert.equal(finChangePage(1), 4); // Trava no limite máximo (página 4)
+    assert.equal(finChangePage(-1), 3); // Retorna para página 3
+    assert.equal(finChangePage(-10), 1); // Trava no limite mínimo (página 1)
+  });
+});

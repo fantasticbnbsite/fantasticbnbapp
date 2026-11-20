@@ -3925,6 +3925,13 @@ window.clearFinTarget = function() {
   _finRender();
 };
 
+window.finChangePage = function(delta) {
+  finState.page = Math.max(1, (finState.page || 1) + delta);
+  _finRender();
+  const wrap = document.getElementById('finTableWrap');
+  if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
 function _finRender() {
   const tbody = document.getElementById('finTableBody');
   const pageInfo = document.getElementById('finPageInfo');
