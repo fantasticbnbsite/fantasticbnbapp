@@ -5584,6 +5584,50 @@ function renderJobs() {
         }
       }
 
+      // Cancellation & notes smart processing (deduplicate and sleek formatting)
+      const isCancelled = job.status.startsWith('cancelled');
+      const cleanReason = (job.cancellationReason || '').trim();
+      
+      let displayNotes = (job.notes || '').replace(/\[Cancelamento\][\s\S]*$/i, '').trim();
+      if (isCancelled && cleanReason && displayNotes.toLowerCase() === cleanReason.toLowerCase()) {
+        displayNotes = '';
+      }
+
+      let displayEmpNotes = (job.employeeNotes || '').trim();
+      if (isCancelled && cleanReason && displayEmpNotes.toLowerCase() === cleanReason.toLowerCase()) {
+        displayEmpNotes = '';
+      }
+
+      let cancellationCardHtml = '';
+      if (isCancelled) {
+        const reason = cleanReason || (job.notes || '').replace(/\[Cancelamento\][\s\S]*$/i, '').trim() || 'Motivo não informado';
+        let metaParts = [];
+        if (job.cancelledByName) {
+          metaParts.push(`Por: <strong>${escapeHtml(job.cancelledByName)}</strong>`);
+        }
+        if (job.cancelledAt) {
+          try {
+            const dt = new Date(job.cancelledAt);
+            metaParts.push(dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+          } catch {
+            metaParts.push(job.cancelledAt);
+          }
+        }
+        const metaStr = metaParts.length > 0 
+          ? `<div class="cancellation-meta"><i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i><span>${metaParts.join(' • ')}</span></div>` 
+          : '';
+
+        cancellationCardHtml = `
+          <div class="job-cancellation-card">
+            <div class="cancellation-header">
+              <span class="cancellation-pill"><i data-lucide="alert-octagon" style="width:11px;height:11px;"></i> Motivo do Cancelamento</span>
+            </div>
+            <div class="cancellation-reason">${escapeHtml(reason)}</div>
+            ${metaStr}
+          </div>
+        `;
+      }
+
       return `
         <tr ${(isUrg || isB2B) ? 'style="background: rgba(220, 38, 38, 0.03);"' : ''}>
           <td class="td-status" data-label="Status">
@@ -5596,30 +5640,15 @@ function renderJobs() {
             <div class="job-prop-title">${job.isPriority ? '<span class="badge" style="background:var(--danger, red); color:#fff; font-size:10px; margin-right:4px; vertical-align:middle;">PRIORITY</span>' : ''}${midStayBadge}${escapeHtml(job.flatAddress || `ID: ${job.flatId}`)}</div>
             ${job.flatFullAddress ? `<div class="job-prop-address">${escapeHtml(job.flatFullAddress)}</div>` : ''}
             ${cleanAccessCode ? `<div class="job-access-badge"><i data-lucide="key" style="width:12px;height:12px;"></i> Código: <strong>${escapeHtml(cleanAccessCode)}</strong></div>` : ''}
-            ${job.notes ? `
+            ${displayNotes ? `
               <div class="job-note-box">
-                <strong><i data-lucide="message-square" style="width:11px;height:11px;"></i> Obs:</strong> ${escapeHtml(job.notes)}
+                <strong><i data-lucide="message-square" style="width:11px;height:11px;"></i> Obs:</strong> ${escapeHtml(displayNotes)}
               </div>` : ''}
-            ${job.employeeNotes ? `
+            ${displayEmpNotes ? `
               <div class="job-cleaner-note-box ${job.isUrgent || job.is_urgent ? 'urgent' : ''}">
-                <strong><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(job.employeeNotes)}
+                <strong><i data-lucide="${job.isUrgent || job.is_urgent ? 'alert-triangle' : 'user-check'}" style="width:11px;height:11px;"></i> ${job.isUrgent || job.is_urgent ? 'Alerta Urgente do Cleaner' : 'Cleaner'}:</strong> ${escapeHtml(displayEmpNotes)}
               </div>` : ''}
-            ${job.status.startsWith('cancelled') ? `
-              <div class="job-cancellation-card">
-                <div class="cancellation-title">
-                  <i data-lucide="alert-octagon" style="width:13px;height:13px;flex-shrink:0;"></i>
-                  <span>Motivo do Cancelamento:</span>
-                </div>
-                <div class="cancellation-reason">
-                  ${escapeHtml(job.cancellationReason || job.notes || 'Motivo não informado')}
-                </div>
-                ${(job.cancelledByName || job.cancelledAt) ? `
-                  <div class="cancellation-meta">
-                    ${job.cancelledByName ? `Cancelado por: <strong>${escapeHtml(job.cancelledByName)}</strong>` : ''}
-                    ${job.cancelledAt ? ` em ${new Date(job.cancelledAt).toLocaleString('pt-BR')}` : ''}
-                  </div>
-                ` : ''}
-              </div>` : ''}
+            ${cancellationCardHtml ? `<div class="desktop-only">${cancellationCardHtml}</div>` : ''}
           </td>
           <td class="td-meta1" data-label="Data/Hora">
             <!-- Desktop view -->
@@ -5637,22 +5666,7 @@ function renderJobs() {
 
             <!-- Mobile structured card box -->
             <div class="mobile-only job-meta-box">
-              ${job.status.startsWith('cancelled') ? `
-              <div class="job-cancellation-card" style="margin-top:0; margin-bottom:10px;">
-                <div class="cancellation-title">
-                  <i data-lucide="alert-octagon" style="width:13px;height:13px;flex-shrink:0;"></i>
-                  <span>Motivo do Cancelamento:</span>
-                </div>
-                <div class="cancellation-reason">
-                  ${escapeHtml(job.cancellationReason || job.notes || 'Motivo não informado')}
-                </div>
-                ${(job.cancelledByName || job.cancelledAt) ? `
-                  <div class="cancellation-meta">
-                    ${job.cancelledByName ? `Cancelado por: <strong>${escapeHtml(job.cancelledByName)}</strong>` : ''}
-                    ${job.cancelledAt ? ` em ${new Date(job.cancelledAt).toLocaleString('pt-BR')}` : ''}
-                  </div>
-                ` : ''}
-              </div>` : ''}
+              ${cancellationCardHtml ? `<div style="margin-bottom:10px;">${cancellationCardHtml}</div>` : ''}
               <div class="job-meta-row">
                 <div class="job-meta-col">
                   <span class="job-meta-k"><i data-lucide="calendar" style="width:12px;height:12px;"></i> Data & Duração</span>
