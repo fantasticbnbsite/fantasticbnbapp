@@ -1008,15 +1008,17 @@
                 <option value="all">Desde Sempre</option>
               </select>
               <select id="jobsStatusFilter" class="filter-select">
-                <option value="">Todos os status</option>
+                <option value="">Todos (exceto cancelados)</option>
+                <option value="all_cancelled">🚫 Todos os Cancelados</option>
                 <option value="pending">Pendente</option>
                 <option value="assigned">Designado</option>
                 <option value="accepted">Aceito</option>
                 <option value="in_progress">Em andamento</option>
-                <option value="completed">Concluido</option>
+                <option value="completed">Concluído</option>
                 <option value="cancelled_late">Canc. Última Hora (£17)</option>
                 <option value="cancelled_company">Cancelamento Empresa (£0)</option>
-                <option value="cancelled">Cancelado</option>
+                <option value="cancelled">Cancelado Padrão</option>
+                <option value="all">Todos os status (com cancelados)</option>
               </select>
               <select id="jobsClientFilter" class="filter-select">
                 <option value="">Todos os clientes</option>

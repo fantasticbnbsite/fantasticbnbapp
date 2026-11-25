@@ -280,3 +280,57 @@ describe('6. Paginação de Documentos Financeiros (finChangePage)', () => {
     assert.equal(finChangePage(-10), 1); // Trava no limite mínimo (página 1)
   });
 });
+
+describe('7. Filtragem de Serviços e Ocultação de Cancelados (Opção 1)', () => {
+  const mockJobs = [
+    { id: 1, flatAddress: 'Flat 1', status: 'pending' },
+    { id: 2, flatAddress: 'Flat 2', status: 'assigned' },
+    { id: 3, flatAddress: 'Flat 3', status: 'completed' },
+    { id: 4, flatAddress: 'Flat 4', status: 'cancelled' },
+    { id: 5, flatAddress: 'Flat 5', status: 'cancelled_late' },
+    { id: 6, flatAddress: 'Flat 6', status: 'cancelled_company' },
+  ];
+
+  function filterJobsByStatus(jobs, statusFilter) {
+    if (statusFilter === 'all_cancelled') {
+      return jobs.filter(j => (j.status || '').startsWith('cancelled'));
+    } else if (statusFilter === 'all') {
+      return jobs;
+    } else if (statusFilter && statusFilter !== 'active') {
+      return jobs.filter(j => j.status === statusFilter);
+    } else {
+      return jobs.filter(j => !(j.status || '').startsWith('cancelled'));
+    }
+  }
+
+  it('deve ocultar cancelados por padrão quando statusFilter for vazio ou "active"', () => {
+    const resDefault = filterJobsByStatus(mockJobs, '');
+    assert.equal(resDefault.length, 3);
+    assert.deepEqual(resDefault.map(j => j.id), [1, 2, 3]);
+
+    const resActive = filterJobsByStatus(mockJobs, 'active');
+    assert.equal(resActive.length, 3);
+    assert.deepEqual(resActive.map(j => j.id), [1, 2, 3]);
+  });
+
+  it('deve retornar todos os cancelados quando statusFilter for "all_cancelled"', () => {
+    const resCancelled = filterJobsByStatus(mockJobs, 'all_cancelled');
+    assert.equal(resCancelled.length, 3);
+    assert.deepEqual(resCancelled.map(j => j.id), [4, 5, 6]);
+  });
+
+  it('deve retornar todos os serviços incluindo cancelados quando statusFilter for "all"', () => {
+    const resAll = filterJobsByStatus(mockJobs, 'all');
+    assert.equal(resAll.length, 6);
+  });
+
+  it('deve filtrar corretamente por status específico de cancelamento ou ativo', () => {
+    const resLate = filterJobsByStatus(mockJobs, 'cancelled_late');
+    assert.equal(resLate.length, 1);
+    assert.equal(resLate[0].id, 5);
+
+    const resCompleted = filterJobsByStatus(mockJobs, 'completed');
+    assert.equal(resCompleted.length, 1);
+    assert.equal(resCompleted[0].id, 3);
+  });
+});

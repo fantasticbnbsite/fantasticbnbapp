@@ -5455,7 +5455,16 @@ function renderJobs() {
   const dateTo   = document.getElementById('jobsDateTo')?.value;
   
   let filtered = state.jobs || [];
-  if (statusFilter) filtered = filtered.filter(j => j.status === statusFilter);
+  if (statusFilter === 'all_cancelled') {
+    filtered = filtered.filter(j => (j.status || '').startsWith('cancelled'));
+  } else if (statusFilter === 'all') {
+    // Mantém todos, inclusive cancelados
+  } else if (statusFilter && statusFilter !== 'active') {
+    filtered = filtered.filter(j => j.status === statusFilter);
+  } else {
+    // Padrão (vazio ou 'active'): oculta cancelados
+    filtered = filtered.filter(j => !(j.status || '').startsWith('cancelled'));
+  }
   if (clientFilter) filtered = filtered.filter(j => String(j.clientUserId) === String(clientFilter));
   if (cleanerFilter === 'unassigned') filtered = filtered.filter(j => !j.employeeUserId);
   else if (cleanerFilter) filtered = filtered.filter(j => String(j.employeeUserId) === String(cleanerFilter));
